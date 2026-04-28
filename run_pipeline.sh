@@ -6,12 +6,11 @@ echo "   Bolus Tracking Automated Pipeline  "
 echo "======================================"
 
 if [ "$#" -eq 0 ]; then
-    echo "Usage: ./run_pipeline.sh <target_folder>"
-    echo "Example: ./run_pipeline.sh sample-subject-2259"
-    exit 1
+    echo "No target folder specified. Defaulting to current directory to process ALL subjects."
+    TARGET_FOLDER="."
+else
+    TARGET_FOLDER=$1
 fi
-
-TARGET_FOLDER=$1
 
 # 1. Convert Masks via MATLAB
 echo "-> Step 1: Converting MATLAB masks..."
@@ -37,7 +36,7 @@ if docker info > /dev/null 2>&1; then
     docker build -t bolus_tracking:latest .
     
     echo "Starting docker container..."
-    docker run --rm -v "$(pwd):/data" bolus_tracking:latest --folder "/data/$TARGET_FOLDER" --outdir "/data"
+    docker run --rm -v "$(pwd):/data" bolus_tracking:latest --folder "/data/$TARGET_FOLDER"
 else
     echo "WARNING: Docker is not running or not accessible."
     echo "Falling back to local Python virtual environment (.venv)..."
@@ -47,7 +46,7 @@ else
         # Quietly ensure latest requirements (like matplotlib) are installed
         pip install -q -r requirements.txt
         
-        python batch_process.py --folder "$TARGET_FOLDER" --outdir ./
+        python batch_process.py --folder "$TARGET_FOLDER"
     else
         echo "ERROR: Docker is not running and .venv was not found."
         echo "Please open Docker Desktop and try again!"

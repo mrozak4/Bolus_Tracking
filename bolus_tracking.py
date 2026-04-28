@@ -11,7 +11,7 @@ def gamma_fun(t, a1, peak1, fwhm1, m):
     fwhm1_safe = np.maximum(fwhm1, 1e-9)
     
     alpha1 = ((peak1_safe**2) / (fwhm1_safe**2)) * 8 * np.log(2)
-    beta1 = ((fwhm1_safe**2) / peak1_safe) / 8 * np.log(2)
+    beta1 = ((fwhm1_safe**2) / peak1_safe) / (8 * np.log(2))
     beta1_safe = np.maximum(beta1, 1e-9)
     
     base = t_safe / peak1_safe
@@ -46,7 +46,7 @@ def denoise_trace(trace, denoise_sd=2.0, half_win=5):
 def auto_estimate_params(tr, t_us, fr, up_f=20):
     """
     Auto-estimates the initial fitting parameters from the trace.
-    Returns: [Amplitude, TimeToPeak, FWHM, BaselineShift], start_idx, end_idx
+    Returns: [Amplitude, TimeToPeak, FWHM, BaselineShift], start_idx, end_idx, sd_base
     """
     n_base_frames = min(round(2 * fr * up_f), round(len(tr) * 0.1))
     n_base_frames = max(1, int(n_base_frames))
@@ -93,7 +93,7 @@ def auto_estimate_params(tr, t_us, fr, up_f=20):
         
     bsln_shift = end_amp - start_amp
     
-    return [amp, t2p, fwhm, bsln_shift], start_idx, end_idx
+    return [amp, t2p, fwhm, bsln_shift], start_idx, end_idx, sd_base
 
 def fit_bolus(t, y, params_init):
     """

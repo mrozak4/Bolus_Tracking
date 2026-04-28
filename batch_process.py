@@ -60,6 +60,9 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
     """
     Process a single bolus dataset.
     """
+    if not out_dir:
+        out_dir = os.path.dirname(tiff_path)
+        
     print(f"Processing {os.path.basename(tiff_path)}...")
     
     # 1. Load Data
@@ -111,24 +114,28 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
         y_us = spline_interp(tl_us)
         
         # Estimate parameters
-        init_params, start_idx, end_idx = auto_estimate_params(y_us, tl_us, fr, up_f)
+        init_params, start_idx, end_idx, sd_base = auto_estimate_params(y_us, tl_us, fr, up_f)
         
         # Fit Gamma Function
         popt, pcov = fit_bolus(tl_us[start_idx:end_idx], y_us[start_idx:end_idx], init_params)
         
+        init_snr = init_params[0] / sd_base if sd_base > 0 else np.nan
+        
         # Record results
         if popt is not None:
-            # We don't have the full metrics here, just the fitted parameters for demonstration
+            f_snr = popt[0] / sd_base if sd_base > 0 else np.nan
             results.append({
                 'ROI': i+1,
                 'InitAmp': init_params[0],
                 'InitT2p': init_params[1],
                 'InitFWHM': init_params[2],
                 'InitM': init_params[3],
+                'InitSNR': init_snr,
                 'F_Amp': popt[0],
                 'F_T2p': popt[1],
                 'F_FWHM': popt[2],
                 'F_M': popt[3],
+                'F_SNR': f_snr
             })
         else:
             results.append({
@@ -137,7 +144,8 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
                 'InitT2p': init_params[1],
                 'InitFWHM': init_params[2],
                 'InitM': init_params[3],
-                'F_Amp': np.nan, 'F_T2p': np.nan, 'F_FWHM': np.nan, 'F_M': np.nan
+                'InitSNR': init_snr,
+                'F_Amp': np.nan, 'F_T2p': np.nan, 'F_FWHM': np.nan, 'F_M': np.nan, 'F_SNR': np.nan
             })
             
         # --- Plotting/Screenshots ---
@@ -211,7 +219,7 @@ if __name__ == "__main__":
     parser.add_argument("--tiff", help="Path to Bolus TIFF stack (if not using --folder)")
     parser.add_argument("--mask", help="Path to maskObj .mat file (if not using --folder)")
     parser.add_argument("--meta", help="Path to metadata .txt file (if not using --folder)")
-    parser.add_argument("--outdir", help="Output directory", default="./")
+    parser.add_argument("--outdir", help="Output directory", default="")
     
     args = parser.parse_args()
     
