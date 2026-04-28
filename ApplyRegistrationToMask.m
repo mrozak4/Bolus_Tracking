@@ -37,25 +37,7 @@ maskData = load([maskPath maskFile]);
 
 % Find the maskObj variable — it might be stored under different names
 % or as the only polygon-type variable in the file
-if isfield(maskData, 'maskObj')
-    maskObj = maskData.maskObj;
-else
-    % Look for the variable that contains polygon objects or position structs
-    fnames = fieldnames(maskData);
-    found = false;
-    for ff = 1:length(fnames)
-        candidate = maskData.(fnames{ff});
-        if isobject(candidate) || (isstruct(candidate) && (isfield(candidate,'poli') || isfield(candidate,'Position')))
-            maskObj = candidate;
-            found = true;
-            disp(['Found maskObj stored as: ' fnames{ff}]);
-            break
-        end
-    end
-    if ~found
-        error('Could not find a maskObj variable in the selected file.');
-    end
-end
+maskObj = findMaskObjInData(maskData);
 
 % Extract positions from whichever format
 nROI = length(maskObj);
@@ -112,20 +94,7 @@ end
 % registered image space, we apply the same forward transform.
 
 for rr = 1:nROI
-    pos = allPos{rr}; % Nx2: [x, y] columns
-    
-    % Apply affine transform to each vertex
-    nVerts = size(pos, 1);
-    transformedPos = zeros(nVerts, 2);
-    
-    for vv = 1:nVerts
-        pt = pos(vv, :)'; % column vector [x; y]
-        % Forward transform: A * (pt - center) + center + translation
-        newPt = A * (pt - center) + center + translation;
-        transformedPos(vv, :) = newPt';
-    end
-    
-    allPos{rr} = transformedPos;
+    allPos{rr} = applyITKAffineTransform(allPos{rr}, A, center, translation);
 end
 
 disp('Transform applied to all ROI positions.');
