@@ -1,0 +1,89 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2709
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 \
+### BolusTrack_InteractiveEdit.m\
+\
+Full bolus tracking GUI with interactive ROI editing, metadata-based frame rate loading, and robust temporal denoising.\
+\
+**To use:** Rename this file to `BolusTrack.m` and place it in your MATLAB path.\
+\
+**Syntax:**\
+```matlab\
+BolusTrack\
+```\
+\
+**GUI buttons (left panel):**\
+\
+| Button | Function |\
+|--------|----------|\
+| Load Data | Select and load a cropped bolus TIFF stack |\
+| Load Metadata | Load a .txt metadata file to auto-populate the frame rate |\
+| Frame Rate | Manually enter or verify the frame rate (auto-filled by Load Metadata) |\
+| Import ROIs | Load a maskObj .mat file and overlay on the MIP |\
+| Show ROIs tc | Generate time-courses from current ROI positions, apply denoising, and display the first trace |\
+| Pop-out View | Open a full-size figure with interactive ROIs for editing |\
+| Denoise (SD) | Set the outlier threshold for temporal denoising (default: 2.5) |\
+\
+**GUI buttons (right panel):**\
+\
+| Button | Function |\
+|--------|----------|\
+| Fit Gamma function | Fit a gamma function to the current trace |\
+| Save values/next trace | Save the current fit and advance to the next ROI trace |\
+| Experiment | Label the condition (e.g., "baseline" or "CO2") |\
+| Subject ID | Enter the subject number |\
+| Export results | Save .csv and .mat output files |\
+| NaN initial Values | Reset fitting parameter fields |\
+| Clear All | Clear all data from workspace and GUI |\
+\
+**Load Metadata:**\
+\
+Reads the tab-delimited .txt file exported from Fluoview during TIFF conversion. Parses the "T Dimension" line to extract the number of frames and total duration, then calculates and auto-fills the frame rate. Example parsed line:\
+\
+```\
+"T Dimension"  "300, 0.000 - 59.004 [s], Interval FreeRun"\
+  -> 300 frames / 59.004 s = 5.08 fps\
+```\
+\
+The frame rate field remains editable so you can override if needed.\
+\
+**Temporal denoising:**\
+\
+Applied automatically when "Show ROIs tc" is clicked. For each time point in each ROI's raw trace, the algorithm compares the value to the median of a local window (10 frames on each side). If the point deviates by more than N standard deviations from that local median, it is replaced with the median. This removes cardiac and respiratory pulsation spikes while preserving the bolus passage curve shape.\
+\
+The threshold (default 2.5 SD) is adjustable via the "Denoise (SD)" field in the GUI. Lower values = more aggressive denoising; higher values = more permissive. The original unfiltered trace is preserved in `fitOut(n).yRawOriginal` for reference.\
+\
+**Pop-out View:**\
+\
+Opens a maximizable figure with all ROIs as interactive polygons. You can drag entire ROIs and/or individual vertices. Click "Apply Edits" to send changes back, then "Show ROIs tc" to extract time-courses with the corrected positions.\
+\
+**Fitting procedure (per ROI):**\
+\
+1. Click on the trace peak, then click in Amplitude field and press Enter\
+2. Click on the time of the peak, then click in Time to Peak field and press Enter\
+3. Click on the bolus onset, then click in Fit Start field and press Enter\
+4. Click on the return to baseline, then click in Fit End field and press Enter\
+5. Click in FWHM field and press Enter (auto-calculated)\
+6. Click in Baseline shift field and press Enter (auto-calculated)\
+7. Click "Fit Gamma function"\
+8. If good, click "Save values/next trace"\
+9. If bad, adjust parameters and re-fit\
+\
+**Output files (from Export results):**\
+\
+| File | Contents |\
+|------|----------|\
+| `subjectID_bolus#_condition.csv` | Gamma fit parameters for all ROIs |\
+| `subjectID_bolus#_condition.mat` | fitOut struct, mask, and maskNum arrays |\
+| `subjectID_bolus#_condition_MaskObj.mat` | Updated maskObj |\
+\
+**CSV columns:**\
+\
+`subj_num, ves_num, exp, InitAmp, InitT2p, InitFWHM, InitM, F_Amp, F_T2p, F_FWHM, F_M, AUC, AUCn, TTlb, TTm, TThb, OnTSc, ROI size`\
+\
+Where: `F_` = fitted parameter, `Init` = initial estimate, `TT` = transit time (lb/m/hb = lower bound/mean/higher bound), `OnTSc` = onset time scaled to earliest onset, `AUCn` = normalized AUC.}

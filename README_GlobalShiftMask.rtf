@@ -1,0 +1,47 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2709
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 ### GlobalShiftMask.m\
+\
+GUI tool that globally shifts all ROI positions by a user-specified X/Y pixel offset and saves the result as a new maskObj .mat file. Does not perform bolus tracking.\
+\
+**Syntax:**\
+```matlab\
+GlobalShiftMask\
+```\
+\
+**GUI buttons:**\
+\
+| Button | Function |\
+|--------|----------|\
+| Load Data | Load a bolus TIFF and display its MIP |\
+| Import ROIs | Load a maskObj and overlay ROIs on the MIP (thin red lines, no blue dots) |\
+| Pop-out View | Enter X/Y shift values, apply them, and display the shifted ROIs in a zoomable window for verification |\
+| Save Mask | Save the shifted maskObj as a new .mat file |\
+\
+**How to use:**\
+\
+1. Click Load Data and select the bolus TIFF you want to check alignment against\
+2. Click Import ROIs and select the maskObj file \'97 ROIs appear as red outlines on the MIP in the main window\
+3. Click Pop-out View \'97 enter X and Y pixel shift values \'97 a new window shows the shifted ROIs overlaid on the MIP\
+4. Zoom and pan to verify alignment\
+5. If happy, click Save Mask in the main window\
+6. If not happy, click Pop-out View again with different values\
+\
+**Shift value calculation:**\
+\
+If using Visual Studio registration, both bolus files are registered to the XYZ stack. The shift to apply to the ROIs is:\
+\
+```\
+X shift = dx_B - dx_A\
+Y shift = dy_B - dy_A\
+```\
+\
+where A is the bolus the ROIs were drawn on, and B is the other bolus in the pair. Positive X = rightward; positive Y = downward.\
+\
+**Output:** A .mat file containing a `maskObj` struct array with `.Position` fields, compatible with BolusTrack's "Import ROIs" button.\
+}
