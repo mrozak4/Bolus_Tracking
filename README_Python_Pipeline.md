@@ -13,23 +13,13 @@ Before running the Python scripts, you need to convert your older MATLAB `MaskOb
    ```
    This will automatically find every `MaskObj.mat` file in your folders and create a duplicate file named `adjusted_<OriginalName>.mat`. **You will use these `adjusted_*.mat` files for the Python pipeline.**
 
-## Setup Python Environment
+## Setup
 
-You need to install the required scientific libraries. You can use the provided virtual environment or install them globally/via Docker.
+The pipeline is now fully Dockerized! You do **not** need to install Python dependencies locally if you don't want to. 
 
-**Using the Virtual Environment:**
-```bash
-# Create a virtual environment (only needed once)
-python3 -m venv .venv
+If you just run the `run_pipeline.sh` script, it will automatically build the Docker container using the pinned versions in `requirements.txt` and run the data processing inside it. 
 
-# Activate it
-source .venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-*(Note: If you prefer Docker, you can build the provided `Dockerfile` using `docker build -t bolus_tracking .`)*
+*(If you prefer to run it locally without Docker, you can still use the `python3 -m venv .venv` approach and install the dependencies from `requirements.txt`).*
 
 ## Running the Pipeline
 
@@ -49,15 +39,20 @@ python batch_process.py --folder <path_to_folder> --outdir <output_directory>
 python batch_process.py --tiff <path_to_tif> --mask <path_to_adjusted_mat> --meta <path_to_txt> --outdir <output_directory>
 ```
 
-### Example
-Here is how you would process the entire `sample-subject-2259` dataset automatically:
+### Example (Dockerized Script)
+Here is how you would process the entire `sample-subject-2259` dataset automatically using the new script:
 
 ```bash
-# Ensure your virtual environment is active first!
-source .venv/bin/activate
-
-python batch_process.py --folder sample-subject-2259 --outdir ./
+./run_pipeline.sh sample-subject-2259
 ```
+This script will:
+1. Run MATLAB in the background to convert the masks
+2. Build the Docker container (if it hasn't been built yet)
+3. Pass the folder into the Docker container and run the Python analysis
+4. Output the `.csv` result files directly to your current directory!
+
+### Manual Example (Local Python)
+If you are running the python script manually (without the `.sh` script), you can use:
 
 *(Note: You were getting a `FileNotFoundError` earlier because the example command had the placeholder name `adjusted_maskObj.mat` instead of the actual file name `adjusted_3554_bolus1_baseline_shifted_MaskObj.mat`).*
 
