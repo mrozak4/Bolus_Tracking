@@ -9,9 +9,15 @@ from scipy.interpolate import interp1d
 import pandas as pd
 import warnings
 from bolus_tracking import denoise_trace, auto_estimate_params, fit_bolus, gamma_fun
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+
+try:
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
+    print("WARNING: matplotlib is not installed. Skipping screenshot generation.")
 
 warnings.filterwarnings("ignore")
 
@@ -135,28 +141,29 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
             })
             
         # --- Plotting/Screenshots ---
-        plots_dir = os.path.join(out_dir, "plots")
-        os.makedirs(plots_dir, exist_ok=True)
-        
-        fig, ax = plt.subplots(figsize=(8, 5))
-        ax.plot(tl_raw, mfi, 'k.', label='Raw Data', alpha=0.6)
-        ax.plot(tl_us, y_us, 'b--', label='Spline Upsampled', alpha=0.8)
-        
-        if popt is not None:
-            y_fit = gamma_fun(tl_us[start_idx:end_idx], *popt)
-            ax.plot(tl_us[start_idx:end_idx], y_fit, 'r-', linewidth=2, label='Gamma Fit')
-            ax.set_title(f"ROI {i+1} Fit\nAmp={popt[0]:.2f}, T2p={popt[1]:.2f}, FWHM={popt[2]:.2f}, Base={popt[3]:.2f}")
-        else:
-            ax.set_title(f"ROI {i+1} Fit Failed")
+        if HAS_MATPLOTLIB:
+            plots_dir = os.path.join(out_dir, "plots")
+            os.makedirs(plots_dir, exist_ok=True)
             
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel('Fluorescence Intensity')
-        ax.legend()
-        
-        base_name = os.path.basename(tiff_path).replace('.tif', '')
-        plot_name = f"{base_name}_ROI_{i+1}_fit.png"
-        plt.savefig(os.path.join(plots_dir, plot_name), dpi=150, bbox_inches='tight')
-        plt.close(fig)
+            fig, ax = plt.subplots(figsize=(8, 5))
+            ax.plot(tl_raw, mfi, 'k.', label='Raw Data', alpha=0.6)
+            ax.plot(tl_us, y_us, 'b--', label='Spline Upsampled', alpha=0.8)
+            
+            if popt is not None:
+                y_fit = gamma_fun(tl_us[start_idx:end_idx], *popt)
+                ax.plot(tl_us[start_idx:end_idx], y_fit, 'r-', linewidth=2, label='Gamma Fit')
+                ax.set_title(f"ROI {i+1} Fit\nAmp={popt[0]:.2f}, T2p={popt[1]:.2f}, FWHM={popt[2]:.2f}, Base={popt[3]:.2f}")
+            else:
+                ax.set_title(f"ROI {i+1} Fit Failed")
+                
+            ax.set_xlabel('Time (s)')
+            ax.set_ylabel('Fluorescence Intensity')
+            ax.legend()
+            
+            base_name = os.path.basename(tiff_path).replace('.tif', '')
+            plot_name = f"{base_name}_ROI_{i+1}_fit.png"
+            plt.savefig(os.path.join(plots_dir, plot_name), dpi=150, bbox_inches='tight')
+            plt.close(fig)
             
     df = pd.DataFrame(results)
     out_csv = os.path.join(out_dir, os.path.basename(tiff_path).replace('.tif', '_results.csv'))

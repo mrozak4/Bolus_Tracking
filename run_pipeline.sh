@@ -29,17 +29,31 @@ if [ -n "$MATLAB_CMD" ]; then
     $MATLAB_CMD -nodesktop -nosplash -r "run('scratch/convert_masks_for_python.m'); quit;"
 fi
 
-# 2. Run Python processing via Docker
-echo "-> Step 2: Running Python Batch Processing via Docker..."
+# 2. Run Python processing
+echo "-> Step 2: Running Python Batch Processing..."
 
-# Build the docker image
-echo "Building docker image 'bolus_tracking:latest'..."
-docker build -t bolus_tracking:latest .
-
-# Run the pipeline on the specified folder using Docker
-# We mount the current directory to /data inside the container to access files
-echo "Starting docker container..."
-docker run --rm -v "$(pwd):/data" bolus_tracking:latest --folder "/data/$TARGET_FOLDER" --outdir "/data"
+if docker info > /dev/null 2>&1; then
+    echo "Docker is running. Building docker image 'bolus_tracking:latest'..."
+    docker build -t bolus_tracking:latest .
+    
+    echo "Starting docker container..."
+    docker run --rm -v "$(pwd):/data" bolus_tracking:latest --folder "/data/$TARGET_FOLDER" --outdir "/data"
+else
+    echo "WARNING: Docker is not running or not accessible."
+    echo "Falling back to local Python virtual environment (.venv)..."
+    
+    if [ -d ".venv" ]; then
+        source .venv/bin/activate
+        # Quietly ensure latest requirements (like matplotlib) are installed
+        pip install -q -r requirements.txt
+        
+        python batch_process.py --folder "$TARGET_FOLDER" --outdir ./
+    else
+        echo "ERROR: Docker is not running and .venv was not found."
+        echo "Please open Docker Desktop and try again!"
+        exit 1
+    fi
+fi
 
 echo "======================================"
 echo "          Pipeline Complete!          "

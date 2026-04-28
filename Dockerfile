@@ -5,6 +5,7 @@ WORKDIR /app
 # Install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir matplotlib
 
 # Copy python scripts
 COPY bolus_tracking.py .
