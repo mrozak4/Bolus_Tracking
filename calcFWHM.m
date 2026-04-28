@@ -18,7 +18,7 @@ function fwhm = calcFWHM(fitStart, timeToPeak, fitEnd)
 % OUTPUT:
 %   fwhm - estimated full-width at half-maximum (seconds)
 
-HalfWidthU = timeToPeak - (fitStart + ((timeToPeak - fitStart) / 2));
+HalfWidthU = (timeToPeak - fitStart) / 2;
 HalfWidthD = fitEnd - timeToPeak;
 fwhm = (timeToPeak + HalfWidthD) - (fitStart + HalfWidthU);
 
