@@ -1,11 +1,7 @@
-% convert_masks_for_python.m
-% Run this script in MATLAB to batch-convert your old mask files into
-% clean struct arrays that Python's scipy.io library can read.
-
+% Convert all MATLAB mask files for Python compatibility
 disp('Searching for maskObj files...');
-maskFiles = dir('**/*maskObj*.mat'); % Find files with maskObj in the name
-% Also check MaskObj
-maskFiles2 = dir('**/*MaskObj*.mat');
+maskFiles = dir('**/*MaskObj*.mat');
+maskFiles2 = dir('**/*maskObj*.mat');
 allFiles = [maskFiles; maskFiles2];
 
 % Remove duplicates
@@ -13,20 +9,18 @@ allFiles = [maskFiles; maskFiles2];
 allFiles = allFiles(uniqueIdx);
 
 count = 0;
-
 for i = 1:length(allFiles)
     filePath = fullfile(allFiles(i).folder, allFiles(i).name);
     
+    % Don't process our parity or adjusted files
+    if contains(filePath, 'adjusted') || contains(filePath, 'parity')
+        continue;
+    end
+    
     try
-        % Don't process our parity or adjusted files
-        if contains(filePath, 'adjusted') || contains(filePath, 'parity')
-            continue;
-        end
-        
         data = load(filePath);
         if isfield(data, 'maskObj')
             oldMasks = data.maskObj;
-            
             clear newMaskObj
             nROI = length(oldMasks);
             valid = false;
@@ -47,13 +41,10 @@ for i = 1:length(allFiles)
             
             if valid
                 maskObj = newMaskObj;
-                
-                % Save as a new file with 'adjusted_' prefix so we don't overwrite originals
                 [fPath, fName, fExt] = fileparts(filePath);
                 newFileName = ['adjusted_' fName fExt];
                 newFilePath = fullfile(fPath, newFileName);
-                
-                save(newFilePath, 'maskObj', '-v7'); % -v7 ensures maximum Python compatibility
+                save(newFilePath, 'maskObj', '-v7');
                 fprintf('Converted: %s -> %s\n', allFiles(i).name, newFileName);
                 count = count + 1;
             else
