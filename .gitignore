@@ -1,2 +1,5 @@
 .DS_Store
 sample-subject-*/
+__pycache__/
+*.csv
+.venv/

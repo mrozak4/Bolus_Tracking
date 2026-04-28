@@ -428,16 +428,11 @@ end
     dcm_obj = datacursormode(gcf); 
     set(dcm_obj,'Enable','on'); 
     
-    assignin('base','mask',mask)
     assignin('base','maskNum',maskNum)
     assignin('base','maskObj',NewROI)
     
-    param1.String = NaN;
-    param2.String = NaN;
-    param3.String = NaN;
-    param4.String = NaN;
-    param5.String = NaN;
-    param6.String = NaN; 
+    autoEstimateParams();
+
     
 end   
 
@@ -512,12 +507,9 @@ end
         disp(['All ' num2str(resumeFrom) ' traces were already fitted. Ready to Export.']);
     end
     
-    param1.String = NaN;
-    param2.String = NaN;
-    param3.String = NaN;
-    param4.String = NaN;
-    param5.String = NaN;
-    param6.String = NaN;
+    if idx <= length(fitOut)
+        autoEstimateParams();
+    end
     
     end
 
@@ -544,6 +536,8 @@ end
     set(dcm_obj,'Enable','on');
     
     disp(['Denoising applied to ROI ' num2str(idx) ' at ' num2str(denoiseSD) ' SD.']);
+    
+    autoEstimateParams();
     
     end
 
@@ -579,10 +573,11 @@ end
         end
     end
     
-    ax.XLabel.String = 'Time(s)';
     ax.YLabel.String = 'Signal intensity (a.u.)';
     dcm_obj = datacursormode(gcf); 
     set(dcm_obj,'Enable','on');
+    
+    autoEstimateParams();
     
     end
 
@@ -611,13 +606,6 @@ end
             end
         end
     end
-        
-    param1.String = NaN;
-    param2.String = NaN;
-    param3.String = NaN;
-    param4.String = NaN;
-    param5.String = NaN;
-    param6.String = NaN;  
     
     fittedCount = fittedCount + 1;
     
@@ -652,6 +640,8 @@ end
         title(ax, ['ROI ' num2str(idx) ' — RAW']);
         dcm_obj = datacursormode(gcf); 
         set(dcm_obj,'Enable','on'); 
+        
+        autoEstimateParams();
                         
     elseif idx+1 > length(fitOut)
         
@@ -689,6 +679,108 @@ end
     end
 
 end
+
+    function autoEstimateParams(~,~)
+        % Automatically estimate the initial parameters for the current trace
+        % and populate the GUI fields.
+        
+        Fr = str2double(evalin('base','Fr'));
+        tr = fitOut(idx).y; % Upsampled trace
+        t_us = fitOut(idx).tlUs; % Upsampled time vector
+        
+        % 1. Baseline: Median of the first 2 seconds (or 10% of trace)
+        nBaseFrames = min(round(2 * Fr * UpF), round(length(tr) * 0.1));
+        if nBaseFrames < 1, nBaseFrames = 1; end
+        baseline = median(tr(1:nBaseFrames));
+        
+        % 2. Amplitude and Time to Peak
+        [maxVal, maxIdx] = max(tr);
+        amp = maxVal - baseline;
+        t2p = t_us(maxIdx);
+        
+        % 3. Fit Start (Onset): Find where signal rises above baseline + 2*SD
+        sdBase = std(tr(1:nBaseFrames));
+        thresh = baseline + 2 * sdBase;
+        if sdBase == 0 || thresh >= maxVal
+            thresh = baseline + 0.1 * amp; % Fallback
+        end
+        startIdx = find(tr(1:maxIdx) < thresh, 1, 'last');
+        if isempty(startIdx), startIdx = 1; end
+        tStart = t_us(startIdx);
+        startAmp = tr(startIdx);
+        
+        % 4. Fit End: Find where signal drops back to near baseline, or end of trace
+        endThresh = baseline + 0.1 * amp; % Fallback to 10% of amplitude above baseline
+        endIdx = find(tr(maxIdx:end) < endThresh, 1, 'first');
+        if isempty(endIdx)
+            endIdx = length(tr);
+        else
+            endIdx = endIdx + maxIdx - 1;
+        end
+        tEnd = t_us(endIdx);
+        endAmp = tr(endIdx);
+        
+        % 5. FWHM
+        halfMax = baseline + 0.5 * amp;
+        idxUp = find(tr(1:maxIdx) >= halfMax, 1, 'first');
+        idxDown = find(tr(maxIdx:end) <= halfMax, 1, 'first');
+        if isempty(idxUp), idxUp = startIdx; end
+        if isempty(idxDown)
+            tDown = tEnd;
+        else
+            tDown = t_us(idxDown + maxIdx - 1);
+        end
+        tUp = t_us(idxUp);
+        fwhm = tDown - tUp;
+        if fwhm <= 0, fwhm = 0.5; end % Fallback
+        
+        % 6. Baseline shift
+        bslnShift = endAmp - startAmp;
+        
+        % Populate GUI fields
+        param1.String = num2str(amp);
+        param2.String = num2str(t2p);
+        param3.String = num2str(tStart);
+        param4.String = num2str(tEnd);
+        param5.String = num2str(fwhm);
+        param6.String = num2str(bslnShift);
+        
+        % Update base workspace variables used by manual click callbacks
+        assignin('base','param1',param1.String);
+        assignin('base','param2',param2.String);
+        assignin('base','param3',param3.String);
+        assignin('base','param4',param4.String);
+        assignin('base','param5',param5.String);
+        assignin('base','param6',param6.String);
+        assignin('base','FitStAmp',startAmp);
+        assignin('base','FitEndAmp',endAmp);
+        
+        % Plot the automated clicks on the existing axis
+        ax = evalin('base','ax');
+        hold(ax, 'on');
+        % Peak (Red)
+        plot(ax, t2p, maxVal, 'r*', 'MarkerSize', 10, 'LineWidth', 1.5);
+        % Start (Green)
+        plot(ax, tStart, startAmp, 'g*', 'MarkerSize', 10, 'LineWidth', 1.5);
+        % End (Blue)
+        plot(ax, tEnd, endAmp, 'b*', 'MarkerSize', 10, 'LineWidth', 1.5);
+        % FWHM (Black line)
+        plot(ax, [tUp tDown], [halfMax halfMax], 'k-', 'LineWidth', 2);
+        hold(ax, 'off');
+        
+        % Save visualization to a folder
+        try
+            visFolder = fullfile(autoSavePath, 'auto_clicks');
+            if ~exist(visFolder, 'dir')
+                mkdir(visFolder);
+            end
+            exportgraphics(ax, fullfile(visFolder, sprintf('ROI_%03d_autoclicks.png', idx)), 'Resolution', 150);
+        catch
+            % Fallback
+        end
+        
+        disp(['Auto-estimated params for ROI ' num2str(idx)]);
+    end
 
     function GammaFit(~,~)
     

@@ -1,0 +1,6 @@
+numpy
+scipy
+tifffile
+scikit-image
+pandas
+pytest
