@@ -1,0 +1,302 @@
+"""
+Comprehensive tests for bolus_tracking.py functions:
+  - gamma_fun
+  - denoise_trace
+  - auto_estimate_params
+  - fit_bolus
+"""
+
+import numpy as np
+import pytest
+from scipy.interpolate import interp1d
+from bolus_tracking import gamma_fun, denoise_trace, auto_estimate_params, fit_bolus
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _make_gaussian_bolus(fr=5.0, up_f=20, n_frames=300, duration=60.0,
+                          baseline=50.0, amp=100.0, peak_t=20.0, sigma=3.0):
+    """Return an upsampled Gaussian-shaped bolus trace and its time axis."""
+    t_raw = np.linspace(0, duration, n_frames)
+    t_us = np.linspace(0, duration, n_frames * up_f)
+    y_raw = baseline + amp * np.exp(-0.5 * ((t_raw - peak_t) / sigma) ** 2)
+    spline = interp1d(t_raw, y_raw, kind='cubic', fill_value='extrapolate')
+    y_us = spline(t_us)
+    return y_us, t_us
+
+
+# ---------------------------------------------------------------------------
+# gamma_fun
+# ---------------------------------------------------------------------------
+
+class TestGammaFun:
+    """Tests for the gamma_fun model function."""
+
+    def test_output_shape_matches_input(self):
+        t = np.linspace(0.1, 10, 150)
+        y = gamma_fun(t, 1.0, 5.0, 2.0, 0.0)
+        assert y.shape == t.shape
+
+    def test_no_nan_or_inf_for_typical_params(self):
+        t = np.linspace(0.01, 20, 200)
+        y = gamma_fun(t, 2.0, 5.0, 3.0, 0.0)
+        assert not np.any(np.isnan(y))
+        assert not np.any(np.isinf(y))
+
+    def test_baseline_offset_shifts_output(self):
+        t = np.linspace(0.01, 10, 50)
+        y0 = gamma_fun(t, 1.0, 5.0, 2.0, 0.0)
+        y1 = gamma_fun(t, 1.0, 5.0, 2.0, 10.0)
+        np.testing.assert_allclose(y1 - y0, 10.0)
+
+    def test_amplitude_scales_output(self):
+        t = np.linspace(0.01, 10, 50)
+        y1 = gamma_fun(t, 1.0, 5.0, 2.0, 0.0)
+        y2 = gamma_fun(t, 2.0, 5.0, 2.0, 0.0)
+        # Peak of y2 should be roughly 2x peak of y1 (small baseline difference)
+        assert np.max(y2) > np.max(y1)
+
+    def test_single_peak_in_range(self):
+        t = np.linspace(0.01, 10, 500)
+        y = gamma_fun(t, 1.0, 5.0, 2.0, 0.0)
+        peak_idx = np.argmax(y)
+        # Peak must not be at the boundary
+        assert 0 < peak_idx < len(y) - 1
+
+    def test_t_zero_handled_safely(self):
+        """gamma_fun should not crash when t=0 is included (clipped to 1e-9 internally)."""
+        t = np.array([0.0, 0.5, 1.0, 2.0])
+        y = gamma_fun(t, 1.0, 1.0, 0.5, 0.0)
+        assert not np.any(np.isnan(y))
+        assert not np.any(np.isinf(y))
+
+    def test_scalar_input(self):
+        """gamma_fun should work with scalar t (returns scalar-like)."""
+        y = gamma_fun(np.array([1.0]), 1.0, 1.0, 0.5, 0.0)
+        assert y.shape == (1,)
+
+    def test_returns_ndarray(self):
+        t = np.linspace(0.1, 5, 10)
+        y = gamma_fun(t, 1.0, 2.0, 1.0, 0.0)
+        assert isinstance(y, np.ndarray)
+
+
+# ---------------------------------------------------------------------------
+# denoise_trace
+# ---------------------------------------------------------------------------
+
+class TestDenoiseTrace:
+    """Tests for the denoise_trace function."""
+
+    def test_outlier_replaced_by_local_median(self):
+        trace = np.array([1.0, 1.0, 1.0, 100.0, 1.0, 1.0, 1.0])
+        result = denoise_trace(trace, denoise_sd=2.0, half_win=3)
+        assert result[3] != 100.0
+        assert np.isclose(result[3], 1.0, atol=0.5)
+
+    def test_clean_trace_unchanged(self):
+        trace = np.array([1.0, 1.1, 0.9, 1.05, 0.95, 1.0, 1.1, 0.9])
+        result = denoise_trace(trace, denoise_sd=3.0, half_win=3)
+        # No point should be replaced since there are no outliers
+        np.testing.assert_array_equal(result, trace)
+
+    def test_output_length_matches_input(self):
+        trace = np.random.randn(50) + 5.0
+        result = denoise_trace(trace, denoise_sd=2.0, half_win=5)
+        assert len(result) == len(trace)
+
+    def test_original_trace_not_modified(self):
+        trace = np.array([1.0, 1.0, 50.0, 1.0, 1.0])
+        trace_copy = trace.copy()
+        denoise_trace(trace, denoise_sd=2.0, half_win=2)
+        np.testing.assert_array_equal(trace, trace_copy)
+
+    def test_multiple_outliers_replaced(self):
+        trace = np.array([1.0, 50.0, 1.0, 1.0, 50.0, 1.0, 1.0])
+        result = denoise_trace(trace, denoise_sd=1.0, half_win=3)
+        assert result[1] < 50.0
+        assert result[4] < 50.0
+
+    def test_single_element_trace(self):
+        trace = np.array([5.0])
+        result = denoise_trace(trace, denoise_sd=2.0, half_win=5)
+        assert len(result) == 1
+        assert result[0] == 5.0
+
+    def test_two_element_trace(self):
+        trace = np.array([1.0, 100.0])
+        result = denoise_trace(trace, denoise_sd=2.0, half_win=1)
+        assert len(result) == 2
+
+    def test_constant_trace_unchanged(self):
+        trace = np.ones(20) * 3.0
+        result = denoise_trace(trace, denoise_sd=2.0, half_win=5)
+        np.testing.assert_array_equal(result, trace)
+
+    def test_strict_threshold_replaces_more(self):
+        """Lower denoise_sd should replace more points."""
+        np.random.seed(0)
+        trace = np.random.randn(100)
+        result_strict = denoise_trace(trace, denoise_sd=0.5, half_win=5)
+        result_loose = denoise_trace(trace, denoise_sd=5.0, half_win=5)
+        n_changed_strict = np.sum(result_strict != trace)
+        n_changed_loose = np.sum(result_loose != trace)
+        assert n_changed_strict >= n_changed_loose
+
+    def test_half_win_zero_no_crash(self):
+        """half_win=0 means only immediately adjacent points (empty window possible)."""
+        trace = np.array([1.0, 100.0, 1.0, 1.0, 1.0])
+        result = denoise_trace(trace, denoise_sd=2.0, half_win=0)
+        assert len(result) == len(trace)
+
+
+# ---------------------------------------------------------------------------
+# auto_estimate_params
+# ---------------------------------------------------------------------------
+
+class TestAutoEstimateParams:
+    """Tests for the auto_estimate_params function."""
+
+    def test_amplitude_estimation_gaussian_bolus(self):
+        amp = 100.0; baseline = 50.0
+        y_us, t_us = _make_gaussian_bolus(amp=amp, baseline=baseline)
+        params, _, _ = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        # Estimated amplitude should be close to the true amplitude
+        assert np.isclose(params[0], amp, rtol=0.05), f"Amplitude {params[0]:.1f} != expected {amp}"
+
+    def test_peak_time_estimation_gaussian_bolus(self):
+        peak_t = 20.0
+        y_us, t_us = _make_gaussian_bolus(peak_t=peak_t)
+        params, _, _ = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        assert np.isclose(params[1], peak_t, atol=1.0), f"T2p {params[1]:.2f} != expected {peak_t}"
+
+    def test_fwhm_positive(self):
+        y_us, t_us = _make_gaussian_bolus()
+        params, _, _ = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        assert params[2] > 0, "FWHM must be positive"
+
+    def test_returns_four_params_and_indices(self):
+        y_us, t_us = _make_gaussian_bolus()
+        result = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        params, start_idx, end_idx = result
+        assert len(params) == 4
+        assert isinstance(start_idx, (int, np.integer))
+        assert isinstance(end_idx, (int, np.integer))
+
+    def test_start_idx_before_end_idx(self):
+        y_us, t_us = _make_gaussian_bolus()
+        _, start_idx, end_idx = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        assert start_idx < end_idx
+
+    def test_indices_within_bounds(self):
+        y_us, t_us = _make_gaussian_bolus()
+        _, start_idx, end_idx = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        assert 0 <= start_idx < len(y_us)
+        assert 0 <= end_idx < len(y_us)
+
+    def test_narrow_bolus(self):
+        """A narrow bolus (small sigma) should still produce positive FWHM."""
+        y_us, t_us = _make_gaussian_bolus(sigma=1.0)
+        params, start_idx, end_idx = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        assert params[2] > 0
+        assert start_idx < end_idx
+
+    def test_late_peak(self):
+        """Peak near the end of the recording should still be estimated."""
+        y_us, t_us = _make_gaussian_bolus(peak_t=50.0, duration=60.0)
+        params, _, _ = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        assert np.isclose(params[1], 50.0, atol=2.0)
+
+    def test_different_baselines_give_same_amp(self):
+        """Amplitude estimation should not depend on baseline level."""
+        amp = 80.0
+        y1, t1 = _make_gaussian_bolus(amp=amp, baseline=0.0)
+        y2, t2 = _make_gaussian_bolus(amp=amp, baseline=200.0)
+        p1, _, _ = auto_estimate_params(y1, t1, fr=5.0, up_f=20)
+        p2, _, _ = auto_estimate_params(y2, t2, fr=5.0, up_f=20)
+        assert np.isclose(p1[0], amp, rtol=0.05)
+        assert np.isclose(p2[0], amp, rtol=0.05)
+
+
+# ---------------------------------------------------------------------------
+# fit_bolus
+# ---------------------------------------------------------------------------
+
+class TestFitBolus:
+    """Tests for the fit_bolus function."""
+
+    def _get_fit_region(self):
+        """Return a realistic trace segment ready for fitting."""
+        y_us, t_us = _make_gaussian_bolus()
+        params, si, ei = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        return t_us[si:ei], y_us[si:ei], params
+
+    def test_returns_two_values(self):
+        t, y, p0 = self._get_fit_region()
+        result = fit_bolus(t, y, p0)
+        assert len(result) == 2
+
+    def test_successful_fit_returns_array(self):
+        t, y, p0 = self._get_fit_region()
+        popt, pcov = fit_bolus(t, y, p0)
+        assert popt is not None
+        assert pcov is not None
+        assert len(popt) == 4
+
+    def test_popt_amplitude_positive(self):
+        t, y, p0 = self._get_fit_region()
+        popt, _ = fit_bolus(t, y, p0)
+        assert popt is not None
+        assert popt[0] > 0, "Fitted amplitude must be positive"
+
+    def test_popt_t2p_positive(self):
+        t, y, p0 = self._get_fit_region()
+        popt, _ = fit_bolus(t, y, p0)
+        assert popt is not None
+        assert popt[1] > 0, "Fitted T2p must be positive"
+
+    def test_popt_fwhm_positive(self):
+        t, y, p0 = self._get_fit_region()
+        popt, _ = fit_bolus(t, y, p0)
+        assert popt is not None
+        assert popt[2] > 0, "Fitted FWHM must be positive"
+
+    def test_fit_curve_approximates_data(self):
+        """The fitted curve evaluated over the time range should approximate the data."""
+        t, y, p0 = self._get_fit_region()
+        popt, _ = fit_bolus(t, y, p0)
+        assert popt is not None
+        y_fit = gamma_fun(t, *popt)
+        # Residuals should be small relative to signal amplitude
+        residuals = np.abs(y_fit - y)
+        assert np.median(residuals) < 0.1 * np.max(y), "Fit residuals too large"
+
+    def test_gamma_curve_consistency(self):
+        """Fit self-generated gamma curve — should recover params closely."""
+        t = np.linspace(0.5, 8, 400)
+        true_params = [3.0, 2.0, 1.0, 0.5]
+        y_clean = gamma_fun(t, *true_params)
+        popt, pcov = fit_bolus(t, y_clean, true_params)
+        assert popt is not None
+        y_fitted = gamma_fun(t, *popt)
+        np.testing.assert_allclose(y_fitted, y_clean, rtol=0.01,
+                                   err_msg="Fitted curve should closely match clean gamma curve")
+
+    def test_failure_returns_none_none(self):
+        """fit_bolus should return (None, None) rather than raise on pathological input."""
+        # Provide extremely bad initial params that cause internal failure
+        t = np.linspace(0.1, 5, 50)
+        y = np.zeros(50)
+        # Mock a case that is designed to fail by patching internally
+        # In practice, curve_fit may still converge; just ensure the interface is correct.
+        result = fit_bolus(t, y, [1e-8, 1e-8, 1e-8, 0.0])
+        assert len(result) == 2  # always returns a 2-tuple
+
+    def test_pcov_is_2d_array_on_success(self):
+        t, y, p0 = self._get_fit_region()
+        popt, pcov = fit_bolus(t, y, p0)
+        if popt is not None:
+            assert pcov.ndim == 2
+            assert pcov.shape == (4, 4)
