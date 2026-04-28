@@ -94,10 +94,9 @@ def auto_estimate_params(tr, t_us, fr, up_f=20):
     bsln_shift = end_amp - start_amp
     
     clicks = {
-        'start': (t_start, start_amp),
-        'up': (t_up, tr[idx_up]),
+        'baseline_start': (t_us[0], tr[0]),
+        'onset': (t_start, start_amp),
         'peak': (t2p, max_val),
-        'down': (t_down, tr[idx_down_candidates[0] + max_idx] if len(idx_down_candidates) > 0 else end_amp),
         'end': (t_end, end_amp)
     }
     

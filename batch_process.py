@@ -107,8 +107,8 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
         mfi = np.array([np.mean(frame[mask]) for frame in tiff_stack])
         
         # Spline upsample
-        tl_raw = np.linspace(0, len(mfi)/fr, len(mfi))
-        tl_us = np.linspace(0, len(mfi)/fr, len(mfi)*up_f)
+        tl_raw = np.arange(len(mfi)) / fr
+        tl_us = np.arange(len(mfi) * up_f) / (fr * up_f)
         
         spline_interp = interp1d(tl_raw, mfi, kind='cubic', fill_value='extrapolate')
         y_us = spline_interp(tl_us)
@@ -131,11 +131,10 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
                 'InitFWHM': init_params[2],
                 'InitM': init_params[3],
                 'InitSNR': init_snr,
-                'Click1_Start_T': clicks['start'][0],
-                'Click2_Up_T': clicks['up'][0],
+                'Click1_Start_T': clicks['baseline_start'][0],
+                'Click2_Onset_T': clicks['onset'][0],
                 'Click3_Peak_T': clicks['peak'][0],
-                'Click4_Down_T': clicks['down'][0],
-                'Click5_End_T': clicks['end'][0],
+                'Click4_End_T': clicks['end'][0],
                 'F_Amp': popt[0],
                 'F_T2p': popt[1],
                 'F_FWHM': popt[2],
@@ -150,11 +149,10 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
                 'InitFWHM': init_params[2],
                 'InitM': init_params[3],
                 'InitSNR': init_snr,
-                'Click1_Start_T': clicks['start'][0],
-                'Click2_Up_T': clicks['up'][0],
+                'Click1_Start_T': clicks['baseline_start'][0],
+                'Click2_Onset_T': clicks['onset'][0],
                 'Click3_Peak_T': clicks['peak'][0],
-                'Click4_Down_T': clicks['down'][0],
-                'Click5_End_T': clicks['end'][0],
+                'Click4_End_T': clicks['end'][0],
                 'F_Amp': np.nan, 'F_T2p': np.nan, 'F_FWHM': np.nan, 'F_M': np.nan, 'F_SNR': np.nan
             })
             
@@ -168,11 +166,10 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
             ax.plot(tl_us, y_us, 'b--', label='Spline Upsampled', alpha=0.6)
             
             # Plot the auto-clicks
-            ax.plot(clicks['start'][0], clicks['start'][1], 'go', markersize=8, label='1: Start')
-            ax.plot(clicks['up'][0], clicks['up'][1], 'co', markersize=8, label='2: Upstroke')
+            ax.plot(clicks['baseline_start'][0], clicks['baseline_start'][1], 'go', markersize=8, label='1: Baseline Start')
+            ax.plot(clicks['onset'][0], clicks['onset'][1], 'co', markersize=8, label='2: Bolus Onset')
             ax.plot(clicks['peak'][0], clicks['peak'][1], 'mo', markersize=8, label='3: Peak')
-            ax.plot(clicks['down'][0], clicks['down'][1], 'yo', markersize=8, label='4: Downstroke')
-            ax.plot(clicks['end'][0], clicks['end'][1], 'ro', markersize=8, label='5: End')
+            ax.plot(clicks['end'][0], clicks['end'][1], 'ro', markersize=8, label='4: Bolus End')
             
             if popt is not None:
                 y_fit = gamma_fun(tl_us[start_idx:end_idx], *popt)
