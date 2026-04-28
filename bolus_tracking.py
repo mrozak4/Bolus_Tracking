@@ -46,7 +46,7 @@ def denoise_trace(trace, denoise_sd=2.0, half_win=5):
 def auto_estimate_params(tr, t_us, fr, up_f=20):
     """
     Auto-estimates the initial fitting parameters from the trace.
-    Returns: [Amplitude, TimeToPeak, FWHM, BaselineShift], start_idx, end_idx, sd_base
+    Returns: [Amplitude, TimeToPeak, FWHM, BaselineShift], start_idx, end_idx, sd_base, clicks
     """
     n_base_frames = min(round(2 * fr * up_f), round(len(tr) * 0.1))
     n_base_frames = max(1, int(n_base_frames))
@@ -93,7 +93,15 @@ def auto_estimate_params(tr, t_us, fr, up_f=20):
         
     bsln_shift = end_amp - start_amp
     
-    return [amp, t2p, fwhm, bsln_shift], start_idx, end_idx, sd_base
+    clicks = {
+        'start': (t_start, start_amp),
+        'up': (t_up, tr[idx_up]),
+        'peak': (t2p, max_val),
+        'down': (t_down, tr[idx_down_candidates[0] + max_idx] if len(idx_down_candidates) > 0 else end_amp),
+        'end': (t_end, end_amp)
+    }
+    
+    return [amp, t2p, fwhm, bsln_shift], start_idx, end_idx, sd_base, clicks
 
 def fit_bolus(t, y, params_init):
     """
