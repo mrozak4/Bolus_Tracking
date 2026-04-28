@@ -252,17 +252,11 @@ set(findall(f, '-property', 'Units'), 'Units', 'norm')
         metaText = fread(fid, '*char')';
         fclose(fid);
         
-        tMatch = regexp(metaText, '"T Dimension"\s+"(\d+),\s+([\d.]+)\s*-\s*([\d.]+)\s*\[s\]', 'tokens');
+        calcFr = parseFrameRateFromMetadata(metaText);
         
-        if ~isempty(tMatch)
-            nFrames = str2double(tMatch{1}{1});
-            tStart = str2double(tMatch{1}{2});
-            tEnd = str2double(tMatch{1}{3});
-            calcFr = round(nFrames / (tEnd - tStart), 2);
-            
+        if ~isnan(calcFr)
             Fr.String = num2str(calcFr);
             assignin('base', 'Fr', Fr.String);
-            disp(['Metadata: ' num2str(nFrames) ' frames, ' num2str(tEnd - tStart) ' s']);
             disp(['Frame rate auto-set to: ' num2str(calcFr) ' fps']);
         else
             disp('Could not parse frame rate from metadata file.');
@@ -532,21 +526,7 @@ end
     Fr = str2double(evalin('base','Fr'));
     halfWin = 5; % 5 frames each side (~2s at 5fps) — preserves fast arteriolar bolus shape
     
-    rawTrace = fitOut(idx).yRawOriginal;
-    cleanTrace = rawTrace;
-    nPts = length(rawTrace);
-    
-    for pp = 1:nPts
-        wStart = max(1, pp - halfWin);
-        wEnd = min(nPts, pp + halfWin);
-        localWindow = rawTrace([wStart:pp-1, pp+1:wEnd]);
-        localMedian = median(localWindow);
-        localSD = std(localWindow);
-        
-        if abs(rawTrace(pp) - localMedian) > denoiseSD * localSD
-            cleanTrace(pp) = localMedian;
-        end
-    end
+    cleanTrace = denoiseTrace(fitOut(idx).yRawOriginal, halfWin, denoiseSD);
     
     fitOut(idx).yDenoised = cleanTrace;
     
@@ -832,9 +812,7 @@ end
     X1 = str2double(evalin('base','param3'));
     X2 = str2double(evalin('base','param4'));
     pk = str2double(evalin('base','param2'));
-    HalfWidthU = pk-(X1+((pk - X1)/2));
-    HalfWidthD = X2 -pk;
-    fwhm =  (pk + HalfWidthD) - (X1 + HalfWidthU);
+    fwhm = calcFWHM(X1, pk, X2);
     param5.String = fwhm;
     assignin('base','param5',param5.String);
 end

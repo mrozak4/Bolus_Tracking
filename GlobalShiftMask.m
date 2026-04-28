@@ -181,11 +181,7 @@ set(findall(f, '-property', 'Units'), 'Units', 'norm')
         dy = str2double(shiftInput{2});
         
         % Apply shift to a COPY of the positions
-        shiftedPos = allPos;
-        for rr = 1:nROI
-            shiftedPos{rr}(:,1) = shiftedPos{rr}(:,1) + dx;
-            shiftedPos{rr}(:,2) = shiftedPos{rr}(:,2) + dy;
-        end
+        shiftedPos = applyGlobalShift(allPos, dx, dy);
         
         % Store shifted positions in base workspace
         assignin('base', 'GSM_shiftedPos', shiftedPos);
