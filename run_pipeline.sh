@@ -32,11 +32,9 @@ fi
 # 2. Run Python processing via Docker
 echo "-> Step 2: Running Python Batch Processing via Docker..."
 
-# Build the docker image if it doesn't exist
-if ! docker image inspect bolus_tracking:latest > /dev/null 2>&1; then
-    echo "Building docker image 'bolus_tracking:latest'..."
-    docker build -t bolus_tracking:latest .
-fi
+# Build the docker image
+echo "Building docker image 'bolus_tracking:latest'..."
+docker build -t bolus_tracking:latest .
 
 # Run the pipeline on the specified folder using Docker
 # We mount the current directory to /data inside the container to access files
