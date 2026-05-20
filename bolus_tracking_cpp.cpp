@@ -614,11 +614,284 @@ std::vector<int> get_mask_pixels(const std::vector<std::pair<double, double>>& p
 }
 
 // ---------------------------------------------------------
+// SVG Fit Visualizer Helpers
+// ---------------------------------------------------------
+struct NiceTicks {
+    double step;
+    std::vector<double> ticks;
+};
+
+inline NiceTicks get_nice_ticks(double min_val, double max_val, int max_ticks = 5) {
+    NiceTicks nt;
+    double range = max_val - min_val;
+    if (range < 1e-6) {
+        nt.step = 1.0;
+        nt.ticks = {min_val};
+        return nt;
+    }
+    double rough_step = range / static_cast<double>(max_ticks);
+    double exponent = std::floor(std::log10(rough_step));
+    double fraction = rough_step / std::pow(10.0, exponent);
+    
+    double nice_fraction;
+    if (fraction < 1.5) nice_fraction = 1.0;
+    else if (fraction < 3.0) nice_fraction = 2.0;
+    else if (fraction < 7.0) nice_fraction = 5.0;
+    else nice_fraction = 10.0;
+    
+    nt.step = nice_fraction * std::pow(10.0, exponent);
+    
+    double start_tick = std::ceil(min_val / nt.step) * nt.step;
+    if (start_tick - nt.step >= min_val - 1e-9 * nt.step) {
+        start_tick -= nt.step;
+    }
+    
+    for (double tick = start_tick; tick <= max_val + 1e-9 * nt.step; tick += nt.step) {
+        nt.ticks.push_back(tick);
+    }
+    return nt;
+}
+
+inline std::string format_tick(double val) {
+    if (std::abs(val - std::round(val)) < 1e-7) {
+        return std::to_string(static_cast<int>(std::round(val)));
+    }
+    std::ostringstream ss;
+    ss << std::fixed << std::setprecision(2) << val;
+    std::string s = ss.str();
+    if (s.find('.') != std::string::npos) {
+        while (s.back() == '0') s.pop_back();
+        if (s.back() == '.') s.pop_back();
+    }
+    return s;
+}
+
+// ---------------------------------------------------------
+// SVG Fit Visualizer
+// ---------------------------------------------------------
+void save_svg_plot(int roi_id, const std::string& tiff_path,
+                   const std::vector<double>& tl_raw, const std::vector<double>& mfi_raw,
+                   const std::vector<double>& mfi_denoised,
+                   const std::vector<double>& tl_us, const std::vector<double>& y_us,
+                   const FitRecord& rec, bool fit_success) {
+    std::filesystem::path tiff_p(tiff_path);
+    auto parent_dir = tiff_p.parent_path();
+    auto stem = tiff_p.stem().string();
+    auto plot_dir = parent_dir / "plots_cpp";
+    
+    // Create plots_cpp folder if not exists
+    std::error_code ec;
+    std::filesystem::create_directories(plot_dir, ec);
+    
+    auto svg_path = plot_dir / (stem + "_ROI_" + std::to_string(roi_id) + "_fit.svg");
+    std::ofstream out(svg_path);
+    if (!out.is_open()) return;
+
+    // 1. Calculate boundaries
+    double t_min = tl_raw.front();
+    double t_max = tl_raw.back();
+    
+    double y_min = mfi_raw.front();
+    double y_max = mfi_raw.front();
+    for (double y : mfi_raw) {
+        if (y < y_min) y_min = y;
+        if (y > y_max) y_max = y;
+    }
+    for (double y : y_us) {
+        if (y < y_min) y_min = y;
+        if (y > y_max) y_max = y;
+    }
+    double y_range = y_max - y_min;
+    if (y_range < 1e-6) y_range = 1.0;
+    y_min -= 0.05 * y_range;
+    y_max += 0.05 * y_range;
+    y_range = y_max - y_min;
+
+    // Canvas sizes
+    const int W = 800;
+    const int H = 500;
+    const int margin_left = 75;
+    const int margin_right = 35;
+    const int margin_top = 60;
+    const int margin_bottom = 65;
+    const int plot_w = W - margin_left - margin_right;
+    const int plot_h = H - margin_top - margin_bottom;
+
+    auto X = [&](double t) {
+        return margin_left + ((t - t_min) / (t_max - t_min)) * plot_w;
+    };
+    auto Y = [&](double y) {
+        return margin_top + plot_h - ((y - y_min) / y_range) * plot_h;
+    };
+
+    out << std::fixed << std::setprecision(3);
+    
+    // 2. Start SVG document
+    out << "<svg width=\"" << W << "\" height=\"" << H << "\" viewBox=\"0 0 " << W << " " << H 
+        << "\" xmlns=\"http://www.w3.org/2000/svg\">\n";
+        
+    // Background rect
+    out << "  <rect width=\"100%\" height=\"100%\" fill=\"#0d1117\" />\n";
+    
+    // Grid Lines (Horizontal - Nice Ticks)
+    NiceTicks y_ticks = get_nice_ticks(y_min, y_max, 5);
+    for (double y_val : y_ticks.ticks) {
+        if (y_val < y_min || y_val > y_max) continue;
+        double y_coord = Y(y_val);
+        out << "  <line x1=\"" << margin_left << "\" y1=\"" << y_coord << "\" x2=\"" 
+            << (W - margin_right) << "\" y2=\"" << y_coord << "\" stroke=\"#1f242c\" stroke-width=\"1\" />\n";
+        out << "  <text x=\"" << (margin_left - 10) << "\" y=\"" << (y_coord + 4) 
+            << "\" fill=\"#8b949e\" font-family=\"sans-serif\" font-size=\"11\" text-anchor=\"end\">" 
+            << format_tick(y_val) << "</text>\n";
+    }
+
+    // Grid Lines (Vertical - Nice Ticks)
+    NiceTicks x_ticks = get_nice_ticks(t_min, t_max, 6);
+    for (double t_val : x_ticks.ticks) {
+        if (t_val < t_min || t_val > t_max) continue;
+        double x_coord = X(t_val);
+        out << "  <line x1=\"" << x_coord << "\" y1=\"" << margin_top << "\" x2=\"" 
+            << x_coord << "\" y2=\"" << (H - margin_bottom) << "\" stroke=\"#1f242c\" stroke-width=\"1\" />\n";
+        out << "  <text x=\"" << x_coord << "\" y=\"" << (H - margin_bottom + 18) 
+            << "\" fill=\"#8b949e\" font-family=\"sans-serif\" font-size=\"11\" text-anchor=\"middle\">" 
+            << format_tick(t_val) << "s</text>\n";
+    }
+
+    // Axis titles
+    out << "  <text x=\"" << (margin_left + plot_w / 2) << "\" y=\"" << (H - 15) 
+        << "\" fill=\"#c9d1d9\" font-family=\"sans-serif\" font-weight=\"bold\" font-size=\"13\" text-anchor=\"middle\">Time (seconds)</text>\n";
+    out << "  <text x=\"" << 22 << "\" y=\"" << (margin_top + plot_h / 2) 
+        << "\" fill=\"#c9d1d9\" font-family=\"sans-serif\" font-weight=\"bold\" font-size=\"13\" text-anchor=\"middle\" transform=\"rotate(-90 " << 22 << " " << (margin_top + plot_h / 2) << ")\">Mean Fluorescence Intensity (MFI)</text>\n";
+
+    // Bounding Box
+    out << "  <rect x=\"" << margin_left << "\" y=\"" << margin_top << "\" width=\"" << plot_w 
+        << "\" height=\"" << plot_h << "\" fill=\"none\" stroke=\"#30363d\" stroke-width=\"1.5\" />\n";
+
+    // 3. Draw raw points
+    for (size_t i = 0; i < tl_raw.size(); ++i) {
+        out << "  <circle cx=\"" << X(tl_raw[i]) << "\" cy=\"" << Y(mfi_raw[i]) 
+            << "\" r=\"2\" fill=\"#8b949e\" opacity=\"0.6\" />\n";
+    }
+
+    // 4. Draw denoised line
+    out << "  <path d=\"M";
+    for (size_t i = 0; i < tl_raw.size(); ++i) {
+        out << " " << X(tl_raw[i]) << "," << Y(mfi_denoised[i]);
+        if (i < tl_raw.size() - 1) out << " L";
+    }
+    out << "\" stroke=\"#58a6ff\" stroke-width=\"1.5\" fill=\"none\" opacity=\"0.7\" />\n";
+
+    // 5. Draw upsampled spline
+    out << "  <path d=\"M";
+    for (size_t i = 0; i < tl_us.size(); ++i) {
+        out << " " << X(tl_us[i]) << "," << Y(y_us[i]);
+        if (i < tl_us.size() - 1) out << " L";
+    }
+    out << "\" stroke=\"#388bfd\" stroke-width=\"1.2\" stroke-dasharray=\"4,4\" fill=\"none\" opacity=\"0.8\" />\n";
+
+    auto get_y_val_at_time = [&](double t, const std::vector<double>& times, const std::vector<double>& vals) -> double {
+        if (std::isnan(t) || times.empty()) return NAN;
+        double min_diff = 1e9;
+        double best_val = vals.front();
+        for (size_t i = 0; i < times.size(); ++i) {
+            double diff = std::abs(times[i] - t);
+            if (diff < min_diff) {
+                min_diff = diff;
+                best_val = vals[i];
+            }
+        }
+        return best_val;
+    };
+
+    // 6. Draw markers (Circles instead of Lines)
+    if (!std::isnan(rec.click_onset)) {
+        double xo = X(rec.click_onset);
+        double yo = Y(get_y_val_at_time(rec.click_onset, tl_us, y_us));
+        out << "  <circle cx=\"" << xo << "\" cy=\"" << yo << "\" r=\"7.5\" fill=\"#39c5bb\" stroke=\"#0d1117\" stroke-width=\"2\" />\n";
+        out << "  <text x=\"" << (xo + 10) << "\" y=\"" << (yo - 10) 
+            << "\" fill=\"#39c5bb\" font-family=\"sans-serif\" font-weight=\"bold\" font-size=\"12\">Onset</text>\n";
+    }
+    if (!std::isnan(rec.click_peak)) {
+        double xp = X(rec.click_peak);
+        double yp = Y(get_y_val_at_time(rec.click_peak, tl_us, y_us));
+        out << "  <circle cx=\"" << xp << "\" cy=\"" << yp << "\" r=\"7.5\" fill=\"#d85fd3\" stroke=\"#0d1117\" stroke-width=\"2\" />\n";
+        out << "  <text x=\"" << (xp + 10) << "\" y=\"" << (yp - 10) 
+            << "\" fill=\"#d85fd3\" font-family=\"sans-serif\" font-weight=\"bold\" font-size=\"12\">Peak</text>\n";
+    }
+    if (!std::isnan(rec.click_end)) {
+        double xe = X(rec.click_end);
+        double ye = Y(get_y_val_at_time(rec.click_end, tl_us, y_us));
+        out << "  <circle cx=\"" << xe << "\" cy=\"" << ye << "\" r=\"7.5\" fill=\"#ff5555\" stroke=\"#0d1117\" stroke-width=\"2\" />\n";
+        out << "  <text x=\"" << (xe + 10) << "\" y=\"" << (ye - 10) 
+            << "\" fill=\"#ff5555\" font-family=\"sans-serif\" font-weight=\"bold\" font-size=\"12\">End</text>\n";
+    }
+
+    // 7. Draw fitted curve
+    if (fit_success && !std::isnan(rec.f_amp) && !std::isnan(rec.f_t2p) && !std::isnan(rec.f_fwhm) && !std::isnan(rec.f_m)) {
+        double onset = rec.click_onset;
+        double end = rec.click_end;
+        double amp = rec.f_amp;
+        double t2p = rec.f_t2p;
+        double fwhm = rec.f_fwhm;
+        double m = rec.f_m;
+
+        double alpha = (t2p * t2p) / (fwhm * fwhm) * 8.0 * std::log(2.0);
+        double beta = (fwhm * fwhm) / t2p * (1.0 / (8.0 * std::log(2.0)));
+        
+        out << "  <path d=\"M";
+        bool first = true;
+        const int steps = 250;
+        for (int i = 0; i <= steps; ++i) {
+            double t = t_min + i * ((end - t_min) / steps);
+            double dt = t - onset;
+            double val = m;
+            if (dt > 0) {
+                val = m + amp * std::pow(dt / t2p, alpha) * std::exp(-(dt - t2p) / beta);
+            }
+            if (first) {
+                out << " " << X(t) << "," << Y(val);
+                first = false;
+            } else {
+                out << " L " << X(t) << "," << Y(val);
+            }
+        }
+        out << "\" stroke=\"#ff7b72\" stroke-width=\"3.5\" fill=\"none\" />\n";
+    }
+
+    // 8. Title
+    out << "  <text x=\"" << margin_left << "\" y=\"" << (margin_top - 20) 
+        << "\" fill=\"#f0f6fc\" font-family=\"sans-serif\" font-weight=\"bold\" font-size=\"16\">" 
+        << stem << " - ROI " << roi_id << " (C++ fit)</text>\n";
+
+    // 9. Glassmorphism legend card
+    double card_x = margin_left + 15;
+    double card_y = margin_top + 15;
+    double card_w = 180;
+    double card_h = 145;
+    out << "  <rect x=\"" << card_x << "\" y=\"" << card_y << "\" width=\"" << card_w 
+        << "\" height=\"" << card_h << "\" rx=\"6\" fill=\"#161b22\" opacity=\"0.85\" stroke=\"#30363d\" stroke-width=\"1.5\" />\n";
+    
+    out << "  <text x=\"" << (card_x + 12) << "\" y=\"" << (card_y + 22) << "\" fill=\"#f0f6fc\" font-family=\"sans-serif\" font-size=\"12\" font-weight=\"bold\">Fit Results:</text>\n";
+    if (fit_success) {
+        out << "  <text x=\"" << (card_x + 12) << "\" y=\"" << (card_y + 45) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">Amp: " << format_tick(rec.f_amp) << "</text>\n";
+        out << "  <text x=\"" << (card_x + 12) << "\" y=\"" << (card_y + 68) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">T2p: " << format_tick(rec.f_t2p) << " s</text>\n";
+        out << "  <text x=\"" << (card_x + 12) << "\" y=\"" << (card_y + 91) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">FWHM: " << format_tick(rec.f_fwhm) << " s</text>\n";
+        out << "  <text x=\"" << (card_x + 12) << "\" y=\"" << (card_y + 114) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">Base: " << format_tick(rec.f_m) << "</text>\n";
+        out << "  <text x=\"" << (card_x + 12) << "\" y=\"" << (card_y + 137) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">SNR: " << format_tick(rec.f_snr) << "</text>\n";
+    } else {
+        out << "  <text x=\"" << (card_x + 12) << "\" y=\"" << (card_y + 45) << "\" fill=\"#f85149\" font-family=\"sans-serif\" font-size=\"12\">FIT FAILED</text>\n";
+    }
+
+    out << "</svg>\n";
+    out.close();
+}
+
+// ---------------------------------------------------------
 // Pipeline Execution for a single ROI
 // ---------------------------------------------------------
 FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, double>>& poly,
                              const std::vector<std::vector<float>>& frames, int width, int height,
-                             double fr, int up_f) {
+                             double fr, int up_f, const std::string& tiff_path, bool enable_plots) {
     // 1. Rasterize Mask
     std::vector<int> mask = get_mask_pixels(poly, width, height);
     
@@ -699,13 +972,19 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
         rec.f_m = NAN;
         rec.f_snr = NAN;
     }
+    
+    // Save vector SVG plot of raw points, denoised spline, markers, and fitted curve
+    if (enable_plots) {
+        save_svg_plot(roi_id, tiff_path, tl_raw, mfi_raw, mfi_denoised, tl_us, y_us, rec, fit_success);
+    }
+    
     return rec;
 }
 
 // ---------------------------------------------------------
 // Main Function
 // ---------------------------------------------------------
-bool process_dataset_file(const std::string& tiff_path, const std::string& rois_path, double fr, int up_f, const std::string& out_csv) {
+bool process_dataset_file(const std::string& tiff_path, const std::string& rois_path, double fr, int up_f, const std::string& out_csv, bool enable_plots) {
     std::cout << "Starting C++ Bolus Tracking for: " << tiff_path << std::endl;
     
     // 1. Read TIFF Stack
@@ -780,7 +1059,7 @@ bool process_dataset_file(const std::string& tiff_path, const std::string& rois_
     for (int i = 0; i < n_rois; ++i) {
         futures.push_back(std::async(std::launch::async, process_single_roi,
                                      rois[i].id + 1, rois[i].poly, std::ref(frames),
-                                     (int)width, (int)height, fr, up_f));
+                                     (int)width, (int)height, fr, up_f, tiff_path, enable_plots));
     }
     
     std::vector<FitRecord> results;
@@ -854,14 +1133,42 @@ bool contains_ignored_pattern(const std::string& path) {
 }
 
 int main(int argc, char** argv) {
-    if (argc == 3 && std::string(argv[1]) == "--folder") {
-        std::string folder_path = argv[2];
+    bool enable_plots = false;
+    bool folder_mode = false;
+    std::string folder_path = "";
+    std::vector<std::string> pos_args;
+    
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--plot") {
+            enable_plots = true;
+        } else if (arg == "--folder") {
+            folder_mode = true;
+            if (i + 1 < argc) {
+                folder_path = argv[i + 1];
+                i++; // skip next arg
+            }
+        } else {
+            pos_args.push_back(arg);
+        }
+    }
+    
+    if (folder_mode) {
+        if (folder_path.empty()) {
+            std::cerr << "Error: --folder requires a path." << std::endl;
+            return 1;
+        }
         if (!std::filesystem::exists(folder_path)) {
             std::cerr << "Folder does not exist: " << folder_path << std::endl;
             return 1;
         }
         
         std::cout << "Pure C++ Pipeline - Scanning: " << folder_path << std::endl;
+        if (enable_plots) {
+            std::cout << "Plotting enabled. Fits will be saved to plots_cpp/ folder." << std::endl;
+        } else {
+            std::cout << "Plotting disabled. Only results CSVs will be generated." << std::endl;
+        }
         
         // 1. Scan for all ROI and Metadata files first
         std::map<std::string, std::string> rois_map;
@@ -942,7 +1249,7 @@ int main(int argc, char** argv) {
             std::cout << "Output: " << out_csv << std::endl;
             std::cout << "==================================================" << std::endl;
             
-            process_dataset_file(tiff_path.string(), rois_file, fr, 20, out_csv);
+            process_dataset_file(tiff_path.string(), rois_file, fr, 20, out_csv, enable_plots);
             processed_count++;
         }
         
@@ -950,18 +1257,18 @@ int main(int argc, char** argv) {
         return 0;
     } 
     
-    if (argc >= 6) {
-        std::string tiff_path = argv[1];
-        std::string rois_path = argv[2];
-        double fr = std::stod(argv[3]);
-        int up_f = std::stoi(argv[4]);
-        std::string out_csv = argv[5];
+    if (pos_args.size() >= 5) {
+        std::string tiff_path = pos_args[0];
+        std::string rois_path = pos_args[1];
+        double fr = std::stod(pos_args[2]);
+        int up_f = std::stoi(pos_args[3]);
+        std::string out_csv = pos_args[4];
         
-        bool success = process_dataset_file(tiff_path, rois_path, fr, up_f, out_csv);
+        bool success = process_dataset_file(tiff_path, rois_path, fr, up_f, out_csv, enable_plots);
         return success ? 0 : 1;
     }
     
-    std::cerr << "Usage for single file:\n  " << argv[0] << " <tiff_path> <rois_txt_path> <fr> <up_f> <out_csv_path>\n"
-              << "Usage for folder batch processing:\n  " << argv[0] << " --folder <path_to_folder>" << std::endl;
+    std::cerr << "Usage for single file:\n  " << argv[0] << " <tiff_path> <rois_txt_path> <fr> <up_f> <out_csv_path> [--plot]\n"
+              << "Usage for folder batch processing:\n  " << argv[0] << " --folder <path_to_folder> [--plot]" << std::endl;
     return 1;
 }

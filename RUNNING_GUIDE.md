@@ -23,148 +23,125 @@ cd Bolus_Tracking
 
 ---
 
-## 2. Operating System Setup Instructions
+## 2. Recommended Workflow: Running Everything with Docker
 
-### macOS (Mac)
-1. Open the Terminal app (press `Cmd + Space`, type `Terminal`, and press `Enter`).
-2. Make sure you have python installed. If not, install it via Homebrew (`brew install python`) or download from [python.org](https://www.python.org/downloads/).
-3. Navigate to the folder you extracted:
-   ```bash
-   cd ~/Downloads/Bolus_Tracking
-   ```
-4. Run the pipeline:
-   ```bash
-   bash run_pipeline.sh
-   ```
+> [!IMPORTANT]
+> **Docker is the highly recommended and preferred way to run both the Python and C++ pipelines.**
+> Using Docker guarantees that all library versions are identical, prevents dependency conflicts, and requires zero installation of Python or C++ compilers on your system.
 
-### Linux (e.g., Ubuntu/Debian)
-1. Open your terminal.
-2. Install Python, virtual environment tools, Git, and GUI libraries (Tkinter) by running:
-   ```bash
-   sudo apt-get update
-   sudo apt-get install python3 python3-pip python3-venv python3-tk git -y
-   ```
-3. To install Docker (optional, but highly recommended for containerized runs):
-   ```bash
-   sudo apt-get install docker.io -y
-   sudo systemctl start docker
-   sudo systemctl enable docker
-   # Optional: Allow running docker commands without sudo
-   sudo usermod -aG docker $USER
-   ```
-   *(Note: If you add yourself to the docker group, log out and log back in for the changes to take effect).*
-4. Navigate to the repository folder and run the pipeline:
-   ```bash
-   bash run_pipeline.sh
-   ```
-
-### Windows
-1. Open **PowerShell** as Administrator.
-2. Navigate to your extracted folder (e.g. `cd C:\Users\YourName\Downloads\Bolus_Tracking`).
-3. Run the Python setup:
-   ```powershell
-   python -m venv .venv
-   .venv\Scripts\Activate.ps1
-   pip install -r requirements.txt
-   python batch_process.py --folder .
-   ```
+### Prerequisites (One-Time Setup)
+Make sure you have Docker installed and running on your system:
+- **macOS / Windows**: Download and run [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+- **Linux (Ubuntu/Debian)**: Run:
+  ```bash
+  sudo apt-get update && sudo apt-get install docker.io -y
+  sudo systemctl start docker && sudo systemctl enable docker
+  sudo usermod -aG docker $USER  # Log out and back in after running this
+  ```
 
 ---
 
-## 3. Running the Python Interactive GUI (New!)
+### A. Running the C++ Parallel Pipeline with Docker
+The C++ pipeline is a standalone computational engine designed for maximum speed. It runs completely standalone inside its own Docker container with zero Python overhead.
 
-We have created a premium Python-based Graphical User Interface (`bolus_gui.py`) so you can visually verify and custom-adjust the fits for every ROI without needing MATLAB!
-
-### How to Launch the GUI
-Make sure your virtual environment is active, then run:
+To process a target folder (e.g. `sample-subject-2259`) using the C++ pipeline with Docker:
 ```bash
-# macOS / Linux
-.venv/bin/python bolus_gui.py
-
-# Windows (PowerShell)
-.venv/Scripts/python bolus_gui.py
-```
-
-### GUI Step-by-Step Instructions
-1. **Load Subject Folder**: Click **📁 Open Subject Folder** at the top left. Select any folder containing your TIFF stack and metadata files (it defaults to your current directory).
-2. **Select Dataset**: Choose your dataset triplet (TIFF, MAT mask, and metadata TXT) from the **1. Select Dataset** dropdown. The image trace will load automatically.
-3. **Select Capillary ROI**: Navigate between the different capillary regions of interest using the **2. Select Capillary ROI** dropdown.
-4. **Interactive Marker Placement**:
-   - If the automatic guess is slightly off, click one of the orange, purple, red, or green **Adjust Markers** buttons (e.g., **Set Onset ⌖**).
-   - Click anywhere on the plot to place that marker. The GUI will instantly re-calculate the fit and draw the updated curves!
-5. **Direct Entry Editing**: You can also type exact numbers directly into the Amplitude, T2P, FWHM, Baseline, Onset, and End fields. Click **⚡ Run Gamma Fit** to apply them.
-6. **Vessel Designation**: Set the capillary type (Unknown, Artery, Vein, or Capillary) under the dropdown.
-7. **Save & Export**: Click **💾 Save & Export Results** to write the parameters to the CSV results table and save a high-resolution screenshot of the fit inside the subject's `plots/` folder.
-
----
-
-## 4. Running with Docker (Containerized Execution)
-
-Running inside Docker is highly recommended as it guarantees all library versions are identical and prevents dependency conflicts on your computer.
-
-### Method 1: Automatic Detection
-If Docker is installed and running on your computer, the `run_pipeline.sh` script will **automatically** build the docker container and run the processing inside it. You do not need to type any Docker commands manually!
-
-### Method 2: Manual Docker Execution (Command Line)
-If you want to run the Docker container manually without the wrapper script:
-
-1. **Build the Docker Image**:
-   ```bash
-   docker build -t bolus_tracking:latest .
-   ```
-
-2. **Run on all subjects in the current directory**:
-   This maps your current working directory (`$(pwd)`) to the `/data` folder inside the container so it can read files and write output.
-   ```bash
-   docker run --rm -v "$(pwd):/data" bolus_tracking:latest --folder /data
-   ```
-
-3. **Run on a specific subject folder**:
-   ```bash
-   docker run --rm -v "$(pwd):/data" bolus_tracking:latest --folder /data/sample-subject-2259
-   ```
-
----
-
-## 5. Pure C++ Parallel Pipeline (New!)
-
-For extremely fast, lightweight execution in high-performance or headless environments, we provide a standalone, parallelized C++ implementation (`bolus_tracking_cpp.cpp`).
-
-### Important Note on Plotting
-> [!NOTE]
-> The C++ pipeline is a purely computational engine designed to run extremely fast with minimal dependencies. It **does not generate plots**. It processes the TIFF stacks and exports results directly to `*_results_cpp.csv`.
-> If you want to visualize the fits and generate high-resolution PNG plots, run the Python batch pipeline (`run_pipeline.sh`) or use the interactive GUI (`bolus_gui.py`).
-
-### How to Run the C++ Pipeline
-
-You can run the C++ pipeline locally or inside its own dedicated Docker container:
-
-#### Option A: Run via Bash Script (Local or Docker)
-The bash script `run_pipeline_cpp.sh` automatically detects if Docker is running.
-- **If Docker is running**: It builds `Dockerfile.cpp` and runs the C++ batch processor containerized.
-- **If Docker is not running**: It compiles the C++ code locally using CMake and runs the binary.
-
-```bash
-# Process all folders in the current directory
-bash run_pipeline_cpp.sh
-
-# Process a specific subject folder
 bash run_pipeline_cpp.sh sample-subject-2259
 ```
 
-#### Option B: Run C++ manually inside Docker
-1. **Build the image**:
-   ```bash
-   docker build -t bolus_tracking_cpp -f Dockerfile.cpp .
-   ```
-2. **Execute**:
-   ```bash
-   docker run --rm -v "$(pwd):/data" bolus_tracking_cpp --folder /data
-   ```
+#### Manual command:
+If you want to run the Docker command manually:
+```bash
+# 1. Build the C++ image
+docker build -t bolus_tracking_cpp -f Dockerfile.cpp .
+
+# 2. Run the C++ processing (maps current directory to /data in the container)
+docker run --rm -v "$(pwd):/data" bolus_tracking_cpp --folder /data/sample-subject-2259
+```
 
 ---
 
-## 6. Technical Overview of the Files
+### B. Running the Python Pipeline with Docker
+The master control script `run_pipeline.sh` automatically detects if Docker is installed and running, and will run the Python batch processor inside the container.
+
+To process a target folder (e.g. `sample-subject-2259`) using the Python pipeline with Docker:
+```bash
+bash run_pipeline.sh sample-subject-2259
+```
+
+#### Manual command:
+If you want to run the Docker command manually:
+```bash
+# 1. Build the Python image
+docker build -t bolus_tracking:latest .
+
+# 2. Run the processing (maps current directory to /data in the container)
+docker run --rm -v "$(pwd):/data" bolus_tracking:latest --folder /data/sample-subject-2259
+```
+
+---
+
+## 3. Running the Python Interactive GUI
+
+Since GUI applications require display access, the GUI (`bolus_gui.py`) is run locally on your host operating system.
+
+### How to Launch the GUI
+1. Create a Python virtual environment and install dependencies:
+   ```bash
+   # macOS / Linux
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   python bolus_gui.py
+   
+   # Windows (PowerShell)
+   python -m venv .venv
+   .venv\Scripts\Activate.ps1
+   pip install -r requirements.txt
+   python bolus_gui.py
+   ```
+2. **GUI Step-by-Step Instructions**:
+   - **Load Subject Folder**: Click **📁 Open Subject Folder** and select the subject folder.
+   - **Select Dataset**: Choose the dataset triplet from the dropdown.
+   - **Select Capillary ROI**: Navigate between the different capillary regions of interest.
+   - **Interactive Marker Placement**: Click **Adjust Markers** and click anywhere on the plot to adjust onset/peak/end points visually. The fit will update instantly!
+   - **Save & Export**: Click **💾 Save & Export Results** to write parameters to the CSV and save a high-resolution screenshot.
+
+---
+
+## 4. Alternative Workflow: Running Locally without Docker
+
+If you cannot use Docker, you can run the pipelines locally on your machine:
+
+### C++ Pipeline (Local)
+Make sure you have CMake, a C++17 compiler, Eigen3, and libtiff installed on your system.
+```bash
+# Compile and run
+mkdir -p build && cd build
+cmake ..
+make -j4
+cd ..
+./build/bolus_tracking_cpp --folder sample-subject-2259
+```
+
+### Python Pipeline (Local)
+```bash
+# macOS / Linux
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python batch_process.py --folder sample-subject-2259
+
+# Windows (PowerShell)
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python batch_process.py --folder sample-subject-2259
+```
+
+---
+
+## 5. Technical Overview of the Files
 
 Here is what each file does:
 * `bolus_gui.py`: The Python-based interactive GUI for loading, viewing, adjusting, and exporting individual ROI bolus fits.
@@ -177,10 +154,11 @@ Here is what each file does:
 * `test_bolus_parity.py`: A test suite to verify that Python/C++ results match legacy MATLAB results.
 * `BolusTrack_InteractiveEdit.m`: The MATLAB graphical user interface (GUI) for manually visualizing and adjusting fits.
 * `gammaFun.m`: The MATLAB definition of the Gamma variate function.
+* `Dockerfile`: Instructs Docker how to build the runtime container image for the Python pipeline.
 
 ---
 
-## 7. Inputs and Output Structure
+## 6. Inputs and Output Structure
 
 ### Expected Inputs
 The pipeline automatically scans directories in the workspace for subject folders (e.g., `sample-subject-2259`). Inside each folder, it expects:
