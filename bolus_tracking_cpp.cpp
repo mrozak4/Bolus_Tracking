@@ -880,7 +880,7 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
     double card_x = W - margin_right + 20;
     double card_y = margin_top;
     double card_w = 190;
-    double card_h = 160;
+    double card_h = 185;
     out << "  <rect x=\"" << card_x << "\" y=\"" << card_y << "\" width=\"" << card_w 
         << "\" height=\"" << card_h << "\" rx=\"6\" fill=\"#161b22\" opacity=\"0.85\" stroke=\"#30363d\" stroke-width=\"1.5\" />\n";
     
@@ -891,6 +891,7 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
         out << "  <text x=\"" << (card_x + 15) << "\" y=\"" << (card_y + 96) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">FWHM: " << format_tick(rec.f_fwhm) << " s</text>\n";
         out << "  <text x=\"" << (card_x + 15) << "\" y=\"" << (card_y + 119) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">Base: " << format_tick(rec.f_m) << "</text>\n";
         out << "  <text x=\"" << (card_x + 15) << "\" y=\"" << (card_y + 142) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">SNR: " << format_tick(rec.f_snr) << "</text>\n";
+        out << "  <text x=\"" << (card_x + 15) << "\" y=\"" << (card_y + 165) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">CNR: " << format_tick(rec.f_cnr) << "</text>\n";
     } else {
         out << "  <text x=\"" << (card_x + 15) << "\" y=\"" << (card_y + 50) << "\" fill=\"#f85149\" font-family=\"sans-serif\" font-size=\"12\">FIT FAILED</text>\n";
     }
