@@ -104,10 +104,46 @@ def test_cpp_vs_python_parity():
     if os.path.exists(cpp_csv):
         os.remove(cpp_csv)
     
-    from batch_process_cpp import export_rois_to_txt, parse_metadata
+    import scipy.io as sio
+    import re
+    
+    def parse_metadata_local(meta_path):
+        with open(meta_path, 'r') as f:
+            content = f.read()
+        match = re.search(r'"T Dimension"\s+"(\d+),\s+([\d.]+)\s*-\s*([\d.]+)\s*\[s\]', content)
+        if match:
+            frames = int(match.group(1))
+            t_start = float(match.group(2))
+            t_end = float(match.group(3))
+            return round(frames / (t_end - t_start), 2)
+        raise ValueError(f"Could not parse frame rate from {meta_path}")
+
+    def export_rois_to_txt_local(mask_path, txt_path):
+        mat_data = sio.loadmat(mask_path, struct_as_record=False, squeeze_me=True)
+        mask_objs = mat_data['maskObj']
+        if not isinstance(mask_objs, np.ndarray):
+            mask_objs = [mask_objs]
+        valid_objs = []
+        for i, obj in enumerate(mask_objs):
+            if hasattr(obj, 'poli'):
+                pos = obj.poli.Position
+            elif hasattr(obj, 'Position'):
+                pos = obj.Position
+            else:
+                continue
+            if len(pos) < 3:
+                continue
+            valid_objs.append((i, pos))
+        with open(txt_path, 'w') as f:
+            f.write(f"{len(valid_objs)}\n")
+            for i, pos in valid_objs:
+                f.write(f"{i} {len(pos)}\n")
+                for pt in pos:
+                    f.write(f"{pt[0]} {pt[1]}\n")
+
     rois_txt = "sample-subject-2259/bolus1_baseline_rois_cpp.txt"
-    export_rois_to_txt(mask_path, rois_txt)
-    fr = parse_metadata(meta_path)
+    export_rois_to_txt_local(mask_path, rois_txt)
+    fr = parse_metadata_local(meta_path)
     
     subprocess.run([cpp_binary, tiff_path, rois_txt, str(fr), "20", cpp_csv], check=True)
     if os.path.exists(rois_txt):
