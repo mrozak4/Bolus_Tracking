@@ -172,8 +172,27 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir, drift_window=15.0,
         tthb = np.nan
         ont = np.nan
         
+        def is_near_bounds(val, low, high):
+            if abs(val - low) < 1e-4:
+                return True
+            if low > 0 and val <= low * 1.01:
+                return True
+            if high is not None and not np.isinf(high):
+                if abs(high - val) < 1e-4:
+                    return True
+                if high > 0 and val >= high * 0.99:
+                    return True
+            return False
+
+        fit_valid = False
         if popt is not None and not np.isnan(popt).any():
             f_amp, f_t2p, f_fwhm, f_m = popt
+            if not (is_near_bounds(f_amp, min_amp, max_amp) or
+                    is_near_bounds(f_t2p, min_t2p, max_t2p) or
+                    is_near_bounds(f_fwhm, min_fwhm, max_fwhm)):
+                fit_valid = True
+                
+        if fit_valid:
             f_snr = f_m / sd_base if sd_base > 0 else np.nan
             f_cnr = f_amp / sd_base if sd_base > 0 else np.nan
             

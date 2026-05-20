@@ -581,13 +581,37 @@ class BolusTrackingGUI:
             tthb = np.nan
             ont = np.nan
             
+            # Evaluate fit over t_fit
+            start_idx = np.argmin(np.abs(self.tl_us - onset_t))
+            end_idx = np.argmin(np.abs(self.tl_us - end_t))
+            t_fit = self.tl_us[start_idx:end_idx] - onset_t
+            t_duration = t_fit[-1] if len(t_fit) > 0 else 1.0
+            
+            min_amp, max_amp = 1e-6, 1023.0
+            min_t2p, max_t2p = 1e-6, np.inf
+            min_fwhm, max_fwhm = 0.5, np.inf
+
+            def is_near_bounds(val, low, high):
+                if abs(val - low) < 1e-4:
+                    return True
+                if low > 0 and val <= low * 1.01:
+                    return True
+                if high is not None and not np.isinf(high):
+                    if abs(high - val) < 1e-4:
+                        return True
+                    if high > 0 and val >= high * 0.99:
+                        return True
+                return False
+
+            fit_valid = False
             if self.fit_params is not None and not np.isnan(self.fit_params).any():
                 f_amp, f_t2p, f_fwhm, f_m = self.fit_params
-                
-                # Evaluate fit over t_fit
-                start_idx = np.argmin(np.abs(self.tl_us - onset_t))
-                end_idx = np.argmin(np.abs(self.tl_us - end_t))
-                t_fit = self.tl_us[start_idx:end_idx] - onset_t
+                if not (is_near_bounds(f_amp, min_amp, max_amp) or
+                        is_near_bounds(f_t2p, min_t2p, max_t2p) or
+                        is_near_bounds(f_fwhm, min_fwhm, max_fwhm)):
+                    fit_valid = True
+                    
+            if fit_valid:
                 
                 alpha = ((f_t2p ** 2) / (f_fwhm ** 2)) * 8.0 * np.log(2.0)
                 beta_param = ((f_fwhm ** 2) / f_t2p) / (8.0 * np.log(2.0))

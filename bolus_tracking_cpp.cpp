@@ -1130,6 +1130,24 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
     rec.click_end = auto_res.click_end;
     
     if (fit_success) {
+        auto is_near_bounds = [](double val, double low, double high) {
+            if (std::abs(val - low) < 1e-4) return true;
+            if (low > 0.0 && val <= low * 1.01) return true;
+            if (!std::isinf(high)) {
+                if (std::abs(high - val) < 1e-4) return true;
+                if (high > 0.0 && val >= high * 0.99) return true;
+            }
+            return false;
+        };
+        
+        if (is_near_bounds(popt[0], min_amp, max_amp) ||
+            is_near_bounds(popt[1], min_t2p, max_t2p) ||
+            is_near_bounds(popt[2], min_fwhm, max_fwhm)) {
+            fit_success = false;
+        }
+    }
+    
+    if (fit_success) {
         rec.f_amp = popt[0];
         rec.f_t2p = popt[1];
         rec.f_fwhm = popt[2];
