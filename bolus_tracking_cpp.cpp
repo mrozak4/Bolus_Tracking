@@ -35,6 +35,7 @@ struct FitRecord {
     double init_fwhm;
     double init_m;
     double init_snr;
+    double init_cnr;
     double click_start;
     double click_onset;
     double click_peak;
@@ -44,6 +45,8 @@ struct FitRecord {
     double f_fwhm;
     double f_m;
     double f_snr;
+    double f_cnr;
+    double denoise_rms;
 };
 
 // ---------------------------------------------------------
@@ -771,7 +774,7 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
     out << "  <text x=\"" << (margin_left + plot_w / 2) << "\" y=\"" << (H - 15) 
         << "\" fill=\"#c9d1d9\" font-family=\"sans-serif\" font-weight=\"bold\" font-size=\"13\" text-anchor=\"middle\">Time (seconds)</text>\n";
     out << "  <text x=\"" << 22 << "\" y=\"" << (margin_top + plot_h / 2) 
-        << "\" fill=\"#c9d1d9\" font-family=\"sans-serif\" font-weight=\"bold\" font-size=\"13\" text-anchor=\"middle\" transform=\"rotate(-90 " << 22 << " " << (margin_top + plot_h / 2) << ")\">Mean Fluorescence Intensity (MFI)</text>\n";
+        << "\" fill=\"#c9d1d9\" font-family=\"sans-serif\" font-weight=\"bold\" font-size=\"13\" text-anchor=\"middle\" transform=\"rotate(-90 " << 22 << " " << (margin_top + plot_h / 2) << ")\">Mean Fluorescence Intensity (SU)</text>\n";
 
     // Bounding Box
     out << "  <rect x=\"" << margin_left << "\" y=\"" << margin_top << "\" width=\"" << plot_w 
@@ -901,7 +904,8 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
 // ---------------------------------------------------------
 FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, double>>& poly,
                              const std::vector<std::vector<float>>& frames, int width, int height,
-                             double fr, int up_f, const std::string& tiff_path, bool enable_plots) {
+                             double fr, int up_f, const std::string& tiff_path, bool enable_plots,
+                             double drift_window) {
     // 1. Rasterize Mask
     std::vector<int> mask = get_mask_pixels(poly, width, height);
     
@@ -928,12 +932,12 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
     std::vector<double> tl_raw(mfi_raw.size());
     for (size_t i = 0; i < tl_raw.size(); ++i) tl_raw[i] = i / fr;
 
-    // Compute linear drift slope k using the first 10 seconds (t <= 10.0)
+    // Compute linear drift slope k using the first drift_window seconds (t <= drift_window)
     double sum_t = 0.0, sum_y = 0.0;
     double sum_tt = 0.0, sum_ty = 0.0;
     int count = 0;
     for (size_t i = 0; i < tl_raw.size(); ++i) {
-        if (tl_raw[i] <= 10.0) {
+        if (tl_raw[i] <= drift_window) {
             double t = tl_raw[i];
             double y = mfi_raw[i];
             sum_t += t;
@@ -996,7 +1000,8 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
     rec.init_t2p = auto_res.init_params[1];
     rec.init_fwhm = auto_res.init_params[2];
     rec.init_m = auto_res.init_params[3];
-    rec.init_snr = (auto_res.sd_base > 0.0) ? (auto_res.init_params[0] / auto_res.sd_base) : NAN;
+    rec.init_cnr = (auto_res.sd_base > 0.0) ? (auto_res.init_params[0] / auto_res.sd_base) : NAN;
+    rec.init_snr = (auto_res.sd_base > 0.0) ? (auto_res.init_params[3] / auto_res.sd_base) : NAN;
     rec.click_start = auto_res.click_start;
     rec.click_onset = auto_res.click_onset;
     rec.click_peak = auto_res.click_peak;
@@ -1007,14 +1012,24 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
         rec.f_t2p = popt[1];
         rec.f_fwhm = popt[2];
         rec.f_m = popt[3];
-        rec.f_snr = (auto_res.sd_base > 0.0) ? (popt[0] / auto_res.sd_base) : NAN;
+        rec.f_cnr = (auto_res.sd_base > 0.0) ? (popt[0] / auto_res.sd_base) : NAN;
+        rec.f_snr = (auto_res.sd_base > 0.0) ? (popt[3] / auto_res.sd_base) : NAN;
     } else {
         rec.f_amp = NAN;
         rec.f_t2p = NAN;
         rec.f_fwhm = NAN;
         rec.f_m = NAN;
+        rec.f_cnr = NAN;
         rec.f_snr = NAN;
     }
+    
+    // Calculate RMS of noise removed by denoising
+    double sum_sq_diff = 0.0;
+    for (size_t i = 0; i < mfi_raw.size(); ++i) {
+        double diff = mfi_raw_detrended[i] - mfi_denoised[i];
+        sum_sq_diff += diff * diff;
+    }
+    rec.denoise_rms = (mfi_raw.size() > 0) ? std::sqrt(sum_sq_diff / mfi_raw.size()) : 0.0;
     
     // Save vector SVG plot of raw points, denoised spline, markers, and fitted curve
     if (enable_plots) {
@@ -1027,7 +1042,7 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
 // ---------------------------------------------------------
 // Main Function
 // ---------------------------------------------------------
-bool process_dataset_file(const std::string& tiff_path, const std::string& rois_path, double fr, int up_f, const std::string& out_csv, bool enable_plots) {
+bool process_dataset_file(const std::string& tiff_path, const std::string& rois_path, double fr, int up_f, const std::string& out_csv, bool enable_plots, double drift_window) {
     std::cout << "Starting C++ Bolus Tracking for: " << tiff_path << std::endl;
     
     // 1. Read TIFF Stack
@@ -1102,7 +1117,8 @@ bool process_dataset_file(const std::string& tiff_path, const std::string& rois_
     for (int i = 0; i < n_rois; ++i) {
         futures.push_back(std::async(std::launch::async, process_single_roi,
                                      rois[i].id + 1, rois[i].poly, std::ref(frames),
-                                     (int)width, (int)height, fr, up_f, tiff_path, enable_plots));
+                                     (int)width, (int)height, fr, up_f, tiff_path, enable_plots,
+                                     drift_window));
     }
     
     std::vector<FitRecord> results;
@@ -1122,14 +1138,14 @@ bool process_dataset_file(const std::string& tiff_path, const std::string& rois_
         return false;
     }
     
-    out << "ROI,InitAmp,InitT2p,InitFWHM,InitM,InitSNR,Click1_Start_T,Click2_Onset_T,Click3_Peak_T,Click4_End_T,"
-        << "F_Amp,F_T2p,F_FWHM,F_M,F_SNR\n";
+    out << "ROI,InitAmp,InitT2p,InitFWHM,InitM,InitSNR,InitCNR,Click1_Start_T,Click2_Onset_T,Click3_Peak_T,Click4_End_T,"
+        << "F_Amp,F_T2p,F_FWHM,F_M,F_SNR,F_CNR,Denoise_RMS\n";
     
     for (const auto& rec : results) {
         out << rec.roi_id << ","
-            << rec.init_amp << "," << rec.init_t2p << "," << rec.init_fwhm << "," << rec.init_m << "," << rec.init_snr << ","
+            << rec.init_amp << "," << rec.init_t2p << "," << rec.init_fwhm << "," << rec.init_m << "," << rec.init_snr << "," << rec.init_cnr << ","
             << rec.click_start << "," << rec.click_onset << "," << rec.click_peak << "," << rec.click_end << ","
-            << rec.f_amp << "," << rec.f_t2p << "," << rec.f_fwhm << "," << rec.f_m << "," << rec.f_snr << "\n";
+            << rec.f_amp << "," << rec.f_t2p << "," << rec.f_fwhm << "," << rec.f_m << "," << rec.f_snr << "," << rec.f_cnr << "," << rec.denoise_rms << "\n";
     }
     out.close();
     std::cout << "Saved C++ results to: " << out_csv << std::endl;
@@ -1181,6 +1197,7 @@ int main(int argc, char** argv) {
     bool enable_plots = false;
     bool folder_mode = false;
     std::string folder_path = "";
+    double drift_window = 15.0;
     std::vector<std::string> pos_args;
     
     for (int i = 1; i < argc; ++i) {
@@ -1192,6 +1209,11 @@ int main(int argc, char** argv) {
             if (i + 1 < argc) {
                 folder_path = argv[i + 1];
                 i++; // skip next arg
+            }
+        } else if (arg == "--drift" || arg == "--drift-window") {
+            if (i + 1 < argc) {
+                drift_window = std::stod(argv[i + 1]);
+                i++;
             }
         } else {
             pos_args.push_back(arg);
@@ -1209,6 +1231,7 @@ int main(int argc, char** argv) {
         }
         
         std::cout << "Pure C++ Pipeline - Scanning: " << folder_path << std::endl;
+        std::cout << "Drift window duration: " << drift_window << " seconds." << std::endl;
         if (enable_plots) {
             std::cout << "Plotting enabled. Fits will be saved to plots_cpp/ folder." << std::endl;
         } else {
@@ -1304,7 +1327,7 @@ int main(int argc, char** argv) {
             std::cout << "Output: " << out_csv << std::endl;
             std::cout << "==================================================" << std::endl;
             
-            process_dataset_file(tiff_path.string(), rois_file, fr, 20, out_csv, enable_plots);
+            process_dataset_file(tiff_path.string(), rois_file, fr, 20, out_csv, enable_plots, drift_window);
             processed_count++;
         }
         
@@ -1319,11 +1342,11 @@ int main(int argc, char** argv) {
         int up_f = std::stoi(pos_args[3]);
         std::string out_csv = pos_args[4];
         
-        bool success = process_dataset_file(tiff_path, rois_path, fr, up_f, out_csv, enable_plots);
+        bool success = process_dataset_file(tiff_path, rois_path, fr, up_f, out_csv, enable_plots, drift_window);
         return success ? 0 : 1;
     }
     
-    std::cerr << "Usage for single file:\n  " << argv[0] << " <tiff_path> <rois_txt_path> <fr> <up_f> <out_csv_path> [--plot]\n"
-              << "Usage for folder batch processing:\n  " << argv[0] << " --folder <path_to_folder> [--plot]" << std::endl;
+    std::cerr << "Usage for single file:\n  " << argv[0] << " <tiff_path> <rois_txt_path> <fr> <up_f> <out_csv_path> [--plot] [--drift <seconds>]\n"
+              << "Usage for folder batch processing:\n  " << argv[0] << " --folder <path_to_folder> [--plot] [--drift <seconds>]" << std::endl;
     return 1;
 }

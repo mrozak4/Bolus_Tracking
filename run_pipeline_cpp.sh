@@ -7,13 +7,23 @@ echo "=================================================="
 
 PLOT_FLAG=""
 TARGET_FOLDER=""
+DRIFT_FLAG=""
 
-for arg in "$@"; do
-    if [ "$arg" = "--plot" ]; then
-        PLOT_FLAG="--plot"
-    else
-        TARGET_FOLDER="$arg"
-    fi
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --plot)
+            PLOT_FLAG="--plot"
+            shift
+            ;;
+        --drift|--drift-window)
+            DRIFT_FLAG="--drift $2"
+            shift 2
+            ;;
+        *)
+            TARGET_FOLDER="$1"
+            shift
+            ;;
+    esac
 done
 
 if [ -z "$TARGET_FOLDER" ]; then
@@ -68,7 +78,7 @@ if [ "$DOCKER_RUNNING" = true ]; then
     docker build -t bolus_tracking_cpp -f Dockerfile.cpp .
     
     echo "Running C++ Batch Processing..."
-    docker run --rm -v "$TARGET_ABS_FOLDER:/data" bolus_tracking_cpp --folder /data $PLOT_FLAG
+    docker run --rm -v "$TARGET_ABS_FOLDER:/data" bolus_tracking_cpp --folder /data $PLOT_FLAG $DRIFT_FLAG
 else
     echo "-> Step 2: Running C++ Parallel Pipeline locally..."
     
@@ -88,7 +98,7 @@ else
     
     # B. Run C++ Batch Processing directly
     echo "Sub-step B: Running C++ Parallel Batch Processing..."
-    ./build/bolus_tracking_cpp --folder "$TARGET_ABS_FOLDER" $PLOT_FLAG
+    ./build/bolus_tracking_cpp --folder "$TARGET_ABS_FOLDER" $PLOT_FLAG $DRIFT_FLAG
 fi
 
 echo "=================================================="

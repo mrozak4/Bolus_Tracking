@@ -56,7 +56,7 @@ def get_mask_from_poly(poly_verts, shape):
     mask[rr, cc] = True
     return mask
 
-def process_bolus(tiff_path, mask_path, meta_path, out_dir):
+def process_bolus(tiff_path, mask_path, meta_path, out_dir, drift_window=15.0):
     """
     Process a single bolus dataset.
     """
@@ -64,6 +64,7 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
         out_dir = os.path.dirname(tiff_path)
         
     print(f"Processing {os.path.basename(tiff_path)}...")
+    print(f"Drift window duration: {drift_window} seconds.")
     
     # 1. Load Data
     fr = parse_metadata(meta_path)
@@ -109,13 +110,13 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
         # Create time vector
         tl_raw = np.arange(len(mfi_raw)) / fr
         
-        # Compute linear drift slope k using first 10 seconds
-        first_10s_mask = tl_raw <= 10.0
+        # Compute linear drift slope k using first drift_window seconds
+        drift_mask = tl_raw <= drift_window
         k = 0.0
-        if np.sum(first_10s_mask) > 1:
-            t_10s = tl_raw[first_10s_mask]
-            y_10s = mfi_raw[first_10s_mask]
-            cov = np.cov(t_10s, y_10s)
+        if np.sum(drift_mask) > 1:
+            t_drift = tl_raw[drift_mask]
+            y_drift = mfi_raw[drift_mask]
+            cov = np.cov(t_drift, y_drift)
             if cov[0, 0] > 1e-9:
                 k = cov[0, 1] / cov[0, 0]
                 
@@ -200,7 +201,7 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
                 ax.set_title(f"ROI {i+1} Fit Failed")
                 
             ax.set_xlabel('Time (s)')
-            ax.set_ylabel('Fluorescence Intensity')
+            ax.set_ylabel('Fluorescence Intensity (SU)')
             ax.legend()
             
             base_name = os.path.basename(tiff_path).replace('.tif', '')
@@ -270,6 +271,7 @@ if __name__ == "__main__":
     parser.add_argument("--mask", help="Path to maskObj .mat file (if not using --folder)")
     parser.add_argument("--meta", help="Path to metadata .txt file (if not using --folder)")
     parser.add_argument("--outdir", help="Output directory", default="")
+    parser.add_argument("--drift", type=float, help="Baseline duration in seconds for drift correction", default=15.0)
     
     args = parser.parse_args()
     
@@ -281,10 +283,10 @@ if __name__ == "__main__":
             print(f"Found {len(triplets)} matching datasets to process.")
             for tif, mat, txt in triplets:
                 try:
-                    process_bolus(tif, mat, txt, args.outdir)
+                    process_bolus(tif, mat, txt, args.outdir, drift_window=args.drift)
                 except Exception as e:
                     print(f"Failed to process {tif}: {e}")
     elif args.tiff and args.mask and args.meta:
-        process_bolus(args.tiff, args.mask, args.meta, args.outdir)
+        process_bolus(args.tiff, args.mask, args.meta, args.outdir, drift_window=args.drift)
     else:
         print("Please provide either --folder OR --tiff, --mask, and --meta arguments.")

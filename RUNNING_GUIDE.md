@@ -50,9 +50,13 @@ bash run_pipeline_cpp.sh sample-subject-2259
 ```
 
 > [!TIP]
-> **Generating Plots**: By default, the C++ pipeline only generates the results CSV to maximize speed. To generate publication-quality SVG plots for all capillary ROIs, append the `--plot` flag:
+> **Generating Plots & Drift Correction**: By default, the C++ pipeline only generates the results CSV to maximize speed. To generate publication-quality SVG plots for all capillary ROIs, append the `--plot` flag:
 > ```bash
 > bash run_pipeline_cpp.sh sample-subject-2259 --plot
+> ```
+> By default, the baseline linear drift correction uses the first **15.0** seconds. If you want to change this duration (e.g. to 10 seconds), append `--drift 10`:
+> ```bash
+> bash run_pipeline_cpp.sh sample-subject-2259 --plot --drift 10
 > ```
 > The SVG plots will be saved to a `plots_cpp` subdirectory within the subject folder.
 
@@ -132,9 +136,13 @@ cd ..
 ```
 
 > [!TIP]
-> **Generating Plots**: To generate SVG plots when running locally, append the `--plot` flag:
+> **Generating Plots & Drift Correction**: To generate SVG plots when running locally, append the `--plot` flag:
 > ```bash
 > ./build/bolus_tracking_cpp --folder sample-subject-2259 --plot
+> ```
+> To customize the drift baseline duration (e.g. to 10 seconds instead of the default 15), append `--drift 10`:
+> ```bash
+> ./build/bolus_tracking_cpp --folder sample-subject-2259 --plot --drift 10
 > ```
 
 ### Python Pipeline (Local)
