@@ -3,3 +3,4 @@ sample-subject-*/
 __pycache__/
 *.csv
 .venv/
+build/

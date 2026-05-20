@@ -204,9 +204,9 @@ def find_triplets(folder):
     """
     Automatically finds and pairs (TIFF, MAT, TXT) files in a folder based on 'bolusX_condition' naming.
     """
-    tifs = glob.glob(os.path.join(folder, '**/*.tif'), recursive=True)
-    mats = glob.glob(os.path.join(folder, '**/adjusted_*.mat'), recursive=True)
-    txts = glob.glob(os.path.join(folder, '**/*.txt'), recursive=True)
+    tifs = [f for f in glob.glob(os.path.join(folder, '**/*.tif'), recursive=True) if not os.path.basename(f).startswith('.')]
+    mats = [f for f in glob.glob(os.path.join(folder, '**/adjusted_*.mat'), recursive=True) if not os.path.basename(f).startswith('.')]
+    txts = [f for f in glob.glob(os.path.join(folder, '**/*.txt'), recursive=True) if not os.path.basename(f).startswith('.') and 'rois' not in os.path.basename(f).lower()]
     
     triplets = []
     for tif in tifs:

@@ -79,3 +79,98 @@ def test_matlab_parity():
                 
                 # Check that the curves visually/numerically match
                 np.testing.assert_allclose(py_fit_tr, matlab_fit_tr, rtol=1e-2, err_msg=f"Fitted curve failed parity for {roi_key}")
+
+def test_cpp_vs_python_parity():
+    """
+    Verifies that the compiled C++ pipeline outputs match the Python pipeline outputs.
+    """
+    cpp_binary = "./build/bolus_tracking_cpp"
+    assert os.path.exists(cpp_binary), "C++ binary not found. Please compile the C++ code first."
+    
+    import pandas as pd
+    import subprocess
+    import sys
+    
+    tiff_path = "sample-subject-2259/bolus1_baseline.tif"
+    mask_path = "sample-subject-2259/old_masks_drawROI/adjusted_2259_bolus1_baseline_maskObj.mat"
+    meta_path = "sample-subject-2259/bolus1_baseline.txt"
+    
+    py_csv = "sample-subject-2259/bolus1_baseline_results.csv"
+    if os.path.exists(py_csv):
+        os.remove(py_csv)
+    subprocess.run([sys.executable, "batch_process.py", "--tiff", tiff_path, "--mask", mask_path, "--meta", meta_path], check=True)
+        
+    cpp_csv = "sample-subject-2259/bolus1_baseline_results_cpp.csv"
+    if os.path.exists(cpp_csv):
+        os.remove(cpp_csv)
+    
+    from batch_process_cpp import export_rois_to_txt, parse_metadata
+    rois_txt = "sample-subject-2259/bolus1_baseline_rois_cpp.txt"
+    export_rois_to_txt(mask_path, rois_txt)
+    fr = parse_metadata(meta_path)
+    
+    subprocess.run([cpp_binary, tiff_path, rois_txt, str(fr), "20", cpp_csv], check=True)
+    if os.path.exists(rois_txt):
+        os.remove(rois_txt)
+        
+    df_py = pd.read_csv(py_csv)
+    df_cpp = pd.read_csv(cpp_csv)
+    
+    assert len(df_py) == len(df_cpp), "Number of ROIs does not match"
+    
+    def is_physical_fit(df, row_idx):
+        onset = df.loc[row_idx, "Click2_Onset_T"]
+        end = df.loc[row_idx, "Click4_End_T"]
+        w_len = end - onset
+        t2p = df.loc[row_idx, "F_T2p"]
+        fwhm = df.loc[row_idx, "F_FWHM"]
+        return (0.3 < t2p < w_len) and (0.5 < fwhm < 30.0)
+
+    for idx in range(len(df_py)):
+        # 1. Compare Initial parameters and Onset/Peak/End coordinates (should always match closely)
+        init_cols = [
+            ("InitAmp", "InitAmp", 2e-1),
+            ("InitT2p", "InitT2p", 2e-1),
+            ("InitFWHM", "InitFWHM", 2e-1),
+            ("InitM", "InitM", 2e-1),
+            ("Click2_Onset_T", "Click2_Onset_T", 2e-1),
+            ("Click3_Peak_T", "Click3_Peak_T", 2e-1),
+            ("Click4_End_T", "Click4_End_T", 2e-1),
+        ]
+        for py_col, cpp_col, tol in init_cols:
+            val_py = df_py.loc[idx, py_col]
+            val_cpp = df_cpp.loc[idx, cpp_col]
+            if np.isnan(val_py) and np.isnan(val_cpp):
+                continue
+            assert not np.isnan(val_py), f"Python has NaN but C++ has {val_cpp} for {py_col} at ROI {idx+1}"
+            assert not np.isnan(val_cpp), f"C++ has NaN but Python has {val_py} for {cpp_col} at ROI {idx+1}"
+            diff = np.abs(val_py - val_cpp)
+            rel_diff = diff / np.maximum(1e-9, np.abs(val_py))
+            assert rel_diff < tol or diff < 0.1, f"Parity mismatch for {py_col} at ROI {idx+1}: Py={val_py}, C++={val_cpp} (rel_diff={rel_diff:.4f})"
+            
+        # 2. Compare fitted parameters only if BOTH fits converged to a physical bolus curve.
+        # Flat/degenerate fits naturally have flat gradients and multiple mathematically equivalent parameter sets.
+        py_phys = is_physical_fit(df_py, idx)
+        cpp_phys = is_physical_fit(df_cpp, idx)
+        if py_phys and cpp_phys:
+            fit_cols = [
+                ("F_Amp", "F_Amp", 3.5e-1),  # Allow up to 35% tolerance due to TRF vs LM step difference on noisy fits
+                ("F_T2p", "F_T2p", 3.5e-1),
+                ("F_FWHM", "F_FWHM", 3.5e-1),
+                ("F_M", "F_M", 3.5e-1),
+            ]
+            for py_col, cpp_col, tol in fit_cols:
+                val_py = df_py.loc[idx, py_col]
+                val_cpp = df_cpp.loc[idx, cpp_col]
+                if np.isnan(val_py) and np.isnan(val_cpp):
+                    continue
+                assert not np.isnan(val_py), f"Python has NaN but C++ has {val_cpp} for {py_col} at ROI {idx+1}"
+                assert not np.isnan(val_cpp), f"C++ has NaN but Python has {val_py} for {cpp_col} at ROI {idx+1}"
+                diff = np.abs(val_py - val_cpp)
+                rel_diff = diff / np.maximum(1e-9, np.abs(val_py))
+                
+                # Check relative diff, absolute diff (0.1), or time absolute difference (1.5 seconds)
+                is_time_col = py_col in ["F_T2p", "F_FWHM"]
+                time_ok = is_time_col and (diff < 1.5)
+                assert rel_diff < tol or diff < 0.1 or time_ok, f"Parity mismatch for {py_col} at ROI {idx+1}: Py={val_py}, C++={val_cpp} (rel_diff={rel_diff:.4f}, diff={diff:.4f})"
+

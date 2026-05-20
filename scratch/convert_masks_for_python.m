@@ -1,7 +1,13 @@
 % Convert all MATLAB mask files for Python compatibility
 disp('Searching for maskObj files...');
-maskFiles = dir('**/*MaskObj*.mat');
-maskFiles2 = dir('**/*maskObj*.mat');
+
+% Find project root directory (parent of scratch folder)
+scriptFolder = fileparts(mfilename('fullpath'));
+projectFolder = fileparts(scriptFolder);
+if isempty(projectFolder), projectFolder = pwd; end
+
+maskFiles = dir(fullfile(projectFolder, '**/*MaskObj*.mat'));
+maskFiles2 = dir(fullfile(projectFolder, '**/*maskObj*.mat'));
 allFiles = [maskFiles; maskFiles2];
 
 % Remove duplicates
@@ -46,6 +52,24 @@ for i = 1:length(allFiles)
                 newFilePath = fullfile(fPath, newFileName);
                 save(newFilePath, 'maskObj', '-v7');
                 fprintf('Converted: %s -> %s\n', allFiles(i).name, newFileName);
+                
+                % Export TXT version for pure C++ pipeline
+                txtFileName = [fName '_rois.txt'];
+                txtFilePath = fullfile(fPath, txtFileName);
+                fid = fopen(txtFilePath, 'w');
+                if fid ~= -1
+                    fprintf(fid, '%d\n', length(maskObj));
+                    for j = 1:length(maskObj)
+                        pos = maskObj(j).Position;
+                        fprintf(fid, '%d %d\n', j-1, size(pos, 1));
+                        for k = 1:size(pos, 1)
+                            fprintf(fid, '%f %f\n', pos(k, 1), pos(k, 2));
+                        end
+                    end
+                    fclose(fid);
+                    fprintf('Exported TXT for C++: %s\n', txtFileName);
+                end
+                
                 count = count + 1;
             else
                 fprintf('Skipped: %s (Could not extract Position data)\n', allFiles(i).name);

@@ -17,8 +17,8 @@ You can download the files from GitHub using either of the following two methods
 ### Option B: Clone via Git (For Programmers & AI Agents)
 Open your terminal (macOS/Linux) or PowerShell (Windows) and run:
 ```bash
-git clone https://github.com/mrozak4/Adrienne_Bolus_Tracking.git
-cd Adrienne_Bolus_Tracking
+git clone https://github.com/mrozak4/Bolus_Tracking.git
+cd Bolus_Tracking
 ```
 
 ---
@@ -30,7 +30,7 @@ cd Adrienne_Bolus_Tracking
 2. Make sure you have python installed. If not, install it via Homebrew (`brew install python`) or download from [python.org](https://www.python.org/downloads/).
 3. Navigate to the folder you extracted:
    ```bash
-   cd ~/Downloads/Adrienne_Bolus_Tracking
+   cd ~/Downloads/Bolus_Tracking
    ```
 4. Run the pipeline:
    ```bash
@@ -60,7 +60,7 @@ cd Adrienne_Bolus_Tracking
 
 ### Windows
 1. Open **PowerShell** as Administrator.
-2. Navigate to your extracted folder (e.g. `cd C:\Users\YourName\Downloads\Adrienne_Bolus_Tracking`).
+2. Navigate to your extracted folder (e.g. `cd C:\Users\YourName\Downloads\Bolus_Tracking`).
 3. Run the Python setup:
    ```powershell
    python -m venv .venv
