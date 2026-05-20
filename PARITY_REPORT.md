@@ -6,10 +6,15 @@ This report compares the Python and C++ implementations of the Bolus Tracking pi
 
 The following benchmark was run using the **Sample Subject 2259** dataset, consisting of **6 TIFF files** (each has 300 frames of $512 \times 512$ images, and 70 distinct ROIs mapped).
 
-| Metric / Phase | Python Pipeline | C++ Pipeline | Speedup / Difference |
+| Phase / Metric | Python Pipeline | C++ Pipeline | Speedup / Difference |
 | :--- | :--- | :--- | :--- |
-| **Numerical Processing & Fitting** | **~63.71 seconds** | **~5.57 seconds** | **~11.4x Faster** |
-| **Overall Docker Run Time** | **~63.71 seconds** | **~33.32 seconds** | **~1.9x Faster** |
+| **Docker Setup / Image Build** (One-time) | ~4.3 seconds | ~3.8 seconds (Cached)<br>~45.0 seconds (Uncached build & compile) | Setup only |
+| **Raw Compute** (Numerical Fitting) | ~63.71 seconds | ~5.57 seconds | **~11.4x Faster** |
+| **Execution Time** (Docker Run + I/O Overhead) | ~63.85 seconds | ~33.32 seconds | **~1.9x Faster** |
+
+### Benchmark Breakdown:
+* **Docker Setup (One-time Build)**: The initial step where the Docker container builds. For C++, this includes container environment configuration, CMake build generation, and code compilation (`make`). For Python, it installs standard dependency layers and packages (`matplotlib`).
+* **Execution Time (Container Run)**: The runtime overhead of launching Docker, mounting local directories for data-sharing, and executing the compiled binaries. C++ parallel processing speeds up the core computational load, though host-to-container disk mounting adds a static overhead.
 
 ### Why C++ is Faster:
 1. **Parallel Execution**: C++ implements multi-threading via `std::async` to utilize all available CPU cores when fitting ROIs concurrently. Python is constrained to sequential execution by the Global Interpreter Lock (GIL).
