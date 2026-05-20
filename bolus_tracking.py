@@ -210,9 +210,10 @@ def fit_bolus(t, y, params_init, sd_base=1.0, bounds_override=None):
         if bounds_override is not None:
             bounds = bounds_override
         else:
+            t_duration = t[-1] if len(t) > 0 else 1.0
             bounds = (
-                [1e-6, 1e-6, 1e-6, m_init - m_bound], 
-                [np.inf, np.inf, np.inf, m_init + m_bound]
+                [1e-6, 1e-6, 0.5, m_init - m_bound], 
+                [1023.0, t_duration, t_duration, m_init + m_bound]
             )
         
         # Pass 1: Linear Fit

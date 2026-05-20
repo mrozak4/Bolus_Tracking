@@ -57,8 +57,8 @@ def get_mask_from_poly(poly_verts, shape):
     return mask
 
 def process_bolus(tiff_path, mask_path, meta_path, out_dir, drift_window=15.0,
-                  min_amp=1e-6, max_amp=np.inf, min_t2p=1e-6, max_t2p=np.inf,
-                  min_fwhm=1e-6, max_fwhm=np.inf):
+                  min_amp=1e-6, max_amp=1023.0, min_t2p=1e-6, max_t2p=np.inf,
+                  min_fwhm=0.5, max_fwhm=np.inf):
     """
     Process a single bolus dataset.
     """
@@ -138,12 +138,18 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir, drift_window=15.0,
         # Fit Gamma Function (evaluate on a time vector starting at 0 to match MATLAB logic)
         # We only fit the bolus phase to prevent baseline duration from biasing the optimizer
         t_fit = tl_us[start_idx:end_idx] - tl_us[start_idx]
+        t_duration = t_fit[-1] if len(t_fit) > 0 else 1.0
+        
+        # Dynamically cap max_t2p and max_fwhm to the fit window duration if unconstrained/default
+        actual_max_amp = 1023.0 if max_amp is None or np.isinf(max_amp) else max_amp
+        actual_max_t2p = min(max_t2p, t_duration) if max_t2p is not None and not np.isinf(max_t2p) else t_duration
+        actual_max_fwhm = min(max_fwhm, t_duration) if max_fwhm is not None and not np.isinf(max_fwhm) else t_duration
         
         m_init = init_params[3]
         m_bound = max(0.5 * sd_base, 0.005 * m_init, 0.2)
         bounds_override = (
             [min_amp, min_t2p, min_fwhm, m_init - m_bound],
-            [max_amp, max_t2p, max_fwhm, m_init + m_bound]
+            [actual_max_amp, actual_max_t2p, actual_max_fwhm, m_init + m_bound]
         )
         popt, pcov = fit_bolus(t_fit, y_us[start_idx:end_idx], init_params, sd_base, bounds_override=bounds_override)
         
@@ -375,10 +381,10 @@ if __name__ == "__main__":
     parser.add_argument("--outdir", help="Output directory", default="")
     parser.add_argument("--drift", type=float, help="Baseline duration in seconds for drift correction", default=15.0)
     parser.add_argument("--min-amp", type=float, help="Minimum amplitude constraint", default=1e-6)
-    parser.add_argument("--max-amp", type=float, help="Maximum amplitude constraint", default=float('inf'))
+    parser.add_argument("--max-amp", type=float, help="Maximum amplitude constraint", default=1023.0)
     parser.add_argument("--min-t2p", type=float, help="Minimum Time-to-Peak constraint", default=1e-6)
     parser.add_argument("--max-t2p", type=float, help="Maximum Time-to-Peak constraint", default=float('inf'))
-    parser.add_argument("--min-fwhm", type=float, help="Minimum FWHM constraint", default=1e-6)
+    parser.add_argument("--min-fwhm", type=float, help="Minimum FWHM constraint", default=0.5)
     parser.add_argument("--max-fwhm", type=float, help="Maximum FWHM constraint", default=float('inf'))
     
     args = parser.parse_args()

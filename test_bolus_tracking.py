@@ -233,7 +233,7 @@ class TestFitBolus:
         """Return a realistic trace segment ready for fitting."""
         y_us, t_us = _make_gaussian_bolus()
         params, si, ei, _, _ = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
-        return t_us[si:ei], y_us[si:ei], params
+        return t_us[si:ei] - t_us[si], y_us[si:ei], params
 
     def test_returns_two_values(self):
         t, y, p0 = self._get_fit_region()

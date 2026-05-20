@@ -629,6 +629,10 @@ std::vector<double> run_nonlinear_fit(const std::vector<double>& t, const std::v
     double L_m = m_init - m_bound;
     double U_m = m_init + m_bound;
     
+    // Dynamically cap max_t2p and max_fwhm to the fit window duration if unconstrained/default
+    double actual_max_t2p = (max_t2p >= 1e5 && !t.empty()) ? t.back() : max_t2p;
+    double actual_max_fwhm = (max_fwhm >= 1e5 && !t.empty()) ? t.back() : max_fwhm;
+    
     auto inv_map = [](double val, double L, double U) {
         double eps = 1e-5;
         double clamped = std::max(L + eps, std::min(U - eps, val));
@@ -640,12 +644,12 @@ std::vector<double> run_nonlinear_fit(const std::vector<double>& t, const std::v
     // Map initial guesses to search space
     Eigen::VectorXd x(4);
     x[0] = inv_map(params_init[0], min_amp, max_amp);
-    x[1] = inv_map(params_init[1], min_t2p, max_t2p);
-    x[2] = inv_map(params_init[2], min_fwhm, max_fwhm);
+    x[1] = inv_map(params_init[1], min_t2p, actual_max_t2p);
+    x[2] = inv_map(params_init[2], min_fwhm, actual_max_fwhm);
     x[3] = inv_map(m_init, L_m, U_m);
     
     // Pass 1: Linear Least Squares
-    GammaFunctor functor{t, y, m_init, m_bound, false, 1.0, min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm};
+    GammaFunctor functor{t, y, m_init, m_bound, false, 1.0, min_amp, max_amp, min_t2p, actual_max_t2p, min_fwhm, actual_max_fwhm};
     Eigen::NumericalDiff<GammaFunctor> numDiff(functor);
     Eigen::LevenbergMarquardt<Eigen::NumericalDiff<GammaFunctor>, double> lm(numDiff);
     lm.parameters.maxfev = 2000;
@@ -660,8 +664,8 @@ std::vector<double> run_nonlinear_fit(const std::vector<double>& t, const std::v
     
     // Pass 1 solution
     double a1 = map_param(x[0], min_amp, max_amp);
-    double peak1 = map_param(x[1], min_t2p, max_t2p);
-    double fwhm1 = map_param(x[2], min_fwhm, max_fwhm);
+    double peak1 = map_param(x[1], min_t2p, actual_max_t2p);
+    double fwhm1 = map_param(x[2], min_fwhm, actual_max_fwhm);
     double m = map_param(x[3], L_m, U_m);
     
     // Calculate residuals and MAD
@@ -697,8 +701,8 @@ std::vector<double> run_nonlinear_fit(const std::vector<double>& t, const std::v
     }
     
     double final_a1 = map_param(x[0], min_amp, max_amp);
-    double final_peak1 = map_param(x[1], min_t2p, max_t2p);
-    double final_fwhm1 = map_param(x[2], min_fwhm, max_fwhm);
+    double final_peak1 = map_param(x[1], min_t2p, actual_max_t2p);
+    double final_fwhm1 = map_param(x[2], min_fwhm, actual_max_fwhm);
     double final_m = map_param(x[3], L_m, U_m);
     
     return {final_a1, final_peak1, final_fwhm1, final_m};
@@ -1420,11 +1424,11 @@ int main(int argc, char** argv) {
     std::vector<std::string> pos_args;
     
     double min_amp = 1e-6;
-    double max_amp = 1e6;
+    double max_amp = 1023.0; // microscope 10-bit max value
     double min_t2p = 1e-6;
-    double max_t2p = 1e6;
-    double min_fwhm = 1e-6;
-    double max_fwhm = 1e6;
+    double max_t2p = 1e6;   // dynamically capped to scan duration inside fit function
+    double min_fwhm = 0.5;   // physiological minimum duration (seconds)
+    double max_fwhm = 1e6;   // dynamically capped to scan duration inside fit function
     
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -1604,7 +1608,11 @@ int main(int argc, char** argv) {
         return success ? 0 : 1;
     }
     
-    std::cerr << "Usage for single file:\n  " << argv[0] << " <tiff_path> <rois_txt_path> <fr> <up_f> <out_csv_path> [--plot] [--drift <seconds>]\n"
-              << "Usage for folder batch processing:\n  " << argv[0] << " --folder <path_to_folder> [--plot] [--drift <seconds>]" << std::endl;
+    std::cerr << "Usage for single file:\n  " << argv[0] << " <tiff_path> <rois_txt_path> <fr> <up_f> <out_csv_path> [--plot] [--drift <seconds>] [--min-amp <val>] [--max-amp <val>] [--min-t2p <val>] [--max-t2p <val>] [--min-fwhm <val>] [--max-fwhm <val>]\n"
+              << "Usage for folder batch processing:\n  " << argv[0] << " --folder <path_to_folder> [--plot] [--drift <seconds>] [bounds_options...]\n\n"
+              << "Bounds Options (Defaults):\n"
+              << "  --min-amp (1e-6)   --max-amp (1023.0 - 10-bit microscope limit)\n"
+              << "  --min-t2p (1e-6)   --max-t2p (dynamically set to fit window duration)\n"
+              << "  --min-fwhm (0.5)   --max-fwhm (dynamically set to fit window duration)\n" << std::endl;
     return 1;
 }
