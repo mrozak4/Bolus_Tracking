@@ -146,12 +146,12 @@ cd ..
 > ```
 > 
 > To constrain the fit parameters (amplitude, time-to-peak, and FWHM) to physiologically reasonable values, you can specify lower and upper bounds:
-> - `--min-amp` (default: 1e-6)
-> - `--max-amp` (default: infinity)
-> - `--min-t2p` (default: 1e-6)
-> - `--max-t2p` (default: infinity)
-> - `--min-fwhm` (default: 1e-6)
-> - `--max-fwhm` (default: infinity)
+> - `--min-amp` (default: `1e-6`)
+> - `--max-amp` (default: `1023.0` - matching the 10-bit microscope digitizer limit)
+> - `--min-t2p` (default: `1e-6`)
+> - `--max-t2p` (default: dynamically capped to the duration of the fit window)
+> - `--min-fwhm` (default: `0.5` seconds - matching physiological transit speed limits)
+> - `--max-fwhm` (default: dynamically capped to the duration of the fit window)
 > 
 > For example, to constrain the time-to-peak ($T_{2p}$) between 2.0 and 8.0 seconds:
 > ```bash

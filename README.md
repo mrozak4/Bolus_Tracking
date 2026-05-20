@@ -107,3 +107,18 @@ The batch pipelines output CSV files containing the following metrics for each c
 | **ROISize** | Size of the Region of Interest mask (in pixels). |
 | **Denoise_RMS** | Root Mean Square (RMS) of the noise removed during spline denoising (in **SU**). |
 | **VesType** | Vessel type classification (defaults to `'U'`). |
+
+---
+
+## 6. Physiological Fit Parameter Constraints
+
+To prevent non-physical fits (e.g. infinite/negative values, extremely slow bolus peaks, or amplitude levels exceeding hardware limits), the pipeline implements strict, physiologically informed parameter bounds.
+
+### Default Constraint Bounds:
+* **Amplitude (`F_Amp`)**: Constrained between `1e-6` and `1023.0`. The upper bound of `1023.0` corresponds to the maximum dynamic range of the 10-bit microscope digitizer.
+* **Time-to-Peak (`F_T2p`)**: Constrained between `1e-6` and the **duration of the fit window** (automatically computed from the onset to end of the trace segment). This ensures the peak is found within the actual scan window.
+* **FWHM (`F_FWHM`)**: Constrained between `0.5` seconds and the **duration of the fit window**. The lower bound of `0.5` seconds represents the fastest physiologically plausible transit speed of dye through a capillary.
+* **Baseline shift (`F_M`)**: Dynamically constrained based on the estimated baseline noise standard deviation to prevent optimizer divergence.
+
+These boundaries are automatically applied across the C++ pipeline, the Python batch process script, and the interactive GUI. Override options are available via CLI flags (e.g. `--min-t2p`, `--max-amp`, etc.).
+
