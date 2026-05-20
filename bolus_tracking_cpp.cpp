@@ -928,12 +928,12 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
     std::vector<double> tl_raw(mfi_raw.size());
     for (size_t i = 0; i < tl_raw.size(); ++i) tl_raw[i] = i / fr;
 
-    // Compute linear drift slope k using the first 5 seconds (t <= 5.0)
+    // Compute linear drift slope k using the first 10 seconds (t <= 10.0)
     double sum_t = 0.0, sum_y = 0.0;
     double sum_tt = 0.0, sum_ty = 0.0;
     int count = 0;
     for (size_t i = 0; i < tl_raw.size(); ++i) {
-        if (tl_raw[i] <= 5.0) {
+        if (tl_raw[i] <= 10.0) {
             double t = tl_raw[i];
             double y = mfi_raw[i];
             sum_t += t;

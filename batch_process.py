@@ -109,13 +109,13 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
         # Create time vector
         tl_raw = np.arange(len(mfi_raw)) / fr
         
-        # Compute linear drift slope k using first 5 seconds
-        first_5s_mask = tl_raw <= 5.0
+        # Compute linear drift slope k using first 10 seconds
+        first_10s_mask = tl_raw <= 10.0
         k = 0.0
-        if np.sum(first_5s_mask) > 1:
-            t_5s = tl_raw[first_5s_mask]
-            y_5s = mfi_raw[first_5s_mask]
-            cov = np.cov(t_5s, y_5s)
+        if np.sum(first_10s_mask) > 1:
+            t_10s = tl_raw[first_10s_mask]
+            y_10s = mfi_raw[first_10s_mask]
+            cov = np.cov(t_10s, y_10s)
             if cov[0, 0] > 1e-9:
                 k = cov[0, 1] / cov[0, 0]
                 
