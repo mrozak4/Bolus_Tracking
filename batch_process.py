@@ -208,6 +208,9 @@ def find_triplets(folder):
     mats = [f for f in glob.glob(os.path.join(folder, '**/adjusted_*.mat'), recursive=True) if not os.path.basename(f).startswith('.')]
     txts = [f for f in glob.glob(os.path.join(folder, '**/*.txt'), recursive=True) if not os.path.basename(f).startswith('.') and 'rois' not in os.path.basename(f).lower()]
     
+    def normalize_name(s):
+        return s.lower().replace('-', '_')
+
     triplets = []
     for tif in tifs:
         # Ignore generated mips, shift info, or results if any
@@ -217,16 +220,16 @@ def find_triplets(folder):
             continue
             
         # Extract the core bolus identifier like 'bolus1_baseline' or 'bolus2_co2'
-        match = re.search(r'(bolus\d+_[a-z0-9]+)', name)
+        match = re.search(r'(bolus\d+[-_][a-z0-9]+)', name)
         if not match:
             continue
             
-        identifier = match.group(1)
+        norm_id = normalize_name(match.group(1))
         
-        # Find matching mat
-        matching_mat = [m for m in mats if identifier in os.path.basename(m).lower()]
-        # Find matching txt
-        matching_txt = [t for t in txts if identifier in os.path.basename(t).lower()]
+        # Find matching mat (comparing normalized names)
+        matching_mat = [m for m in mats if norm_id in normalize_name(os.path.basename(m))]
+        # Find matching txt (comparing normalized names)
+        matching_txt = [t for t in txts if norm_id in normalize_name(os.path.basename(t))]
         
         if matching_mat and matching_txt:
             triplets.append((tif, matching_mat[0], matching_txt[0]))

@@ -1116,10 +1116,12 @@ double parse_frame_rate(const std::string& filepath) {
 }
 
 std::string extract_identifier(const std::string& filename) {
-    std::regex re("(bolus\\d+_(baseline|co2))", std::regex_constants::icase);
+    std::regex re("(bolus\\d+[-_](baseline|co2))", std::regex_constants::icase);
     std::smatch m;
     if (std::regex_search(filename, m, re)) {
-        return m.str(1);
+        std::string id = m.str(1);
+        std::replace(id.begin(), id.end(), '-', '_');
+        return id;
     }
     return "";
 }
