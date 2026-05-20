@@ -687,7 +687,7 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
                    const std::vector<double>& tl_raw, const std::vector<double>& mfi_raw,
                    const std::vector<double>& mfi_denoised,
                    const std::vector<double>& tl_us, const std::vector<double>& y_us,
-                   const FitRecord& rec, bool fit_success) {
+                   const FitRecord& rec, bool fit_success, double k) {
     std::filesystem::path tiff_p(tiff_path);
     auto parent_dir = tiff_p.parent_path();
     auto stem = tiff_p.stem().string();
@@ -708,10 +708,6 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
     double y_min = mfi_raw.front();
     double y_max = mfi_raw.front();
     for (double y : mfi_raw) {
-        if (y < y_min) y_min = y;
-        if (y > y_max) y_max = y;
-    }
-    for (double y : y_us) {
         if (y < y_min) y_min = y;
         if (y > y_max) y_max = y;
     }
@@ -787,18 +783,18 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
             << "\" r=\"2\" fill=\"#8b949e\" opacity=\"0.6\" />\n";
     }
 
-    // 4. Draw denoised line
+    // 4. Draw denoised line (adds linear drift back)
     out << "  <path d=\"M";
     for (size_t i = 0; i < tl_raw.size(); ++i) {
-        out << " " << X(tl_raw[i]) << "," << Y(mfi_denoised[i]);
+        out << " " << X(tl_raw[i]) << "," << Y(mfi_denoised[i] + k * tl_raw[i]);
         if (i < tl_raw.size() - 1) out << " L";
     }
     out << "\" stroke=\"#58a6ff\" stroke-width=\"1.5\" fill=\"none\" opacity=\"0.7\" />\n";
 
-    // 5. Draw upsampled spline
+    // 5. Draw upsampled spline (adds linear drift back)
     out << "  <path d=\"M";
     for (size_t i = 0; i < tl_us.size(); ++i) {
-        out << " " << X(tl_us[i]) << "," << Y(y_us[i]);
+        out << " " << X(tl_us[i]) << "," << Y(y_us[i] + k * tl_us[i]);
         if (i < tl_us.size() - 1) out << " L";
     }
     out << "\" stroke=\"#388bfd\" stroke-width=\"1.2\" stroke-dasharray=\"4,4\" fill=\"none\" opacity=\"0.8\" />\n";
@@ -817,30 +813,30 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
         return best_val;
     };
 
-    // 6. Draw markers (Circles instead of Lines)
+    // 6. Draw markers (Circles instead of Lines, adds linear drift back)
     if (!std::isnan(rec.click_onset)) {
         double xo = X(rec.click_onset);
-        double yo = Y(get_y_val_at_time(rec.click_onset, tl_us, y_us));
+        double yo = Y(get_y_val_at_time(rec.click_onset, tl_us, y_us) + k * rec.click_onset);
         out << "  <circle cx=\"" << xo << "\" cy=\"" << yo << "\" r=\"7.5\" fill=\"#39c5bb\" stroke=\"#0d1117\" stroke-width=\"2\" />\n";
         out << "  <text x=\"" << (xo + 10) << "\" y=\"" << (yo - 10) 
             << "\" fill=\"#39c5bb\" font-family=\"sans-serif\" font-weight=\"bold\" font-size=\"12\">Onset</text>\n";
     }
     if (!std::isnan(rec.click_peak)) {
         double xp = X(rec.click_peak);
-        double yp = Y(get_y_val_at_time(rec.click_peak, tl_us, y_us));
+        double yp = Y(get_y_val_at_time(rec.click_peak, tl_us, y_us) + k * rec.click_peak);
         out << "  <circle cx=\"" << xp << "\" cy=\"" << yp << "\" r=\"7.5\" fill=\"#d85fd3\" stroke=\"#0d1117\" stroke-width=\"2\" />\n";
         out << "  <text x=\"" << (xp + 10) << "\" y=\"" << (yp - 10) 
             << "\" fill=\"#d85fd3\" font-family=\"sans-serif\" font-weight=\"bold\" font-size=\"12\">Peak</text>\n";
     }
     if (!std::isnan(rec.click_end)) {
         double xe = X(rec.click_end);
-        double ye = Y(get_y_val_at_time(rec.click_end, tl_us, y_us));
+        double ye = Y(get_y_val_at_time(rec.click_end, tl_us, y_us) + k * rec.click_end);
         out << "  <circle cx=\"" << xe << "\" cy=\"" << ye << "\" r=\"7.5\" fill=\"#ff5555\" stroke=\"#0d1117\" stroke-width=\"2\" />\n";
         out << "  <text x=\"" << (xe + 10) << "\" y=\"" << (ye - 10) 
             << "\" fill=\"#ff5555\" font-family=\"sans-serif\" font-weight=\"bold\" font-size=\"12\">End</text>\n";
     }
 
-    // 7. Draw fitted curve
+    // 7. Draw fitted curve (adds linear drift back)
     if (fit_success && !std::isnan(rec.f_amp) && !std::isnan(rec.f_t2p) && !std::isnan(rec.f_fwhm) && !std::isnan(rec.f_m)) {
         double onset = rec.click_onset;
         double end = rec.click_end;
@@ -858,9 +854,9 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
         for (int i = 0; i <= steps; ++i) {
             double t = t_min + i * ((end - t_min) / steps);
             double dt = t - onset;
-            double val = m;
+            double val = m + k * t;
             if (dt > 0) {
-                val = m + amp * std::pow(dt / t2p, alpha) * std::exp(-(dt - t2p) / beta);
+                val = m + k * t + amp * std::pow(dt / t2p, alpha) * std::exp(-(dt - t2p) / beta);
             }
             if (first) {
                 out << " " << X(t) << "," << Y(val);
@@ -928,13 +924,46 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
         }
     }
     
-    // 2. Denoise
-    std::vector<double> mfi_denoised = denoise_trace(mfi_raw);
-    
-    // 3. Spline upsample
+    // Create time vector
     std::vector<double> tl_raw(mfi_raw.size());
     for (size_t i = 0; i < tl_raw.size(); ++i) tl_raw[i] = i / fr;
+
+    // Compute linear drift slope k using the first 5 seconds (t <= 5.0)
+    double sum_t = 0.0, sum_y = 0.0;
+    double sum_tt = 0.0, sum_ty = 0.0;
+    int count = 0;
+    for (size_t i = 0; i < tl_raw.size(); ++i) {
+        if (tl_raw[i] <= 5.0) {
+            double t = tl_raw[i];
+            double y = mfi_raw[i];
+            sum_t += t;
+            sum_y += y;
+            sum_tt += t * t;
+            sum_ty += t * y;
+            count++;
+        }
+    }
+    double k = 0.0;
+    if (count > 1) {
+        double mean_t = sum_t / count;
+        double mean_y = sum_y / count;
+        double num = sum_ty - count * mean_t * mean_y;
+        double den = sum_tt - count * mean_t * mean_t;
+        if (std::abs(den) > 1e-9) {
+            k = num / den;
+        }
+    }
+
+    // Detrend raw signal before running fitting pipeline
+    std::vector<double> mfi_raw_detrended = mfi_raw;
+    for (size_t i = 0; i < mfi_raw.size(); ++i) {
+        mfi_raw_detrended[i] -= k * tl_raw[i];
+    }
     
+    // 2. Denoise
+    std::vector<double> mfi_denoised = denoise_trace(mfi_raw_detrended);
+    
+    // 3. Spline upsample
     std::vector<double> tl_us(mfi_raw.size() * up_f);
     for (size_t i = 0; i < tl_us.size(); ++i) tl_us[i] = i / (fr * up_f);
     
@@ -989,7 +1018,7 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
     
     // Save vector SVG plot of raw points, denoised spline, markers, and fitted curve
     if (enable_plots) {
-        save_svg_plot(roi_id, tiff_path, tl_raw, mfi_raw, mfi_denoised, tl_us, y_us, rec, fit_success);
+        save_svg_plot(roi_id, tiff_path, tl_raw, mfi_raw, mfi_denoised, tl_us, y_us, rec, fit_success, k);
     }
     
     return rec;

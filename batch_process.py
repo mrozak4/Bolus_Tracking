@@ -105,10 +105,25 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
         
         # Calculate mean fluorescence intensity (MFI)
         mfi_raw = np.array([np.mean(frame[mask]) for frame in tiff_stack])
-        mfi = denoise_trace(mfi_raw)
+        
+        # Create time vector
+        tl_raw = np.arange(len(mfi_raw)) / fr
+        
+        # Compute linear drift slope k using first 5 seconds
+        first_5s_mask = tl_raw <= 5.0
+        k = 0.0
+        if np.sum(first_5s_mask) > 1:
+            t_5s = tl_raw[first_5s_mask]
+            y_5s = mfi_raw[first_5s_mask]
+            cov = np.cov(t_5s, y_5s)
+            if cov[0, 0] > 1e-9:
+                k = cov[0, 1] / cov[0, 0]
+                
+        # Detrend raw signal before running fitting pipeline
+        mfi_raw_detrended = mfi_raw - k * tl_raw
+        mfi = denoise_trace(mfi_raw_detrended)
         
         # Spline upsample
-        tl_raw = np.arange(len(mfi)) / fr
         tl_us = np.arange(len(mfi) * up_f) / (fr * up_f)
         
         spline_interp = interp1d(tl_raw, mfi, kind='cubic', fill_value='extrapolate')
@@ -166,19 +181,19 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
             
             fig, ax = plt.subplots(figsize=(10, 6))
             ax.plot(tl_raw, mfi_raw, 'k.', label='Raw Data', alpha=0.4)
-            ax.plot(tl_raw, mfi, 'g+', label='Denoised Data', alpha=0.6)
-            ax.plot(tl_us, y_us, 'b--', label='Spline Upsampled', alpha=0.6)
+            ax.plot(tl_raw, mfi + k * tl_raw, 'g+', label='Denoised Data', alpha=0.6)
+            ax.plot(tl_us, y_us + k * tl_us, 'b--', label='Spline Upsampled', alpha=0.6)
             
             # Plot the auto-clicks
-            ax.plot(clicks['baseline_start'][0], clicks['baseline_start'][1], 'go', markersize=8, label='1: Baseline Start')
-            ax.plot(clicks['onset'][0], clicks['onset'][1], 'co', markersize=8, label='2: Bolus Onset')
-            ax.plot(clicks['peak'][0], clicks['peak'][1], 'mo', markersize=8, label='3: Peak')
-            ax.plot(clicks['end'][0], clicks['end'][1], 'ro', markersize=8, label='4: Bolus End')
+            ax.plot(clicks['baseline_start'][0], clicks['baseline_start'][1] + k * clicks['baseline_start'][0], 'go', markersize=8, label='1: Baseline Start')
+            ax.plot(clicks['onset'][0], clicks['onset'][1] + k * clicks['onset'][0], 'co', markersize=8, label='2: Bolus Onset')
+            ax.plot(clicks['peak'][0], clicks['peak'][1] + k * clicks['peak'][0], 'mo', markersize=8, label='3: Peak')
+            ax.plot(clicks['end'][0], clicks['end'][1] + k * clicks['end'][0], 'ro', markersize=8, label='4: Bolus End')
             
             if popt is not None:
                 # evaluate the fit over the full window from baseline start to end
                 t_plot = tl_us[0:end_idx] - tl_us[start_idx]
-                y_fit = gamma_fun(t_plot, *popt)
+                y_fit = gamma_fun(t_plot, *popt) + k * tl_us[0:end_idx]
                 ax.plot(tl_us[0:end_idx], y_fit, 'r-', linewidth=2, label='Gamma Fit')
                 ax.set_title(f"ROI {i+1} Fit\nAmp={popt[0]:.2f}, T2p={popt[1]:.2f}, FWHM={popt[2]:.2f}, Base={popt[3]:.2f}")
             else:
