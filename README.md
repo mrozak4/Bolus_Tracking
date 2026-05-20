@@ -75,3 +75,24 @@ Run:
 .venv/bin/python bolus_gui.py
 ```
 This opens the window to select datasets, navigate capillary ROIs, adjust onset/peak/end points by clicking on the graph, and export the results.
+
+---
+
+## 5. Output Data Format
+
+The batch pipelines output CSV files containing the following metrics for each capillary ROI:
+
+| Column | Description |
+| :--- | :--- |
+| **ROI** | 1-indexed ID of the capillary Region of Interest. |
+| **InitAmp** / **F_Amp** | Initial estimate and fitted peak amplitude of the bolus (in arbitrary Intensity **SU**). |
+| **InitT2p** / **F_T2p** | Initial estimate and fitted Time-to-Peak (in **seconds**). |
+| **InitFWHM** / **F_FWHM** | Initial estimate and fitted Full Width at Half Maximum (in **seconds**). |
+| **InitM** / **F_M** | Initial estimate and fitted baseline mean value (in **SU**). |
+| **InitSNR** / **F_SNR** | Baseline Signal-to-Noise Ratio ($\text{Baseline Mean} / \text{Baseline Noise SD}$). |
+| **InitCNR** / **F_CNR** | Contrast-to-Noise Ratio ($\text{Bolus Amplitude} / \text{Baseline Noise SD}$). |
+| **Click1_Start_T** | Time of the baseline start marker (in **seconds**). |
+| **Click2_Onset_T** | Time of bolus onset (in **seconds**). |
+| **Click3_Peak_T** | Time of the bolus peak (in **seconds**). |
+| **Click4_End_T** | Time of first-pass clearance / end marker (in **seconds**). |
+| **Denoise_RMS** | Root Mean Square (RMS) of the noise removed during spline denoising (in **SU**). |
