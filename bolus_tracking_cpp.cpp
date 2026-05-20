@@ -707,11 +707,11 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
     y_max += 0.05 * y_range;
     y_range = y_max - y_min;
 
-    // Canvas sizes
-    const int W = 800;
+    // Canvas sizes (Expanded width to accommodate legend box outside on the right)
+    const int W = 1000;
     const int H = 500;
     const int margin_left = 75;
-    const int margin_right = 35;
+    const int margin_right = 230;
     const int margin_top = 60;
     const int margin_bottom = 65;
     const int plot_w = W - margin_left - margin_right;
@@ -863,23 +863,23 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
         << "\" fill=\"#f0f6fc\" font-family=\"sans-serif\" font-weight=\"bold\" font-size=\"16\">" 
         << stem << " - ROI " << roi_id << " (C++ fit)</text>\n";
 
-    // 9. Glassmorphism legend card
-    double card_x = margin_left + 15;
-    double card_y = margin_top + 15;
-    double card_w = 180;
-    double card_h = 145;
+    // 9. Glassmorphism legend card (Positioned outside the graph area on the right)
+    double card_x = W - margin_right + 20;
+    double card_y = margin_top;
+    double card_w = 190;
+    double card_h = 160;
     out << "  <rect x=\"" << card_x << "\" y=\"" << card_y << "\" width=\"" << card_w 
         << "\" height=\"" << card_h << "\" rx=\"6\" fill=\"#161b22\" opacity=\"0.85\" stroke=\"#30363d\" stroke-width=\"1.5\" />\n";
     
-    out << "  <text x=\"" << (card_x + 12) << "\" y=\"" << (card_y + 22) << "\" fill=\"#f0f6fc\" font-family=\"sans-serif\" font-size=\"12\" font-weight=\"bold\">Fit Results:</text>\n";
+    out << "  <text x=\"" << (card_x + 15) << "\" y=\"" << (card_y + 25) << "\" fill=\"#f0f6fc\" font-family=\"sans-serif\" font-size=\"13\" font-weight=\"bold\">Fit Results:</text>\n";
     if (fit_success) {
-        out << "  <text x=\"" << (card_x + 12) << "\" y=\"" << (card_y + 45) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">Amp: " << format_tick(rec.f_amp) << "</text>\n";
-        out << "  <text x=\"" << (card_x + 12) << "\" y=\"" << (card_y + 68) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">T2p: " << format_tick(rec.f_t2p) << " s</text>\n";
-        out << "  <text x=\"" << (card_x + 12) << "\" y=\"" << (card_y + 91) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">FWHM: " << format_tick(rec.f_fwhm) << " s</text>\n";
-        out << "  <text x=\"" << (card_x + 12) << "\" y=\"" << (card_y + 114) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">Base: " << format_tick(rec.f_m) << "</text>\n";
-        out << "  <text x=\"" << (card_x + 12) << "\" y=\"" << (card_y + 137) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">SNR: " << format_tick(rec.f_snr) << "</text>\n";
+        out << "  <text x=\"" << (card_x + 15) << "\" y=\"" << (card_y + 50) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">Amp: " << format_tick(rec.f_amp) << "</text>\n";
+        out << "  <text x=\"" << (card_x + 15) << "\" y=\"" << (card_y + 73) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">T2p: " << format_tick(rec.f_t2p) << " s</text>\n";
+        out << "  <text x=\"" << (card_x + 15) << "\" y=\"" << (card_y + 96) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">FWHM: " << format_tick(rec.f_fwhm) << " s</text>\n";
+        out << "  <text x=\"" << (card_x + 15) << "\" y=\"" << (card_y + 119) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">Base: " << format_tick(rec.f_m) << "</text>\n";
+        out << "  <text x=\"" << (card_x + 15) << "\" y=\"" << (card_y + 142) << "\" fill=\"#79c0ff\" font-family=\"sans-serif\" font-size=\"12\">SNR: " << format_tick(rec.f_snr) << "</text>\n";
     } else {
-        out << "  <text x=\"" << (card_x + 12) << "\" y=\"" << (card_y + 45) << "\" fill=\"#f85149\" font-family=\"sans-serif\" font-size=\"12\">FIT FAILED</text>\n";
+        out << "  <text x=\"" << (card_x + 15) << "\" y=\"" << (card_y + 50) << "\" fill=\"#f85149\" font-family=\"sans-serif\" font-size=\"12\">FIT FAILED</text>\n";
     }
 
     out << "</svg>\n";
