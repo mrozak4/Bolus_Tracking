@@ -15,6 +15,9 @@ This repository provides tools to:
 4. **Compare Parity**: Match automated Python fits with legacy MATLAB output.
 5. **Manually Edit Fits**: Interactively adjust fits using modern graphical user interfaces.
 
+> [!TIP]
+> **Preferred Pipeline**: While we maintain a reference Python solver, we highly recommend using the parallelized **C++ implementation** for cohort-scale batch processing. It executes **~11x faster** by parallelizing calculations across all CPU cores.
+
 ---
 
 ## 2. Directory and Sub-README Guide
@@ -50,12 +53,15 @@ We provide detailed documentation for each part of the codebase. Please refer to
 
 For detailed instructions, see the **[RUNNING_GUIDE.md](RUNNING_GUIDE.md)**.
 
-### Run Automated Batch Pipeline
-Simply run:
+### Run Automated Batch Pipeline (Preferred: C++ Parallel Solver)
+To build and run the high-performance parallelized C++ pipeline via Docker:
+```bash
+bash run_pipeline_cpp.sh
+```
+This processes all subject datasets in parallel. To run the reference Python pipeline instead, run:
 ```bash
 bash run_pipeline.sh
 ```
-This script will auto-detect Python, construct a sandbox environment, install dependencies, and run the pipeline on all subjects.
 
 ### Launch Python GUI
 Run:
