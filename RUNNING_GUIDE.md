@@ -49,6 +49,13 @@ To process a target folder (e.g. `sample-subject-2259`) using the C++ pipeline w
 bash run_pipeline_cpp.sh sample-subject-2259
 ```
 
+> [!TIP]
+> **Generating Plots**: By default, the C++ pipeline only generates the results CSV to maximize speed. To generate publication-quality SVG plots for all capillary ROIs, append the `--plot` flag:
+> ```bash
+> bash run_pipeline_cpp.sh sample-subject-2259 --plot
+> ```
+> The SVG plots will be saved to a `plots_cpp` subdirectory within the subject folder.
+
 #### Manual command:
 If you want to run the Docker command manually:
 ```bash
@@ -123,6 +130,12 @@ make -j4
 cd ..
 ./build/bolus_tracking_cpp --folder sample-subject-2259
 ```
+
+> [!TIP]
+> **Generating Plots**: To generate SVG plots when running locally, append the `--plot` flag:
+> ```bash
+> ./build/bolus_tracking_cpp --folder sample-subject-2259 --plot
+> ```
 
 ### Python Pipeline (Local)
 ```bash
