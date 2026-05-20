@@ -204,9 +204,21 @@ def find_triplets(folder):
     """
     Automatically finds and pairs (TIFF, MAT, TXT) files in a folder based on 'bolusX_condition' naming.
     """
-    tifs = [f for f in glob.glob(os.path.join(folder, '**/*.tif'), recursive=True) if not os.path.basename(f).startswith('.')]
-    mats = [f for f in glob.glob(os.path.join(folder, '**/adjusted_*.mat'), recursive=True) if not os.path.basename(f).startswith('.')]
-    txts = [f for f in glob.glob(os.path.join(folder, '**/*.txt'), recursive=True) if not os.path.basename(f).startswith('.') and 'rois' not in os.path.basename(f).lower()]
+    tifs = []
+    mats = []
+    txts = []
+    for root, _, files in os.walk(folder):
+        for f in files:
+            if f.startswith('.'):
+                continue
+            f_lower = f.lower()
+            full_path = os.path.join(root, f)
+            if f_lower.endswith('.tif') or f_lower.endswith('.tiff'):
+                tifs.append(full_path)
+            elif f_lower.startswith('adjusted_') and f_lower.endswith('.mat'):
+                mats.append(full_path)
+            elif f_lower.endswith('.txt') and 'rois' not in f_lower:
+                txts.append(full_path)
     
     def normalize_name(s):
         return s.lower().replace('-', '_')

@@ -1177,19 +1177,27 @@ int main(int argc, char** argv) {
         std::map<std::string, std::string> meta_map;
         
         for (const auto& entry : std::filesystem::recursive_directory_iterator(folder_path)) {
-            if (entry.is_regular_file() && entry.path().extension() == ".txt") {
-                std::string filename = entry.path().filename().string();
-                if (filename.empty() || filename.front() == '.') continue;
+            if (entry.is_regular_file()) {
+                std::string ext = entry.path().extension().string();
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
                 
-                std::string identifier = extract_identifier(filename);
-                if (identifier.empty()) continue;
-                
-                std::transform(identifier.begin(), identifier.end(), identifier.begin(), ::tolower);
-                
-                if (filename.find("_rois.txt") != std::string::npos || filename.find("_rois_cpp.txt") != std::string::npos) {
-                    rois_map[identifier] = entry.path().string();
-                } else if (filename.find("_rois") == std::string::npos) {
-                    meta_map[identifier] = entry.path().string();
+                if (ext == ".txt") {
+                    std::string filename = entry.path().filename().string();
+                    if (filename.empty() || filename.front() == '.') continue;
+                    
+                    std::string identifier = extract_identifier(filename);
+                    if (identifier.empty()) continue;
+                    
+                    std::transform(identifier.begin(), identifier.end(), identifier.begin(), ::tolower);
+                    
+                    std::string filename_lower = filename;
+                    std::transform(filename_lower.begin(), filename_lower.end(), filename_lower.begin(), ::tolower);
+                    
+                    if (filename_lower.find("_rois.txt") != std::string::npos || filename_lower.find("_rois_cpp.txt") != std::string::npos) {
+                        rois_map[identifier] = entry.path().string();
+                    } else if (filename_lower.find("_rois") == std::string::npos) {
+                        meta_map[identifier] = entry.path().string();
+                    }
                 }
             }
         }
@@ -1201,9 +1209,11 @@ int main(int argc, char** argv) {
                 std::string filename = entry.path().filename().string();
                 if (filename.empty() || filename.front() == '.') continue;
                 
-                auto ext = entry.path().extension().string();
+                std::string ext = entry.path().extension().string();
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
                 if (ext == ".tif" || ext == ".tiff") {
                     std::string p_str = entry.path().string();
+                    std::transform(p_str.begin(), p_str.end(), p_str.begin(), ::tolower);
                     if (!contains_ignored_pattern(p_str)) {
                         tiff_files.push_back(entry.path());
                     }
