@@ -1,6 +1,6 @@
 # Capillary Bolus Tracking & Gamma Curve Fitting Studio
 
-Welcome to the **Capillary Bolus Tracking & Gamma Curve Fitting** repository. This project is a comprehensive suite of MATLAB and Python tools designed to extract, analyze, and mathematically model fluorescent dye transit kinetics in brain capillaries for neurovascular coupling research.
+Welcome to the **Capillary Bolus Tracking & Gamma Curve Fitting** repository. This project is a comprehensive suite of MATLAB, Python, and C++ tools designed to extract, analyze, and mathematically model fluorescent dye transit kinetics in brain capillaries for neurovascular coupling research.
 
 ---
 
@@ -24,7 +24,7 @@ This repository provides tools to:
 
 We provide detailed documentation for each part of the codebase. Please refer to the files below depending on your workflow:
 
-* **[RUNNING_GUIDE.md](RUNNING_GUIDE.md)**: **Start Here.** A complete, beginner-friendly guide for setting up and running the Python batch pipeline and launching the new interactive GUI. Covers macOS, Linux, Windows, and Docker.
+* **[RUNNING_GUIDE.md](RUNNING_GUIDE.md)**: **Start Here.** A complete, beginner-friendly guide for setting up and running the parallel C++ batch pipeline, reference Python pipeline, and launching the interactive GUI. Covers macOS, Linux, Windows, and Docker.
 * **[PARITY_REPORT.md](PARITY_REPORT.md)**: **Performance & Parity Report.** Compares Python vs. C++ implementation execution speeds, numerical outcomes, and provides recommendations.
 * **[README_Python_Pipeline.md](README_Python_Pipeline.md)**: Details the Python implementation, custom loss functions (Cauchy robust weightings), and numerical optimization settings.
 * **[README_BolusAnalysis.md](README_BolusAnalysis.md)**: Standard overview of the bolus analysis workflow and math models.
@@ -34,9 +34,15 @@ We provide detailed documentation for each part of the codebase. Please refer to
 
 ## 3. Codebase File Structure
 
-### Python-Based Tools
+### C++-Based Parallel Tools (Recommended)
+* **`run_pipeline_cpp.sh`**: Command-line wrapper script that compiles and executes the parallel C++ pipeline inside Docker or locally.
+* **`bolus_tracking_cpp.cpp`**: Standalone C++ source code implementing spline upsampling, Levenberg-Marquardt robust curve fitting (via Eigen), and multi-threaded processing.
+* **`CMakeLists.txt`**: C++ build configuration file.
+* **`Dockerfile.cpp`**: Docker setup configuration for containerizing the C++ implementation.
+
+### Python-Based Reference & GUI Tools
 * **`bolus_gui.py`**: A premium, interactive Python interface to visually browse datasets, select ROIs, click on plots to adjust markers, run fits, and save results.
-* **`run_pipeline.sh`**: Command-line wrapper script that sets up python virtual environments and executes the batch pipeline.
+* **`run_pipeline.sh`**: Command-line wrapper script that sets up python virtual environments and executes the reference Python batch pipeline.
 * **`batch_process.py`**: Scans folders for triplets (TIFF image, MAT mask, metadata TXT), extracts traces, runs fitting, and saves CSVs.
 * **`bolus_tracking.py`**: Core mathematical algorithms containing filtering, upsampling, peak/onset/end detections, and curve fitting.
 * **`test_bolus_parity.py`**: Parity test suite verifying Python vs. MATLAB numerical outputs.
