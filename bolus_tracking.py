@@ -87,6 +87,14 @@ def auto_estimate_params(tr, t_us, fr, up_f=20):
     else:
         start_idx = below_thresh_candidates[-1]
         
+    # Also detect onset where the derivative drops below 15% of max_deriv (robust to baseline drift)
+    slope_thresh = 0.15 * max_deriv
+    deriv_candidates = np.where(deriv_rise[:rise_idx+1] < slope_thresh)[0]
+    if len(deriv_candidates) > 0:
+        deriv_start_idx = deriv_candidates[-1]
+        if deriv_start_idx > start_idx:
+            start_idx = deriv_start_idx
+        
     t_start = t_us[start_idx]
     start_amp = tr[start_idx]
     

@@ -331,6 +331,20 @@ AutoEstimateResults auto_estimate_params(const std::vector<double>& tr, const st
         }
     }
     
+    // Also detect onset where the derivative drops below 15% of max_deriv.
+    // This is highly robust to upward/downward baseline drift.
+    int deriv_start_idx = 0;
+    double slope_thresh = 0.15 * max_deriv;
+    for (int i = rise_idx; i >= 0; --i) {
+        if (deriv_rise[i] < slope_thresh) {
+            deriv_start_idx = i;
+            break;
+        }
+    }
+    if (deriv_start_idx > start_idx) {
+        start_idx = deriv_start_idx;
+    }
+    
     double t_start = t_us[start_idx];
     double t2p = std::max(t_us[max_idx] - t_start, 0.01);
     
