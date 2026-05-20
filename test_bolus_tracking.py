@@ -286,20 +286,19 @@ class TestFitBolus:
         np.testing.assert_allclose(y_fitted, y_clean, rtol=0.01,
                                    err_msg="Fitted curve should closely match clean gamma curve")
 
-    def test_failure_returns_none_none(self):
-        """fit_bolus should return (None, None) rather than raise on pathological input."""
-        # Provide extremely bad initial params that cause internal failure
+    def test_failure_returns_nans(self):
+        """fit_bolus should return NaNs rather than raise on pathological input."""
         t = np.linspace(0.1, 5, 50)
         y = np.zeros(50)
-        # Mock a case that is designed to fail by patching internally
-        # In practice, curve_fit may still converge; just ensure the interface is correct.
-        result = fit_bolus(t, y, [1e-8, 1e-8, 1e-8, 0.0])
-        assert len(result) == 2  # always returns a 2-tuple
+        popt, pcov = fit_bolus(t, y, [1e-8, 1e-8, 1e-8, 0.0])
+        assert popt is not None
+        assert np.isnan(popt).all()
+        assert np.isnan(pcov).all()
 
     def test_pcov_is_2d_array_on_success(self):
         t, y, p0 = self._get_fit_region()
         popt, pcov = fit_bolus(t, y, p0)
-        if popt is not None:
+        if popt is not None and not np.isnan(popt).any():
             assert pcov.ndim == 2
             assert pcov.shape == (4, 4)
 

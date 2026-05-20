@@ -246,4 +246,4 @@ def fit_bolus(t, y, params_init, sd_base=1.0, bounds_override=None):
         )
         return popt_cauchy, pcov
     except Exception as e:
-        return None, None
+        return np.full(4, np.nan), np.full((4, 4), np.nan)

@@ -166,7 +166,7 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir, drift_window=15.0,
         tthb = np.nan
         ont = np.nan
         
-        if popt is not None:
+        if popt is not None and not np.isnan(popt).any():
             f_amp, f_t2p, f_fwhm, f_m = popt
             f_snr = f_m / sd_base if sd_base > 0 else np.nan
             f_cnr = f_amp / sd_base if sd_base > 0 else np.nan

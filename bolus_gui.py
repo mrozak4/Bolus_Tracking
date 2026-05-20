@@ -457,8 +457,7 @@ class BolusTrackingGUI:
             # Update plot
             self.update_plot(onset_t, end_t, start_idx, end_idx)
             
-            # Set status text
-            if popt is not None:
+            if popt is not None and not np.isnan(popt).any():
                 self.lbl_status.config(
                     text=f"Fit Successful!\nFitted Amplitude: {popt[0]:.2f}\nT2P: {popt[1]:.2f}s, FWHM: {popt[2]:.2f}s, Base: {popt[3]:.2f}",
                     foreground="#27ae60"
@@ -491,7 +490,7 @@ class BolusTrackingGUI:
         self.ax.plot(onset_t + t2p, base + amp, 'mo', markersize=9, label='Peak Init')
         
         # Plot the fit curve if successful
-        if self.fit_params is not None:
+        if self.fit_params is not None and not np.isnan(self.fit_params).any():
             t_plot = self.tl_us[0:end_idx] - onset_t
             y_fit = gamma_fun(t_plot, *self.fit_params)
             self.ax.plot(self.tl_us[0:end_idx], y_fit, 'r-', linewidth=2.5, label='Gamma Fit')
@@ -582,7 +581,7 @@ class BolusTrackingGUI:
             tthb = np.nan
             ont = np.nan
             
-            if self.fit_params is not None:
+            if self.fit_params is not None and not np.isnan(self.fit_params).any():
                 f_amp, f_t2p, f_fwhm, f_m = self.fit_params
                 
                 # Evaluate fit over t_fit
