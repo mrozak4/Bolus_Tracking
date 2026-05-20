@@ -59,7 +59,9 @@ def test_matlab_parity():
             matlab_beta = np.array(roi_data["beta"])
             
             # Use MATLAB's exact initial params to isolate fitting logic test
-            popt, pcov = fit_bolus(tl_us[start_idx:end_idx], y_us[start_idx:end_idx], matlab_init)
+            # Shift time vector so t=0 is at onset (start_idx), and fit over bolus window only
+            t_fit = tl_us[start_idx:end_idx] - tl_us[start_idx]
+            popt, pcov = fit_bolus(t_fit, y_us[start_idx:end_idx], matlab_init)
             
             assert popt is not None, f"Python curve_fit failed to converge for {roi_key}"
             
@@ -72,7 +74,7 @@ def test_matlab_parity():
             if "fitTr" in roi_data:
                 matlab_fit_tr = np.array(roi_data["fitTr"])
                 # Generate Python curve over the same evaluation points
-                t_eval = np.linspace(0, len(y_us[start_idx:end_idx]) / (fr*up_f), len(y_us[start_idx:end_idx]))
+                t_eval = tl_us[start_idx:end_idx] - tl_us[start_idx]
                 py_fit_tr = gamma_fun(t_eval, *popt)
                 
                 # Check that the curves visually/numerically match

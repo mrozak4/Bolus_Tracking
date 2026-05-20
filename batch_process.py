@@ -104,7 +104,8 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
         mask = get_mask_from_poly(pos, img_shape)
         
         # Calculate mean fluorescence intensity (MFI)
-        mfi = np.array([np.mean(frame[mask]) for frame in tiff_stack])
+        mfi_raw = np.array([np.mean(frame[mask]) for frame in tiff_stack])
+        mfi = denoise_trace(mfi_raw)
         
         # Spline upsample
         tl_raw = np.arange(len(mfi)) / fr
@@ -116,8 +117,10 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
         # Estimate parameters
         init_params, start_idx, end_idx, sd_base, clicks = auto_estimate_params(y_us, tl_us, fr, up_f)
         
-        # Fit Gamma Function
-        popt, pcov = fit_bolus(tl_us[start_idx:end_idx], y_us[start_idx:end_idx], init_params)
+        # Fit Gamma Function (evaluate on a time vector starting at 0 to match MATLAB logic)
+        # We only fit the bolus phase to prevent baseline duration from biasing the optimizer
+        t_fit = tl_us[start_idx:end_idx] - tl_us[start_idx]
+        popt, pcov = fit_bolus(t_fit, y_us[start_idx:end_idx], init_params, sd_base)
         
         init_snr = init_params[0] / sd_base if sd_base > 0 else np.nan
         
@@ -162,7 +165,8 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
             os.makedirs(plots_dir, exist_ok=True)
             
             fig, ax = plt.subplots(figsize=(10, 6))
-            ax.plot(tl_raw, mfi, 'k.', label='Raw Data', alpha=0.6)
+            ax.plot(tl_raw, mfi_raw, 'k.', label='Raw Data', alpha=0.4)
+            ax.plot(tl_raw, mfi, 'g+', label='Denoised Data', alpha=0.6)
             ax.plot(tl_us, y_us, 'b--', label='Spline Upsampled', alpha=0.6)
             
             # Plot the auto-clicks
@@ -172,8 +176,10 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir):
             ax.plot(clicks['end'][0], clicks['end'][1], 'ro', markersize=8, label='4: Bolus End')
             
             if popt is not None:
-                y_fit = gamma_fun(tl_us[start_idx:end_idx], *popt)
-                ax.plot(tl_us[start_idx:end_idx], y_fit, 'r-', linewidth=2, label='Gamma Fit')
+                # evaluate the fit over the full window from baseline start to end
+                t_plot = tl_us[0:end_idx] - tl_us[start_idx]
+                y_fit = gamma_fun(t_plot, *popt)
+                ax.plot(tl_us[0:end_idx], y_fit, 'r-', linewidth=2, label='Gamma Fit')
                 ax.set_title(f"ROI {i+1} Fit\nAmp={popt[0]:.2f}, T2p={popt[1]:.2f}, FWHM={popt[2]:.2f}, Base={popt[3]:.2f}")
             else:
                 ax.set_title(f"ROI {i+1} Fit Failed")

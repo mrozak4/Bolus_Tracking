@@ -692,30 +692,89 @@ end
         nBaseFrames = min(round(2 * Fr * UpF), round(length(tr) * 0.1));
         if nBaseFrames < 1, nBaseFrames = 1; end
         baseline = median(tr(1:nBaseFrames));
-        
-        % 2. Amplitude and Time to Peak
-        [maxVal, maxIdx] = max(tr);
-        amp = maxVal - baseline;
-        t2p = t_us(maxIdx);
-        
-        % 3. Fit Start (Onset): Find where signal rises above baseline + 2*SD
         sdBase = std(tr(1:nBaseFrames));
-        thresh = baseline + 2 * sdBase;
-        if sdBase == 0 || thresh >= maxVal
-            thresh = baseline + 0.1 * amp; % Fallback
+        
+        % Ignore points for boundary spline overshoot
+        ignorePoints = min(round(3.0 * Fr * UpF), round(length(tr) * 0.05));
+        validEnd = length(tr) - ignorePoints;
+        if validEnd < 1, validEnd = length(tr); end
+        
+        % 2. Steepest Rise to Peak Detection
+        smoothWinRise = round(1.0 * Fr * UpF);
+        if smoothWinRise < 1, smoothWinRise = 1; end
+        smoothedRise = smoothdata(tr, 'movmean', smoothWinRise);
+        derivRise = diff(smoothedRise);
+        derivRise(end+1) = derivRise(end); % Keep same length
+        
+        [~, riseIdx] = max(derivRise(1:validEnd));
+        
+        searchWin = round(8.0 * Fr * UpF);
+        peakSearchEnd = min(validEnd, riseIdx + searchWin);
+        [maxVal, maxIdxRel] = max(tr(riseIdx:peakSearchEnd));
+        maxIdx = maxIdxRel + riseIdx - 1;
+        amp = maxVal - baseline;
+        
+        % 3. Walk backward for Onset
+        thresh = baseline + max(3 * sdBase, 0.05 * amp);
+        belowThreshCandidates = find(tr(1:maxIdx) < thresh);
+        if isempty(belowThreshCandidates)
+            startIdx = 1;
+        else
+            startIdx = belowThreshCandidates(end);
         end
-        startIdx = find(tr(1:maxIdx) < thresh, 1, 'last');
-        if isempty(startIdx), startIdx = 1; end
         tStart = t_us(startIdx);
         startAmp = tr(startIdx);
         
-        % 4. Fit End: Find where signal drops back to near baseline, or end of trace
-        endThresh = baseline + 0.1 * amp; % Fallback to 10% of amplitude above baseline
-        endIdx = find(tr(maxIdx:end) < endThresh, 1, 'first');
-        if isempty(endIdx)
-            endIdx = length(tr);
+        t2p = t_us(maxIdx) - tStart;
+        t2p = max(t2p, 0.01);
+        
+        % 4. Fit End (Offset): Hybrid local-minimum capped end detection
+        smoothWinEnd = round(0.8 * Fr * UpF);
+        if smoothWinEnd < 1, smoothWinEnd = 1; end
+        smoothedEnd = smoothdata(tr, 'movmean', smoothWinEnd);
+        derivEnd = diff(smoothedEnd);
+        derivEnd(end+1) = derivEnd(end);
+        
+        % 4a. Find local minimum to cap search window
+        downslopeCandidates = find(derivEnd(maxIdx:validEnd) < 0);
+        if isempty(downslopeCandidates)
+            localMinIdx = validEnd;
         else
-            endIdx = endIdx + maxIdx - 1;
+            downslopeStart = downslopeCandidates(1) + maxIdx - 1;
+            nonDecayingCandidates = find(derivEnd(downslopeStart:validEnd) >= 0);
+            if isempty(nonDecayingCandidates)
+                localMinIdx = validEnd;
+            else
+                localMinIdx = nonDecayingCandidates(1) + downslopeStart - 1;
+            end
+        end
+        if localMinIdx <= maxIdx
+            localMinIdx = validEnd;
+        end
+        
+        % 4b. Thresholding in capped window [maxIdx, localMinIdx]
+        smoothWinEndBaseline = round(1.0 * Fr * UpF);
+        if smoothWinEndBaseline < 1, smoothWinEndBaseline = 1; end
+        smoothedEndBaseline = smoothdata(tr, 'movmean', smoothWinEndBaseline);
+        nEndFrames = min(round(2 * Fr * UpF), round(validEnd * 0.1));
+        if nEndFrames < 1, nEndFrames = 1; end
+        
+        endBaseline = median(smoothedEndBaseline(validEnd-nEndFrames+1:validEnd));
+        endSdBase = std(smoothedEndBaseline(validEnd-nEndFrames+1:validEnd));
+        
+        endThresh = endBaseline + max(3 * endSdBase, 0.03 * amp);
+        if endSdBase == 0 || endThresh >= maxVal
+            endThresh = endBaseline + 0.1 * amp;
+        end
+        
+        aboveEndThreshCandidates = find(smoothedEnd(maxIdx:localMinIdx) > endThresh);
+        if isempty(aboveEndThreshCandidates)
+            endIdx = localMinIdx;
+        else
+            endIdx = aboveEndThreshCandidates(end) + maxIdx - 1;
+        end
+        if endIdx >= validEnd
+            endIdx = validEnd;
         end
         tEnd = t_us(endIdx);
         endAmp = tr(endIdx);
@@ -734,8 +793,8 @@ end
         fwhm = tDown - tUp;
         if fwhm <= 0, fwhm = 0.5; end % Fallback
         
-        % 6. Baseline shift
-        bslnShift = endAmp - startAmp;
+        % 6. Baseline shift (absolute baseline)
+        bslnShift = baseline;
         
         % Populate GUI fields
         param1.String = num2str(amp);
@@ -911,9 +970,7 @@ end
 
     function param6In(~,~)
     FitStAmp = (evalin('base','FitStAmp'));
-    FitEndAmp = (evalin('base','FitEndAmp'));
-    BslnShift = FitEndAmp - FitStAmp;
-    param6.String = BslnShift;
+    param6.String = FitStAmp;
     assignin('base','param6',param6.String);
 end
 

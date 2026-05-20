@@ -1,6 +1,6 @@
-numpy==2.4.4
-scipy==1.17.1
-scikit-image==0.26.0
-tifffile==2026.4.11
-pandas==3.0.2
-pytest==9.0.3
+numpy
+scipy
+scikit-image
+tifffile
+pandas
+pytest
