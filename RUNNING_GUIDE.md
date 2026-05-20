@@ -60,6 +60,12 @@ bash run_pipeline_cpp.sh sample-subject-2259
 > ```
 > The SVG plots will be saved to a `plots_cpp` subdirectory within the subject folder.
 
+**Batch Processing Multiple Subjects**: You can process multiple subjects at once by targeting a parent directory that contains multiple subject folders. The pipeline recursively scans and matches the corresponding `.tif`, `_rois.txt`, and metadata files within each subject directory without conflicts:
+```bash
+# Process all subjects found under the current directory
+bash run_pipeline_cpp.sh . --plot
+```
+
 #### Manual command:
 If you want to run the Docker command manually:
 ```bash

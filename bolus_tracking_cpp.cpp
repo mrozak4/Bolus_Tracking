@@ -1426,6 +1426,35 @@ std::string extract_identifier(const std::string& filename) {
     return "";
 }
 
+std::string get_top_relative_dir(const std::filesystem::path& file_path, const std::filesystem::path& base_folder) {
+    try {
+        std::filesystem::path abs_file = std::filesystem::absolute(file_path).lexically_normal();
+        std::filesystem::path abs_base = std::filesystem::absolute(base_folder).lexically_normal();
+        
+        std::filesystem::path rel = std::filesystem::relative(abs_file, abs_base);
+        auto it = rel.begin();
+        if (it != rel.end() && *it != "..") {
+            int components = 0;
+            for (auto const& c : rel) {
+                components++;
+            }
+            if (components <= 1) {
+                return "";
+            }
+            return it->string();
+        }
+    } catch (...) {}
+    return "";
+}
+
+struct PathInfo {
+    std::filesystem::path path;
+    std::string identifier;
+    std::string top_dir;
+};
+
+
+
 bool contains_ignored_pattern(const std::string& path) {
     std::vector<std::string> ignores = {"mips", "results", "shift_info", "max_"};
     for (const auto& pat : ignores) {
@@ -1517,8 +1546,8 @@ int main(int argc, char** argv) {
         }
         
         // 1. Scan for all ROI and Metadata files first
-        std::map<std::string, std::string> rois_map;
-        std::map<std::string, std::string> meta_map;
+        std::vector<PathInfo> rois_files;
+        std::vector<PathInfo> meta_files;
         
         for (const auto& entry : std::filesystem::recursive_directory_iterator(folder_path)) {
             if (entry.is_regular_file()) {
@@ -1537,10 +1566,15 @@ int main(int argc, char** argv) {
                     std::string filename_lower = filename;
                     std::transform(filename_lower.begin(), filename_lower.end(), filename_lower.begin(), ::tolower);
                     
+                    PathInfo pinfo;
+                    pinfo.path = entry.path();
+                    pinfo.identifier = identifier;
+                    pinfo.top_dir = get_top_relative_dir(entry.path(), folder_path);
+                    
                     if (filename_lower.find("_rois.txt") != std::string::npos || filename_lower.find("_rois_cpp.txt") != std::string::npos) {
-                        rois_map[identifier] = entry.path().string();
+                        rois_files.push_back(pinfo);
                     } else if (filename_lower.find("_rois") == std::string::npos) {
-                        meta_map[identifier] = entry.path().string();
+                        meta_files.push_back(pinfo);
                     }
                 }
             }
@@ -1579,15 +1613,35 @@ int main(int argc, char** argv) {
             std::string id_lower = identifier;
             std::transform(id_lower.begin(), id_lower.end(), id_lower.begin(), ::tolower);
             
-            if (rois_map.find(id_lower) == rois_map.end() || meta_map.find(id_lower) == meta_map.end()) {
-                std::cerr << "Warning: Could not find matching rois.txt or metadata.txt for " << filename 
-                          << " (rois: " << (rois_map.find(id_lower) == rois_map.end() ? "missing" : "found")
-                          << ", meta: " << (meta_map.find(id_lower) == meta_map.end() ? "missing" : "found") << "). Skipping." << std::endl;
-                continue;
+            std::string tif_subj = get_top_relative_dir(tiff_path, folder_path);
+            
+            std::string rois_file = "";
+            std::string meta_file = "";
+            
+            for (const auto& r : rois_files) {
+                if (r.identifier == id_lower) {
+                    if (tif_subj.empty() || r.top_dir == tif_subj) {
+                        rois_file = r.path.string();
+                        break;
+                    }
+                }
             }
             
-            std::string rois_file = rois_map[id_lower];
-            std::string meta_file = meta_map[id_lower];
+            for (const auto& m : meta_files) {
+                if (m.identifier == id_lower) {
+                    if (tif_subj.empty() || m.top_dir == tif_subj) {
+                        meta_file = m.path.string();
+                        break;
+                    }
+                }
+            }
+            
+            if (rois_file.empty() || meta_file.empty()) {
+                std::cerr << "Warning: Could not find matching rois.txt or metadata.txt for " << filename 
+                          << " (rois: " << (rois_file.empty() ? "missing" : "found")
+                          << ", meta: " << (meta_file.empty() ? "missing" : "found") << "). Skipping." << std::endl;
+                continue;
+            }
             
             double fr = parse_frame_rate(meta_file);
             if (fr <= 0.0) {

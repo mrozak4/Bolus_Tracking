@@ -363,6 +363,13 @@ def find_triplets(folder):
             elif f_lower.endswith('.txt') and 'rois' not in f_lower:
                 txts.append(full_path)
     
+    def get_top_relative_dir(file_path, base_folder):
+        rel = os.path.relpath(os.path.abspath(file_path), os.path.abspath(base_folder))
+        parts = rel.split(os.sep)
+        if len(parts) > 1 and parts[0] != '..':
+            return parts[0]
+        return ""
+
     def normalize_name(s):
         return s.lower().replace('-', '_')
 
@@ -380,11 +387,14 @@ def find_triplets(folder):
             continue
             
         norm_id = normalize_name(match.group(1))
+        tif_subj = get_top_relative_dir(tif, folder)
         
-        # Find matching mat (comparing normalized names)
-        matching_mat = [m for m in mats if norm_id in normalize_name(os.path.basename(m))]
-        # Find matching txt (comparing normalized names)
-        matching_txt = [t for t in txts if norm_id in normalize_name(os.path.basename(t))]
+        # Find matching mat (comparing normalized names and subject folder context)
+        matching_mat = [m for m in mats if norm_id in normalize_name(os.path.basename(m)) 
+                        and (not tif_subj or get_top_relative_dir(m, folder) == tif_subj)]
+        # Find matching txt (comparing normalized names and subject folder context)
+        matching_txt = [t for t in txts if norm_id in normalize_name(os.path.basename(t)) 
+                        and (not tif_subj or get_top_relative_dir(t, folder) == tif_subj)]
         
         if matching_mat and matching_txt:
             triplets.append((tif, matching_mat[0], matching_txt[0]))
