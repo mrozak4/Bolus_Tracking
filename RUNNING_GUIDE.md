@@ -1,6 +1,6 @@
 # Complete Guide to Running the Bolus Tracking Pipeline
 
-This guide is designed for **both human users (even with zero coding experience)** and **AI coding agents** to easily set up, run, and maintain the bolus tracking pipeline.
+This guide is designed for **both human users (even with zero coding experience)** and **AI coding agents** to easily set up, run, and maintain the bolus tracking pipeline and interactive GUI.
 
 ---
 
@@ -39,10 +39,10 @@ cd Adrienne_Bolus_Tracking
 
 ### Linux (e.g., Ubuntu/Debian)
 1. Open your terminal.
-2. Install Python, virtual environment tools, Git, and Docker by running:
+2. Install Python, virtual environment tools, Git, and GUI libraries (Tkinter) by running:
    ```bash
    sudo apt-get update
-   sudo apt-get install python3 python3-pip python3-venv git -y
+   sudo apt-get install python3 python3-pip python3-venv python3-tk git -y
    ```
 3. To install Docker (optional, but highly recommended for containerized runs):
    ```bash
@@ -71,7 +71,34 @@ cd Adrienne_Bolus_Tracking
 
 ---
 
-## 3. Running with Docker (Containerized Execution)
+## 3. Running the Python Interactive GUI (New!)
+
+We have created a premium Python-based Graphical User Interface (`bolus_gui.py`) so you can visually verify and custom-adjust the fits for every ROI without needing MATLAB!
+
+### How to Launch the GUI
+Make sure your virtual environment is active, then run:
+```bash
+# macOS / Linux
+.venv/bin/python bolus_gui.py
+
+# Windows (PowerShell)
+.venv/Scripts/python bolus_gui.py
+```
+
+### GUI Step-by-Step Instructions
+1. **Load Subject Folder**: Click **📁 Open Subject Folder** at the top left. Select any folder containing your TIFF stack and metadata files (it defaults to your current directory).
+2. **Select Dataset**: Choose your dataset triplet (TIFF, MAT mask, and metadata TXT) from the **1. Select Dataset** dropdown. The image trace will load automatically.
+3. **Select Capillary ROI**: Navigate between the different capillary regions of interest using the **2. Select Capillary ROI** dropdown.
+4. **Interactive Marker Placement**:
+   - If the automatic guess is slightly off, click one of the orange, purple, red, or green **Adjust Markers** buttons (e.g., **Set Onset ⌖**).
+   - Click anywhere on the plot to place that marker. The GUI will instantly re-calculate the fit and draw the updated curves!
+5. **Direct Entry Editing**: You can also type exact numbers directly into the Amplitude, T2P, FWHM, Baseline, Onset, and End fields. Click **⚡ Run Gamma Fit** to apply them.
+6. **Vessel Designation**: Set the capillary type (Unknown, Artery, Vein, or Capillary) under the dropdown.
+7. **Save & Export**: Click **💾 Save & Export Results** to write the parameters to the CSV results table and save a high-resolution screenshot of the fit inside the subject's `plots/` folder.
+
+---
+
+## 4. Running with Docker (Containerized Execution)
 
 Running inside Docker is highly recommended as it guarantees all library versions are identical and prevents dependency conflicts on your computer.
 
@@ -99,9 +126,10 @@ If you want to run the Docker container manually without the wrapper script:
 
 ---
 
-## 4. Technical Overview of the Files
+## 5. Technical Overview of the Files
 
 Here is what each file does:
+* `bolus_gui.py`: The Python-based interactive GUI for loading, viewing, adjusting, and exporting individual ROI bolus fits.
 * `run_pipeline.sh`: The master control script that prepares the Python virtual environment and kicks off the processing.
 * `batch_process.py`: The high-level script that scans for datasets, reads TIFF image stacks, extracts the mean signal from each ROI, fits the Gamma curve, and saves results/plots.
 * `bolus_tracking.py`: The core computational engine containing all denoising, thresholding, onset/peak/end detection, and mathematical optimization logic.
@@ -112,7 +140,7 @@ Here is what each file does:
 
 ---
 
-## 5. Inputs and Output Structure
+## 6. Inputs and Output Structure
 
 ### Expected Inputs
 The pipeline automatically scans directories in the workspace for subject folders (e.g., `sample-subject-2259`). Inside each folder, it expects:
