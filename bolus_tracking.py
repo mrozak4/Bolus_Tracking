@@ -88,6 +88,7 @@ def auto_estimate_params(tr, t_us, fr, up_f=20):
         start_idx = below_thresh_candidates[-1]
         
     # Also detect onset where the derivative drops below 15% of max_deriv (robust to baseline drift)
+    max_deriv = deriv_rise[rise_idx]
     slope_thresh = 0.15 * max_deriv
     deriv_candidates = np.where(deriv_rise[:rise_idx+1] < slope_thresh)[0]
     if len(deriv_candidates) > 0:
@@ -195,7 +196,7 @@ def auto_estimate_params(tr, t_us, fr, up_f=20):
     
     return [amp, t2p, fwhm, bsln_shift], start_idx, end_idx, sd_base, clicks
 
-def fit_bolus(t, y, params_init, sd_base=1.0):
+def fit_bolus(t, y, params_init, sd_base=1.0, bounds_override=None):
     """
     Fits the gamma function using a 2-pass optimization to match MATLAB's IRLS.
     Pass 1: Linear Least Squares to capture the global shape and estimate the residual MAD.
@@ -206,10 +207,13 @@ def fit_bolus(t, y, params_init, sd_base=1.0):
         # jumping to the plateau, and constrain Amplitude and FWHM to positive.
         m_init = params_init[3]
         m_bound = max(0.5 * sd_base, 0.005 * m_init, 0.2)
-        bounds = (
-            [1e-6, 1e-6, 1e-6, m_init - m_bound], 
-            [np.inf, np.inf, np.inf, m_init + m_bound]
-        )
+        if bounds_override is not None:
+            bounds = bounds_override
+        else:
+            bounds = (
+                [1e-6, 1e-6, 1e-6, m_init - m_bound], 
+                [np.inf, np.inf, np.inf, m_init + m_bound]
+            )
         
         # Pass 1: Linear Fit
         try:

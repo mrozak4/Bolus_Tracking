@@ -30,6 +30,8 @@ struct ROI {
 
 struct FitRecord {
     int roi_id;
+    int subj_num;
+    std::string exp;
     double init_amp;
     double init_t2p;
     double init_fwhm;
@@ -47,11 +49,57 @@ struct FitRecord {
     double f_snr;
     double f_cnr;
     double denoise_rms;
+    
+    // Legacy MATLAB fields
+    double auc;
+    double aucn;
+    double ttlb;
+    double ttm;
+    double tthb;
+    double ont;
+    double ont_sc;
+    int roi_size;
+    std::string ves_type;
 };
 
 // ---------------------------------------------------------
 // Math Helpers
 // ---------------------------------------------------------
+int parse_subject_number(const std::string& filepath) {
+    size_t pos = filepath.find("subject");
+    if (pos != std::string::npos) {
+        size_t start = pos + 7;
+        while (start < filepath.length() && (filepath[start] == '-' || filepath[start] == '_')) {
+            start++;
+        }
+        std::string num_str = "";
+        while (start < filepath.length() && std::isdigit(filepath[start])) {
+            num_str += filepath[start];
+            start++;
+        }
+        if (!num_str.empty()) {
+            try { return std::stoi(num_str); } catch (...) {}
+        }
+    }
+    for (size_t i = 0; i + 3 < filepath.length(); ++i) {
+        if (std::isdigit(filepath[i]) && std::isdigit(filepath[i+1]) &&
+            std::isdigit(filepath[i+2]) && std::isdigit(filepath[i+3])) {
+            try { return std::stoi(filepath.substr(i, 4)); } catch (...) {}
+        }
+    }
+    return 0;
+}
+
+std::string parse_experiment(const std::string& filepath) {
+    size_t last_slash = filepath.find_last_of("/\\");
+    std::string filename = (last_slash == std::string::npos) ? filepath : filepath.substr(last_slash + 1);
+    size_t last_dot = filename.find_last_of('.');
+    if (last_dot != std::string::npos) {
+        return filename.substr(0, last_dot);
+    }
+    return filename;
+}
+
 double compute_median(std::vector<double> v) {
     if (v.empty()) return 0.0;
     size_t n = v.size() / 2;
@@ -71,6 +119,47 @@ double compute_std(const std::vector<double>& v, double mean) {
         sum_sq += (x - mean) * (x - mean);
     }
     return std::sqrt(sum_sq / (v.size() - 1.0)); // ddof=1
+}
+
+std::vector<double> get_parameter_se(const std::vector<double>& t, const std::vector<double>& popt, double mse) {
+    int n = t.size();
+    int p = 4;
+    Eigen::MatrixXd J(n, p);
+    double eps = 1e-5;
+    
+    auto eval_model = [](double t_val, const std::vector<double>& params) {
+        double amp = params[0];
+        double t2p = params[1];
+        double fwhm = params[2];
+        double m = params[3];
+        double val = m;
+        if (t_val > 0) {
+            double alpha = ((t2p * t2p) / (fwhm * fwhm)) * 8.0 * std::log(2.0);
+            double beta = ((fwhm * fwhm) / t2p) / (8.0 * std::log(2.0));
+            val = m + amp * std::pow(t_val / t2p, alpha) * std::exp(-(t_val - t2p) / beta);
+        }
+        return val;
+    };
+    
+    for (int j = 0; j < p; ++j) {
+        std::vector<double> perturbed = popt;
+        perturbed[j] += eps;
+        for (int i = 0; i < n; ++i) {
+            double f1 = eval_model(t[i], perturbed);
+            double f0 = eval_model(t[i], popt);
+            J(i, j) = (f1 - f0) / eps;
+        }
+    }
+    
+    Eigen::MatrixXd JTJ = J.transpose() * J;
+    for (int j = 0; j < p; ++j) JTJ(j, j) += 1e-8; // Add regularization to prevent singular matrix
+    
+    Eigen::MatrixXd cov = mse * JTJ.inverse();
+    std::vector<double> se(p, 0.0);
+    for (int j = 0; j < p; ++j) {
+        se[j] = (cov(j, j) > 0.0) ? std::sqrt(cov(j, j)) : 0.0;
+    }
+    return se;
 }
 
 int reflect_index(int idx, int n) {
@@ -486,10 +575,17 @@ struct GammaFunctor {
     bool use_cauchy;
     double f_scale;
     
+    double min_amp;
+    double max_amp;
+    double min_t2p;
+    double max_t2p;
+    double min_fwhm;
+    double max_fwhm;
+    
     int operator()(const Eigen::VectorXd& x, Eigen::VectorXd& fvec) const {
-        double a1 = 1e-6 + std::abs(x[0]);
-        double peak1 = 1e-6 + std::abs(x[1]);
-        double fwhm1 = 1e-6 + std::abs(x[2]);
+        double a1 = min_amp + (max_amp - min_amp) / (1.0 + std::exp(-x[0]));
+        double peak1 = min_t2p + (max_t2p - min_t2p) / (1.0 + std::exp(-x[1]));
+        double fwhm1 = min_fwhm + (max_fwhm - min_fwhm) / (1.0 + std::exp(-x[2]));
         
         double L_m = m_init - m_bound;
         double U_m = m_init + m_bound;
@@ -522,7 +618,10 @@ struct GammaFunctor {
 };
 
 std::vector<double> run_nonlinear_fit(const std::vector<double>& t, const std::vector<double>& y, 
-                                     const std::vector<double>& params_init, double sd_base, bool& success) {
+                                     const std::vector<double>& params_init, double sd_base, bool& success,
+                                     double min_amp, double max_amp,
+                                     double min_t2p, double max_t2p,
+                                     double min_fwhm, double max_fwhm) {
     success = false;
     double m_init = params_init[3];
     double m_bound = std::max({0.5 * sd_base, 0.005 * m_init, 0.2});
@@ -530,18 +629,23 @@ std::vector<double> run_nonlinear_fit(const std::vector<double>& t, const std::v
     double L_m = m_init - m_bound;
     double U_m = m_init + m_bound;
     
+    auto inv_map = [](double val, double L, double U) {
+        double eps = 1e-5;
+        double clamped = std::max(L + eps, std::min(U - eps, val));
+        double ratio = (U - L) / (clamped - L);
+        double arg = std::max(1e-9, ratio - 1.0);
+        return -std::log(arg);
+    };
+    
     // Map initial guesses to search space
     Eigen::VectorXd x(4);
-    x[0] = params_init[0] - 1e-6;
-    x[1] = params_init[1] - 1e-6;
-    x[2] = params_init[2] - 1e-6;
-    
-    double ratio = (U_m - L_m) / std::max(1e-9, m_init - L_m);
-    double arg = std::max(1e-9, ratio - 1.0);
-    x[3] = -std::log(arg);
+    x[0] = inv_map(params_init[0], min_amp, max_amp);
+    x[1] = inv_map(params_init[1], min_t2p, max_t2p);
+    x[2] = inv_map(params_init[2], min_fwhm, max_fwhm);
+    x[3] = inv_map(m_init, L_m, U_m);
     
     // Pass 1: Linear Least Squares
-    GammaFunctor functor{t, y, m_init, m_bound, false, 1.0};
+    GammaFunctor functor{t, y, m_init, m_bound, false, 1.0, min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm};
     Eigen::NumericalDiff<GammaFunctor> numDiff(functor);
     Eigen::LevenbergMarquardt<Eigen::NumericalDiff<GammaFunctor>, double> lm(numDiff);
     lm.parameters.maxfev = 2000;
@@ -550,11 +654,15 @@ std::vector<double> run_nonlinear_fit(const std::vector<double>& t, const std::v
     
     int info = lm.minimize(x);
     
+    auto map_param = [](double x_val, double L, double U) {
+        return L + (U - L) / (1.0 + std::exp(-x_val));
+    };
+    
     // Pass 1 solution
-    double a1 = 1e-6 + std::abs(x[0]);
-    double peak1 = 1e-6 + std::abs(x[1]);
-    double fwhm1 = 1e-6 + std::abs(x[2]);
-    double m = L_m + (U_m - L_m) / (1.0 + std::exp(-x[3]));
+    double a1 = map_param(x[0], min_amp, max_amp);
+    double peak1 = map_param(x[1], min_t2p, max_t2p);
+    double fwhm1 = map_param(x[2], min_fwhm, max_fwhm);
+    double m = map_param(x[3], L_m, U_m);
     
     // Calculate residuals and MAD
     double alpha1 = ((peak1 * peak1) / (fwhm1 * fwhm1)) * 8.0 * std::log(2.0);
@@ -588,10 +696,10 @@ std::vector<double> run_nonlinear_fit(const std::vector<double>& t, const std::v
         success = true;
     }
     
-    double final_a1 = 1e-6 + std::abs(x[0]);
-    double final_peak1 = 1e-6 + std::abs(x[1]);
-    double final_fwhm1 = 1e-6 + std::abs(x[2]);
-    double final_m = L_m + (U_m - L_m) / (1.0 + std::exp(-x[3]));
+    double final_a1 = map_param(x[0], min_amp, max_amp);
+    double final_peak1 = map_param(x[1], min_t2p, max_t2p);
+    double final_fwhm1 = map_param(x[2], min_fwhm, max_fwhm);
+    double final_m = map_param(x[3], L_m, U_m);
     
     return {final_a1, final_peak1, final_fwhm1, final_m};
 }
@@ -906,7 +1014,10 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
 FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, double>>& poly,
                              const std::vector<std::vector<float>>& frames, int width, int height,
                              double fr, int up_f, const std::string& tiff_path, bool enable_plots,
-                             double drift_window) {
+                             double drift_window,
+                             double min_amp, double max_amp,
+                             double min_t2p, double max_t2p,
+                             double min_fwhm, double max_fwhm) {
     // 1. Rasterize Mask
     std::vector<int> mask = get_mask_pixels(poly, width, height);
     
@@ -993,10 +1104,16 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
     }
     
     bool fit_success = false;
-    std::vector<double> popt = run_nonlinear_fit(t_fit, y_fit, auto_res.init_params, auto_res.sd_base, fit_success);
+    std::vector<double> popt = run_nonlinear_fit(t_fit, y_fit, auto_res.init_params, auto_res.sd_base, fit_success,
+                                                 min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm);
     
     FitRecord rec;
     rec.roi_id = roi_id;
+    rec.subj_num = parse_subject_number(tiff_path);
+    rec.exp = parse_experiment(tiff_path);
+    rec.roi_size = mask_size;
+    rec.ves_type = "U";
+    
     rec.init_amp = auto_res.init_params[0];
     rec.init_t2p = auto_res.init_params[1];
     rec.init_fwhm = auto_res.init_params[2];
@@ -1015,6 +1132,78 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
         rec.f_m = popt[3];
         rec.f_cnr = (auto_res.sd_base > 0.0) ? (popt[0] / auto_res.sd_base) : NAN;
         rec.f_snr = (auto_res.sd_base > 0.0) ? (popt[3] / auto_res.sd_base) : NAN;
+        
+        // Calculate AUC and AUCn
+        std::vector<double> y_fit_model(t_fit.size());
+        double alpha = ((popt[1] * popt[1]) / (popt[2] * popt[2])) * 8.0 * std::log(2.0);
+        double beta = ((popt[2] * popt[2]) / popt[1]) / (8.0 * std::log(2.0));
+        for (size_t i = 0; i < t_fit.size(); ++i) {
+            double t_val = t_fit[i];
+            double val = popt[3];
+            if (t_val > 0) {
+                val = popt[3] + popt[0] * std::pow(t_val / popt[1], alpha) * std::exp(-(t_val - popt[1]) / beta);
+            }
+            y_fit_model[i] = val;
+        }
+        
+        double sum_y = 0.0;
+        for (double val : y_fit_model) sum_y += val;
+        rec.auc = sum_y - (y_fit_model.front() + y_fit_model.back()) / 2.0;
+        
+        double min_y = y_fit_model[0];
+        double max_y = y_fit_model[0];
+        for (double val : y_fit_model) {
+            if (val < min_y) min_y = val;
+            if (val > max_y) max_y = val;
+        }
+        double range = max_y - min_y;
+        double sum_yn = 0.0;
+        for (double val : y_fit_model) {
+            sum_yn += (range > 0.0) ? (val - min_y) / range : 0.0;
+        }
+        double first_yn = (range > 0.0) ? (y_fit_model.front() - min_y) / range : 0.0;
+        double last_yn = (range > 0.0) ? (y_fit_model.back() - min_y) / range : 0.0;
+        rec.aucn = sum_yn - (first_yn + last_yn) / 2.0;
+        
+        // Calculate OnT
+        std::vector<int> I;
+        for (size_t i = 0; i < y_fit_model.size(); ++i) {
+            double val_n = (range > 0.0) ? (y_fit_model[i] - min_y) / range : 0.0;
+            if (val_n < 0.1) {
+                I.push_back(i);
+            }
+        }
+        int onset_idx = 0;
+        if (!I.empty()) {
+            int last_idx = -1;
+            for (size_t k = 0; k + 1 < I.size(); ++k) {
+                if (I[k+1] - I[k] == 1) {
+                    last_idx = k;
+                }
+            }
+            if (last_idx != -1) {
+                onset_idx = I[last_idx] + 1;
+            } else {
+                onset_idx = I[0];
+            }
+        }
+        rec.ont = (double)onset_idx / (fr * up_f);
+        rec.ttm = std::abs(popt[1] - rec.ont);
+        
+        // Calculate standard errors and TTlb / TThb
+        double sum_sq_resid = 0.0;
+        for (size_t i = 0; i < y_fit.size(); ++i) {
+            double diff = y_fit[i] - y_fit_model[i];
+            sum_sq_resid += diff * diff;
+        }
+        double mse = (y_fit.size() > 4) ? (sum_sq_resid / (y_fit.size() - 4)) : 0.0;
+        std::vector<double> se = get_parameter_se(t_fit, popt, mse);
+        double se_t2p = se[1];
+        
+        double ci_lower = popt[1] - 1.96 * se_t2p;
+        double ci_upper = popt[1] + 1.96 * se_t2p;
+        rec.ttlb = std::abs(ci_lower - rec.ont);
+        rec.tthb = std::abs(ci_upper - rec.ont);
     } else {
         rec.f_amp = NAN;
         rec.f_t2p = NAN;
@@ -1022,6 +1211,12 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
         rec.f_m = NAN;
         rec.f_cnr = NAN;
         rec.f_snr = NAN;
+        rec.auc = NAN;
+        rec.aucn = NAN;
+        rec.ttlb = NAN;
+        rec.ttm = NAN;
+        rec.tthb = NAN;
+        rec.ont = NAN;
     }
     
     // Calculate RMS of noise removed by denoising
@@ -1043,7 +1238,10 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
 // ---------------------------------------------------------
 // Main Function
 // ---------------------------------------------------------
-bool process_dataset_file(const std::string& tiff_path, const std::string& rois_path, double fr, int up_f, const std::string& out_csv, bool enable_plots, double drift_window) {
+bool process_dataset_file(const std::string& tiff_path, const std::string& rois_path, double fr, int up_f, const std::string& out_csv, bool enable_plots, double drift_window,
+                          double min_amp, double max_amp,
+                          double min_t2p, double max_t2p,
+                          double min_fwhm, double max_fwhm) {
     std::cout << "Starting C++ Bolus Tracking for: " << tiff_path << std::endl;
     
     // 1. Read TIFF Stack
@@ -1119,7 +1317,7 @@ bool process_dataset_file(const std::string& tiff_path, const std::string& rois_
         futures.push_back(std::async(std::launch::async, process_single_roi,
                                      rois[i].id + 1, rois[i].poly, std::ref(frames),
                                      (int)width, (int)height, fr, up_f, tiff_path, enable_plots,
-                                     drift_window));
+                                     drift_window, min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm));
     }
     
     std::vector<FitRecord> results;
@@ -1132,6 +1330,14 @@ bool process_dataset_file(const std::string& tiff_path, const std::string& rois_
     std::chrono::duration<double> diff = end_time - start_time;
     std::cout << "Parallel fitting complete in " << diff.count() << " seconds!" << std::endl;
     
+    // Calculate OnTSc (Onset time in Scan) relative to the minimum OnT among all ROIs
+    double min_ont = 999999.0;
+    for (const auto& rec : results) {
+        if (!std::isnan(rec.ont) && rec.ont < min_ont) {
+            min_ont = rec.ont;
+        }
+    }
+    
     // 4. Save CSV results
     std::ofstream out(out_csv);
     if (!out.is_open()) {
@@ -1139,14 +1345,26 @@ bool process_dataset_file(const std::string& tiff_path, const std::string& rois_
         return false;
     }
     
-    out << "ROI,InitAmp,InitT2p,InitFWHM,InitM,InitSNR,InitCNR,Click1_Start_T,Click2_Onset_T,Click3_Peak_T,Click4_End_T,"
-        << "F_Amp,F_T2p,F_FWHM,F_M,F_SNR,F_CNR,Denoise_RMS\n";
+    out << "ROI,SubjNum,Exp,InitAmp,InitT2p,InitFWHM,InitM,InitSNR,InitCNR,"
+        << "Click1_Start_T,Click2_Onset_T,Click3_Peak_T,Click4_End_T,"
+        << "F_Amp,F_T2p,F_FWHM,F_M,F_SNR,F_CNR,"
+        << "AUC,AUCn,TTlb,TTm,TThb,OnT,OnTSc,ROISize,Denoise_RMS,VesType\n";
     
-    for (const auto& rec : results) {
+    for (auto& rec : results) {
+        if (!std::isnan(rec.ont) && min_ont < 99999.0) {
+            rec.ont_sc = rec.ont - min_ont;
+        } else {
+            rec.ont_sc = NAN;
+        }
+        
         out << rec.roi_id << ","
+            << rec.subj_num << ","
+            << rec.exp << ","
             << rec.init_amp << "," << rec.init_t2p << "," << rec.init_fwhm << "," << rec.init_m << "," << rec.init_snr << "," << rec.init_cnr << ","
             << rec.click_start << "," << rec.click_onset << "," << rec.click_peak << "," << rec.click_end << ","
-            << rec.f_amp << "," << rec.f_t2p << "," << rec.f_fwhm << "," << rec.f_m << "," << rec.f_snr << "," << rec.f_cnr << "," << rec.denoise_rms << "\n";
+            << rec.f_amp << "," << rec.f_t2p << "," << rec.f_fwhm << "," << rec.f_m << "," << rec.f_snr << "," << rec.f_cnr << ","
+            << rec.auc << "," << rec.aucn << "," << rec.ttlb << "," << rec.ttm << "," << rec.tthb << "," << rec.ont << "," << rec.ont_sc << ","
+            << rec.roi_size << "," << rec.denoise_rms << "," << rec.ves_type << "\n";
     }
     out.close();
     std::cout << "Saved C++ results to: " << out_csv << std::endl;
@@ -1201,6 +1419,13 @@ int main(int argc, char** argv) {
     double drift_window = 15.0;
     std::vector<std::string> pos_args;
     
+    double min_amp = 1e-6;
+    double max_amp = 1e6;
+    double min_t2p = 1e-6;
+    double max_t2p = 1e6;
+    double min_fwhm = 1e-6;
+    double max_fwhm = 1e6;
+    
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--plot") {
@@ -1214,6 +1439,36 @@ int main(int argc, char** argv) {
         } else if (arg == "--drift" || arg == "--drift-window") {
             if (i + 1 < argc) {
                 drift_window = std::stod(argv[i + 1]);
+                i++;
+            }
+        } else if (arg == "--min-amp") {
+            if (i + 1 < argc) {
+                min_amp = std::stod(argv[i + 1]);
+                i++;
+            }
+        } else if (arg == "--max-amp") {
+            if (i + 1 < argc) {
+                max_amp = std::stod(argv[i + 1]);
+                i++;
+            }
+        } else if (arg == "--min-t2p") {
+            if (i + 1 < argc) {
+                min_t2p = std::stod(argv[i + 1]);
+                i++;
+            }
+        } else if (arg == "--max-t2p") {
+            if (i + 1 < argc) {
+                max_t2p = std::stod(argv[i + 1]);
+                i++;
+            }
+        } else if (arg == "--min-fwhm") {
+            if (i + 1 < argc) {
+                min_fwhm = std::stod(argv[i + 1]);
+                i++;
+            }
+        } else if (arg == "--max-fwhm") {
+            if (i + 1 < argc) {
+                max_fwhm = std::stod(argv[i + 1]);
                 i++;
             }
         } else {
@@ -1328,7 +1583,8 @@ int main(int argc, char** argv) {
             std::cout << "Output: " << out_csv << std::endl;
             std::cout << "==================================================" << std::endl;
             
-            process_dataset_file(tiff_path.string(), rois_file, fr, 20, out_csv, enable_plots, drift_window);
+            process_dataset_file(tiff_path.string(), rois_file, fr, 20, out_csv, enable_plots, drift_window,
+                                 min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm);
             processed_count++;
         }
         
@@ -1343,7 +1599,8 @@ int main(int argc, char** argv) {
         int up_f = std::stoi(pos_args[3]);
         std::string out_csv = pos_args[4];
         
-        bool success = process_dataset_file(tiff_path, rois_path, fr, up_f, out_csv, enable_plots, drift_window);
+        bool success = process_dataset_file(tiff_path, rois_path, fr, up_f, out_csv, enable_plots, drift_window,
+                                            min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm);
         return success ? 0 : 1;
     }
     

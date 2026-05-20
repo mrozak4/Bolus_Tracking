@@ -85,6 +85,8 @@ The batch pipelines output CSV files containing the following metrics for each c
 | Column | Description |
 | :--- | :--- |
 | **ROI** | 1-indexed ID of the capillary Region of Interest. |
+| **SubjNum** | Subject ID parsed from the data path. |
+| **Exp** | Experiment condition name (e.g. `bolus1_baseline`). |
 | **InitAmp** / **F_Amp** | Initial estimate and fitted peak amplitude of the bolus (in arbitrary Intensity **SU**). |
 | **InitT2p** / **F_T2p** | Initial estimate and fitted Time-to-Peak (in **seconds**). |
 | **InitFWHM** / **F_FWHM** | Initial estimate and fitted Full Width at Half Maximum (in **seconds**). |
@@ -95,4 +97,13 @@ The batch pipelines output CSV files containing the following metrics for each c
 | **Click2_Onset_T** | Time of bolus onset (in **seconds**). |
 | **Click3_Peak_T** | Time of the bolus peak (in **seconds**). |
 | **Click4_End_T** | Time of first-pass clearance / end marker (in **seconds**). |
+| **AUC** | Trapezoidal integration of the fitted bolus curve. |
+| **AUCn** | Trapezoidal integration of the min-max normalized fitted bolus curve. |
+| **TTlb** | Transit Time Lower Bound (95% CI lower limit of Time-to-Peak relative to Onset). |
+| **TTm** | Peak Transit Time (Time-to-Peak relative to Onset). |
+| **TThb** | Transit Time Higher Bound (95% CI upper limit of Time-to-Peak relative to Onset). |
+| **OnT** | Onset Time (relative to fit window start, where normalized fit crosses 0.1). |
+| **OnTSc** | Onset Time in Scan (relative to the earliest onset across all ROIs in the scan). |
+| **ROISize** | Size of the Region of Interest mask (in pixels). |
 | **Denoise_RMS** | Root Mean Square (RMS) of the noise removed during spline denoising (in **SU**). |
+| **VesType** | Vessel type classification (defaults to `'U'`). |

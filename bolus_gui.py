@@ -525,34 +525,139 @@ class BolusTrackingGUI:
             onset_t = float(self.ent_onset_t.get())
             end_t = float(self.ent_end_t.get())
             
-            ves_type = self.cb_vessel.get()
+            ves_type_full = self.cb_vessel.get()
+            ves_type = "U"
+            if "Artery" in ves_type_full:
+                ves_type = "A"
+            elif "Vein" in ves_type_full:
+                ves_type = "V"
+            elif "Capillary" in ves_type_full:
+                ves_type = "C"
+                
+            tiff_path = self.current_triplet[0]
+            subj_match = re.search(r'(?:subject[_-]?)(\d+)', tiff_path, re.IGNORECASE)
+            if not subj_match:
+                subj_match = re.search(r'\b\d{4}\b', tiff_path)
+            subj_num = int(subj_match.group(1)) if subj_match else 0
+            exp = os.path.splitext(os.path.basename(tiff_path))[0]
+            
+            pos = self.mask_objs[self.current_roi_idx]
+            if hasattr(pos, 'poli'):
+                pos_verts = pos.poli.Position
+            elif hasattr(pos, 'Position'):
+                pos_verts = pos.Position
+            else:
+                pos_verts = []
+                
+            if len(pos_verts) >= 3:
+                mask = get_mask_from_poly(pos_verts, self.tiff_stack.shape[1:])
+                roi_size = int(np.sum(mask))
+            else:
+                roi_size = 0
+                
+            denoise_rms = float(np.sqrt(np.mean((self.mfi_raw - self.mfi_denoised) ** 2)))
             
             # Setup record
             record = {
                 'ROI': self.current_roi_idx + 1,
+                'SubjNum': subj_num,
+                'Exp': exp,
                 'InitAmp': amp_init,
                 'InitT2p': t2p_init,
                 'InitFWHM': fwhm_init,
                 'InitM': base_init,
-                'InitSNR': amp_init / self.sd_base if self.sd_base > 0 else np.nan,
+                'InitSNR': base_init / self.sd_base if self.sd_base > 0 else np.nan,
+                'InitCNR': amp_init / self.sd_base if self.sd_base > 0 else np.nan,
                 'Click1_Start_T': self.tl_us[0],
                 'Click2_Onset_T': onset_t,
                 'Click3_Peak_T': onset_t + t2p_init,
                 'Click4_End_T': end_t,
-                'VesType': ves_type
             }
             
+            # Calculate fitted parameters and stats
+            auc = np.nan
+            aucn = np.nan
+            ttlb = np.nan
+            ttm = np.nan
+            tthb = np.nan
+            ont = np.nan
+            
             if self.fit_params is not None:
+                f_amp, f_t2p, f_fwhm, f_m = self.fit_params
+                
+                # Evaluate fit over t_fit
+                start_idx = np.argmin(np.abs(self.tl_us - onset_t))
+                end_idx = np.argmin(np.abs(self.tl_us - end_t))
+                t_fit = self.tl_us[start_idx:end_idx] - onset_t
+                
+                alpha = ((f_t2p ** 2) / (f_fwhm ** 2)) * 8.0 * np.log(2.0)
+                beta_param = ((f_fwhm ** 2) / f_t2p) / (8.0 * np.log(2.0))
+                
+                y_fit_model = np.zeros_like(t_fit)
+                for idx_t, t_val in enumerate(t_fit):
+                    if t_val > 0:
+                        y_fit_model[idx_t] = f_m + f_amp * (t_val / f_t2p)**alpha * np.exp(-(t_val - f_t2p) / beta_param)
+                    else:
+                        y_fit_model[idx_t] = f_m
+                        
+                # Trapezoidal numerical integration
+                auc = float(np.sum(y_fit_model) - (y_fit_model[0] + y_fit_model[-1]) / 2.0)
+                
+                min_y = np.min(y_fit_model)
+                max_y = np.max(y_fit_model)
+                range_y = max_y - min_y
+                y_fit_model_n = (y_fit_model - min_y) / range_y if range_y > 0 else np.zeros_like(y_fit_model)
+                aucn = float(np.sum(y_fit_model_n) - (y_fit_model_n[0] + y_fit_model_n[-1]) / 2.0)
+                
+                # OnT
+                I = np.where(y_fit_model_n < 0.1)[0]
+                onset_idx = 0
+                if len(I) > 0:
+                    diffs = np.diff(I)
+                    contig_idxs = np.where(diffs == 1)[0]
+                    if len(contig_idxs) > 0:
+                        last_idx = contig_idxs[-1]
+                        onset_idx = I[last_idx] + 1
+                    else:
+                        onset_idx = I[0]
+                ont = float(onset_idx / (self.frame_rate * self.up_factor))
+                ttm = float(abs(f_t2p - ont))
+                
+                # Standard errors
+                popt, pcov = fit_bolus(t_fit, self.y_us[start_idx:end_idx], [amp_init, t2p_init, fwhm_init, base_init], self.sd_base)
+                se_t2p = 0.0
+                if pcov is not None and not np.isinf(pcov).any():
+                    se = np.sqrt(np.diag(pcov))
+                    if len(se) > 1:
+                        se_t2p = se[1]
+                ci_lower = f_t2p - 1.96 * se_t2p
+                ci_upper = f_t2p + 1.96 * se_t2p
+                ttlb = float(abs(ci_lower - ont))
+                tthb = float(abs(ci_upper - ont))
+                
                 record.update({
-                    'F_Amp': self.fit_params[0],
-                    'F_T2p': self.fit_params[1],
-                    'F_FWHM': self.fit_params[2],
-                    'F_M': self.fit_params[3],
-                    'F_SNR': self.fit_params[0] / self.sd_base if self.sd_base > 0 else np.nan
+                    'F_Amp': f_amp,
+                    'F_T2p': f_t2p,
+                    'F_FWHM': f_fwhm,
+                    'F_M': f_m,
+                    'F_SNR': f_m / self.sd_base if self.sd_base > 0 else np.nan,
+                    'F_CNR': f_amp / self.sd_base if self.sd_base > 0 else np.nan,
+                    'AUC': auc,
+                    'AUCn': aucn,
+                    'TTlb': ttlb,
+                    'TTm': ttm,
+                    'TThb': tthb,
+                    'OnT': ont,
+                    'OnTSc': np.nan,  # will be computed across scan
+                    'ROISize': roi_size,
+                    'Denoise_RMS': denoise_rms,
+                    'VesType': ves_type
                 })
             else:
                 record.update({
-                    'F_Amp': np.nan, 'F_T2p': np.nan, 'F_FWHM': np.nan, 'F_M': np.nan, 'F_SNR': np.nan
+                    'F_Amp': np.nan, 'F_T2p': np.nan, 'F_FWHM': np.nan, 'F_M': np.nan, 'F_SNR': np.nan, 'F_CNR': np.nan,
+                    'AUC': np.nan, 'AUCn': np.nan, 'TTlb': np.nan, 'TTm': np.nan, 'TThb': np.nan, 'OnT': np.nan, 'OnTSc': np.nan,
+                    'ROISize': roi_size, 'Denoise_RMS': denoise_rms, 'VesType': ves_type
                 })
                 
             # Replace or add to dataset results
@@ -567,10 +672,32 @@ class BolusTrackingGUI:
             else:
                 self.dataset_results.append(record)
                 
+            # Calculate OnTSc (Onset time in Scan) relative to minimum OnT
+            valid_onts = [r['OnT'] for r in self.dataset_results if 'OnT' in r and not np.isnan(r['OnT'])]
+            if len(valid_onts) > 0:
+                min_ont = np.min(valid_onts)
+                for r in self.dataset_results:
+                    if 'OnT' in r and not np.isnan(r['OnT']):
+                        r['OnTSc'] = r['OnT'] - min_ont
+                        
             # Save results list as CSV
             df = pd.DataFrame(self.dataset_results)
             # Sort by ROI number
             df = df.sort_values(by="ROI").reset_index(drop=True)
+            
+            # Reorder columns to match standard batch format
+            cols_order = [
+                'ROI', 'SubjNum', 'Exp', 'InitAmp', 'InitT2p', 'InitFWHM', 'InitM', 'InitSNR', 'InitCNR',
+                'Click1_Start_T', 'Click2_Onset_T', 'Click3_Peak_T', 'Click4_End_T',
+                'F_Amp', 'F_T2p', 'F_FWHM', 'F_M', 'F_SNR', 'F_CNR',
+                'AUC', 'AUCn', 'TTlb', 'TTm', 'TThb', 'OnT', 'OnTSc',
+                'ROISize', 'Denoise_RMS', 'VesType'
+            ]
+            for col in cols_order:
+                if col not in df.columns:
+                    df[col] = np.nan
+            df = df[cols_order]
+            
             df.to_csv(self.out_csv, index=False)
             
             # Save screenshot of the fit to the plots/ folder

@@ -144,6 +144,20 @@ cd ..
 > ```bash
 > ./build/bolus_tracking_cpp --folder sample-subject-2259 --plot --drift 10
 > ```
+> 
+> To constrain the fit parameters (amplitude, time-to-peak, and FWHM) to physiologically reasonable values, you can specify lower and upper bounds:
+> - `--min-amp` (default: 1e-6)
+> - `--max-amp` (default: infinity)
+> - `--min-t2p` (default: 1e-6)
+> - `--max-t2p` (default: infinity)
+> - `--min-fwhm` (default: 1e-6)
+> - `--max-fwhm` (default: infinity)
+> 
+> For example, to constrain the time-to-peak ($T_{2p}$) between 2.0 and 8.0 seconds:
+> ```bash
+> ./build/bolus_tracking_cpp --folder sample-subject-2259 --plot --min-t2p 2.0 --max-t2p 8.0
+> ```
+> This is also supported in the Python script (`batch_process.py`) and the standard runner scripts (`run_pipeline.sh` / `run_pipeline_cpp.sh`).
 
 ### Python Pipeline (Local)
 ```bash

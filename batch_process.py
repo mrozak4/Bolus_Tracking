@@ -56,7 +56,9 @@ def get_mask_from_poly(poly_verts, shape):
     mask[rr, cc] = True
     return mask
 
-def process_bolus(tiff_path, mask_path, meta_path, out_dir, drift_window=15.0):
+def process_bolus(tiff_path, mask_path, meta_path, out_dir, drift_window=15.0,
+                  min_amp=1e-6, max_amp=np.inf, min_t2p=1e-6, max_t2p=np.inf,
+                  min_fwhm=1e-6, max_fwhm=np.inf):
     """
     Process a single bolus dataset.
     """
@@ -136,43 +138,135 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir, drift_window=15.0):
         # Fit Gamma Function (evaluate on a time vector starting at 0 to match MATLAB logic)
         # We only fit the bolus phase to prevent baseline duration from biasing the optimizer
         t_fit = tl_us[start_idx:end_idx] - tl_us[start_idx]
-        popt, pcov = fit_bolus(t_fit, y_us[start_idx:end_idx], init_params, sd_base)
         
-        init_snr = init_params[0] / sd_base if sd_base > 0 else np.nan
+        m_init = init_params[3]
+        m_bound = max(0.5 * sd_base, 0.005 * m_init, 0.2)
+        bounds_override = (
+            [min_amp, min_t2p, min_fwhm, m_init - m_bound],
+            [max_amp, max_t2p, max_fwhm, m_init + m_bound]
+        )
+        popt, pcov = fit_bolus(t_fit, y_us[start_idx:end_idx], init_params, sd_base, bounds_override=bounds_override)
         
-        # Record results
+        subj_match = re.search(r'(?:subject[_-]?)(\d+)', tiff_path, re.IGNORECASE)
+        if not subj_match:
+            subj_match = re.search(r'\b\d{4}\b', tiff_path)
+        subj_num = int(subj_match.group(1)) if subj_match else 0
+        exp = os.path.splitext(os.path.basename(tiff_path))[0]
+        
+        init_snr = init_params[3] / sd_base if sd_base > 0 else np.nan
+        init_cnr = init_params[0] / sd_base if sd_base > 0 else np.nan
+        denoise_rms = np.sqrt(np.mean((mfi_raw_detrended - mfi)**2))
+        roi_size = int(np.sum(mask))
+        ves_type = 'U'
+        
+        auc = np.nan
+        aucn = np.nan
+        ttlb = np.nan
+        ttm = np.nan
+        tthb = np.nan
+        ont = np.nan
+        
         if popt is not None:
-            f_snr = popt[0] / sd_base if sd_base > 0 else np.nan
+            f_amp, f_t2p, f_fwhm, f_m = popt
+            f_snr = f_m / sd_base if sd_base > 0 else np.nan
+            f_cnr = f_amp / sd_base if sd_base > 0 else np.nan
+            
+            # Evaluate model
+            alpha = ((f_t2p ** 2) / (f_fwhm ** 2)) * 8.0 * np.log(2.0)
+            beta_param = ((f_fwhm ** 2) / f_t2p) / (8.0 * np.log(2.0))
+            
+            y_fit_model = np.zeros_like(t_fit)
+            for idx, t_val in enumerate(t_fit):
+                if t_val > 0:
+                    y_fit_model[idx] = f_m + f_amp * (t_val / f_t2p)**alpha * np.exp(-(t_val - f_t2p) / beta_param)
+                else:
+                    y_fit_model[idx] = f_m
+            
+            # AUC & AUCn
+            auc = np.sum(y_fit_model) - (y_fit_model[0] + y_fit_model[-1]) / 2.0
+            
+            min_y = np.min(y_fit_model)
+            max_y = np.max(y_fit_model)
+            range_y = max_y - min_y
+            y_fit_model_n = (y_fit_model - min_y) / range_y if range_y > 0 else np.zeros_like(y_fit_model)
+            aucn = np.sum(y_fit_model_n) - (y_fit_model_n[0] + y_fit_model_n[-1]) / 2.0
+            
+            # OnT
+            I = np.where(y_fit_model_n < 0.1)[0]
+            onset_idx = 0
+            if len(I) > 0:
+                diffs = np.diff(I)
+                contig_idxs = np.where(diffs == 1)[0]
+                if len(contig_idxs) > 0:
+                    last_idx = contig_idxs[-1]
+                    onset_idx = I[last_idx] + 1
+                else:
+                    onset_idx = I[0]
+            ont = onset_idx / (fr * up_f)
+            ttm = abs(f_t2p - ont)
+            
+            # standard error
+            se_t2p = 0.0
+            if pcov is not None and not np.isinf(pcov).any():
+                se = np.sqrt(np.diag(pcov))
+                if len(se) > 1:
+                    se_t2p = se[1]
+            ci_lower = f_t2p - 1.96 * se_t2p
+            ci_upper = f_t2p + 1.96 * se_t2p
+            ttlb = abs(ci_lower - ont)
+            tthb = abs(ci_upper - ont)
+            
             results.append({
                 'ROI': i+1,
+                'SubjNum': subj_num,
+                'Exp': exp,
                 'InitAmp': init_params[0],
                 'InitT2p': init_params[1],
                 'InitFWHM': init_params[2],
                 'InitM': init_params[3],
                 'InitSNR': init_snr,
+                'InitCNR': init_cnr,
                 'Click1_Start_T': clicks['baseline_start'][0],
                 'Click2_Onset_T': clicks['onset'][0],
                 'Click3_Peak_T': clicks['peak'][0],
                 'Click4_End_T': clicks['end'][0],
-                'F_Amp': popt[0],
-                'F_T2p': popt[1],
-                'F_FWHM': popt[2],
-                'F_M': popt[3],
-                'F_SNR': f_snr
+                'F_Amp': f_amp,
+                'F_T2p': f_t2p,
+                'F_FWHM': f_fwhm,
+                'F_M': f_m,
+                'F_SNR': f_snr,
+                'F_CNR': f_cnr,
+                'AUC': auc,
+                'AUCn': aucn,
+                'TTlb': ttlb,
+                'TTm': ttm,
+                'TThb': tthb,
+                'OnT': ont,
+                'OnTSc': np.nan, # Set after the loop
+                'ROISize': roi_size,
+                'Denoise_RMS': denoise_rms,
+                'VesType': ves_type
             })
         else:
             results.append({
                 'ROI': i+1,
+                'SubjNum': subj_num,
+                'Exp': exp,
                 'InitAmp': init_params[0],
                 'InitT2p': init_params[1],
                 'InitFWHM': init_params[2],
                 'InitM': init_params[3],
                 'InitSNR': init_snr,
+                'InitCNR': init_cnr,
                 'Click1_Start_T': clicks['baseline_start'][0],
                 'Click2_Onset_T': clicks['onset'][0],
                 'Click3_Peak_T': clicks['peak'][0],
                 'Click4_End_T': clicks['end'][0],
-                'F_Amp': np.nan, 'F_T2p': np.nan, 'F_FWHM': np.nan, 'F_M': np.nan, 'F_SNR': np.nan
+                'F_Amp': np.nan, 'F_T2p': np.nan, 'F_FWHM': np.nan, 'F_M': np.nan, 'F_SNR': np.nan, 'F_CNR': np.nan,
+                'AUC': np.nan, 'AUCn': np.nan, 'TTlb': np.nan, 'TTm': np.nan, 'TThb': np.nan, 'OnT': np.nan, 'OnTSc': np.nan,
+                'ROISize': roi_size,
+                'Denoise_RMS': denoise_rms,
+                'VesType': ves_type
             })
             
         # --- Plotting/Screenshots ---
@@ -209,6 +303,14 @@ def process_bolus(tiff_path, mask_path, meta_path, out_dir, drift_window=15.0):
             plt.savefig(os.path.join(plots_dir, plot_name), dpi=150, bbox_inches='tight')
             plt.close(fig)
             
+    # Calculate OnTSc (Onset time in Scan) relative to minimum OnT
+    valid_onts = [r['OnT'] for r in results if not np.isnan(r['OnT'])]
+    if len(valid_onts) > 0:
+        min_ont = np.min(valid_onts)
+        for r in results:
+            if not np.isnan(r['OnT']):
+                r['OnTSc'] = r['OnT'] - min_ont
+                
     df = pd.DataFrame(results)
     out_csv = os.path.join(out_dir, os.path.basename(tiff_path).replace('.tif', '_results.csv'))
     df.to_csv(out_csv, index=False)
@@ -272,6 +374,12 @@ if __name__ == "__main__":
     parser.add_argument("--meta", help="Path to metadata .txt file (if not using --folder)")
     parser.add_argument("--outdir", help="Output directory", default="")
     parser.add_argument("--drift", type=float, help="Baseline duration in seconds for drift correction", default=15.0)
+    parser.add_argument("--min-amp", type=float, help="Minimum amplitude constraint", default=1e-6)
+    parser.add_argument("--max-amp", type=float, help="Maximum amplitude constraint", default=float('inf'))
+    parser.add_argument("--min-t2p", type=float, help="Minimum Time-to-Peak constraint", default=1e-6)
+    parser.add_argument("--max-t2p", type=float, help="Maximum Time-to-Peak constraint", default=float('inf'))
+    parser.add_argument("--min-fwhm", type=float, help="Minimum FWHM constraint", default=1e-6)
+    parser.add_argument("--max-fwhm", type=float, help="Maximum FWHM constraint", default=float('inf'))
     
     args = parser.parse_args()
     
@@ -283,10 +391,16 @@ if __name__ == "__main__":
             print(f"Found {len(triplets)} matching datasets to process.")
             for tif, mat, txt in triplets:
                 try:
-                    process_bolus(tif, mat, txt, args.outdir, drift_window=args.drift)
+                    process_bolus(tif, mat, txt, args.outdir, drift_window=args.drift,
+                                  min_amp=args.min_amp, max_amp=args.max_amp,
+                                  min_t2p=args.min_t2p, max_t2p=args.max_t2p,
+                                  min_fwhm=args.min_fwhm, max_fwhm=args.max_fwhm)
                 except Exception as e:
                     print(f"Failed to process {tif}: {e}")
     elif args.tiff and args.mask and args.meta:
-        process_bolus(args.tiff, args.mask, args.meta, args.outdir, drift_window=args.drift)
+        process_bolus(args.tiff, args.mask, args.meta, args.outdir, drift_window=args.drift,
+                      min_amp=args.min_amp, max_amp=args.max_amp,
+                      min_t2p=args.min_t2p, max_t2p=args.max_t2p,
+                      min_fwhm=args.min_fwhm, max_fwhm=args.max_fwhm)
     else:
         print("Please provide either --folder OR --tiff, --mask, and --meta arguments.")

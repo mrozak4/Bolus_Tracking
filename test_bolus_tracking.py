@@ -162,60 +162,62 @@ class TestAutoEstimateParams:
     def test_amplitude_estimation_gaussian_bolus(self):
         amp = 100.0; baseline = 50.0
         y_us, t_us = _make_gaussian_bolus(amp=amp, baseline=baseline)
-        params, _, _ = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        params, _, _, _, _ = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
         # Estimated amplitude should be close to the true amplitude
         assert np.isclose(params[0], amp, rtol=0.05), f"Amplitude {params[0]:.1f} != expected {amp}"
 
     def test_peak_time_estimation_gaussian_bolus(self):
         peak_t = 20.0
         y_us, t_us = _make_gaussian_bolus(peak_t=peak_t)
-        params, _, _ = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
-        assert np.isclose(params[1], peak_t, atol=1.0), f"T2p {params[1]:.2f} != expected {peak_t}"
+        params, start_idx, _, _, _ = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        t_start = start_idx / (5.0 * 20)
+        assert np.isclose(params[1] + t_start, peak_t, atol=1.0), f"T2p absolute {params[1] + t_start:.2f} != expected {peak_t}"
 
     def test_fwhm_positive(self):
         y_us, t_us = _make_gaussian_bolus()
-        params, _, _ = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        params, _, _, _, _ = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
         assert params[2] > 0, "FWHM must be positive"
 
     def test_returns_four_params_and_indices(self):
         y_us, t_us = _make_gaussian_bolus()
         result = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
-        params, start_idx, end_idx = result
+        params, start_idx, end_idx, sd_base, clicks = result
         assert len(params) == 4
         assert isinstance(start_idx, (int, np.integer))
         assert isinstance(end_idx, (int, np.integer))
 
     def test_start_idx_before_end_idx(self):
         y_us, t_us = _make_gaussian_bolus()
-        _, start_idx, end_idx = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        _, start_idx, end_idx, _, _ = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
         assert start_idx < end_idx
 
     def test_indices_within_bounds(self):
         y_us, t_us = _make_gaussian_bolus()
-        _, start_idx, end_idx = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        _, start_idx, end_idx, _, _ = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
         assert 0 <= start_idx < len(y_us)
         assert 0 <= end_idx < len(y_us)
 
     def test_narrow_bolus(self):
         """A narrow bolus (small sigma) should still produce positive FWHM."""
         y_us, t_us = _make_gaussian_bolus(sigma=1.0)
-        params, start_idx, end_idx = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        params, start_idx, end_idx, _, _ = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
         assert params[2] > 0
         assert start_idx < end_idx
 
     def test_late_peak(self):
         """Peak near the end of the recording should still be estimated."""
         y_us, t_us = _make_gaussian_bolus(peak_t=50.0, duration=60.0)
-        params, _, _ = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
-        assert np.isclose(params[1], 50.0, atol=2.0)
+        params, start_idx, _, _, _ = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        t_start = start_idx / (5.0 * 20)
+        assert np.isclose(params[1] + t_start, 50.0, atol=2.0)
 
     def test_different_baselines_give_same_amp(self):
         """Amplitude estimation should not depend on baseline level."""
         amp = 80.0
         y1, t1 = _make_gaussian_bolus(amp=amp, baseline=0.0)
         y2, t2 = _make_gaussian_bolus(amp=amp, baseline=200.0)
-        p1, _, _ = auto_estimate_params(y1, t1, fr=5.0, up_f=20)
-        p2, _, _ = auto_estimate_params(y2, t2, fr=5.0, up_f=20)
+        p1, _, _, _, _ = auto_estimate_params(y1, t1, fr=5.0, up_f=20)
+        p2, _, _, _, _ = auto_estimate_params(y2, t2, fr=5.0, up_f=20)
         assert np.isclose(p1[0], amp, rtol=0.05)
         assert np.isclose(p2[0], amp, rtol=0.05)
 
@@ -230,7 +232,7 @@ class TestFitBolus:
     def _get_fit_region(self):
         """Return a realistic trace segment ready for fitting."""
         y_us, t_us = _make_gaussian_bolus()
-        params, si, ei = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        params, si, ei, _, _ = auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
         return t_us[si:ei], y_us[si:ei], params
 
     def test_returns_two_values(self):
@@ -300,3 +302,17 @@ class TestFitBolus:
         if popt is not None:
             assert pcov.ndim == 2
             assert pcov.shape == (4, 4)
+
+    def test_custom_bounds_constraint(self):
+        """Verify that bounds_override successfully constrains fitted parameters."""
+        t, y, p0 = self._get_fit_region()
+        # Ensure initial guess is inside bounds
+        p0[1] = 4.1  # Set T2p to be within [4.0, 4.2]
+        m_init = p0[3]
+        bounds_override = (
+            [0.1, 4.0, 0.1, m_init - 5.0],
+            [200.0, 4.2, 20.0, m_init + 5.0]
+        )
+        popt, _ = fit_bolus(t, y, p0, bounds_override=bounds_override)
+        assert popt is not None
+        assert 4.0 <= popt[1] <= 4.2, f"Expected T2p within [4.0, 4.2], got {popt[1]}"
