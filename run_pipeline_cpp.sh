@@ -28,11 +28,26 @@ echo "-> Step 1: Converting MATLAB masks..."
 # Try to find MATLAB command depending on if we are on Mac or Linux
 if command -v matlab &> /dev/null; then
     MATLAB_CMD="matlab"
-elif [ -f "/Applications/MATLAB_R2025a.app/bin/matlab" ]; then
-    MATLAB_CMD="/Applications/MATLAB_R2025a.app/bin/matlab"
 else
-    echo "WARNING: MATLAB not found in PATH. Assuming masks are already converted."
     MATLAB_CMD=""
+    # Check standard macOS installation path
+    if [ -d "/Applications" ]; then
+        MATLAB_APP=$(ls -rd /Applications/MATLAB_*.app 2>/dev/null | head -n 1)
+        if [ -n "$MATLAB_APP" ] && [ -f "$MATLAB_APP/bin/matlab" ]; then
+            MATLAB_CMD="$MATLAB_APP/bin/matlab"
+        fi
+    fi
+    # Check standard Linux installation path
+    if [ -z "$MATLAB_CMD" ] && [ -d "/usr/local/MATLAB" ]; then
+        MATLAB_APP=$(ls -rd /usr/local/MATLAB/R* 2>/dev/null | head -n 1)
+        if [ -n "$MATLAB_APP" ] && [ -f "$MATLAB_APP/bin/matlab" ]; then
+            MATLAB_CMD="$MATLAB_APP/bin/matlab"
+        fi
+    fi
+fi
+
+if [ -z "$MATLAB_CMD" ]; then
+    echo "WARNING: MATLAB not found in PATH or standard installation directories. Assuming masks are already converted."
 fi
 
 if [ -n "$MATLAB_CMD" ]; then
