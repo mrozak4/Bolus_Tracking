@@ -17,7 +17,7 @@ You can download the files from GitHub using either of the following two methods
 ### Option B: Clone via Git (For Programmers & AI Agents)
 Open your terminal (macOS/Linux) or PowerShell (Windows) and run:
 ```bash
-git clone https://github.com/your-username/Adrienne_Bolus_Tracking.git
+git clone https://github.com/mrozak4/Adrienne_Bolus_Tracking.git
 cd Adrienne_Bolus_Tracking
 ```
 
