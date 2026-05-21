@@ -1678,6 +1678,7 @@ bool BatchProcessor::run() const {
 // ---------------------------------------------------------
 #if !defined(BUILD_TESTS) && !defined(BUILD_GUI)
 int main(int argc, char** argv) {
+    TIFFSetWarningHandler(nullptr);
     bool enable_plots = false;
     bool folder_mode = false;
     std::string folder_path = "";

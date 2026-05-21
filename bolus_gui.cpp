@@ -652,8 +652,23 @@ static bool RangeSlider(const char* id_str, double* v_min, double* v_max, double
     // Render slider background
     ImU32 bg_color = ImGui::GetColorU32(ImGuiCol_FrameBg);
     ImU32 active_track_color = ImGui::GetColorU32(ImGuiCol_SliderGrabActive);
-    ImU32 handle_color = ImGui::GetColorU32(ImGuiCol_SliderGrab);
     ImU32 border_color = ImGui::GetColorU32(ImGuiCol_Border);
+    
+    // Choose a high-contrast handle color that stands out from the blue/dark track
+    ImU32 handle_color = ImGui::GetColorU32(ImVec4(0.90f, 0.90f, 0.92f, 1.0f)); // Premium bright white-silver
+    if (is_active && (dragging_handle == 1 || dragging_handle == 2)) {
+        handle_color = ImGui::GetColorU32(ImVec4(1.0f, 0.65f, 0.0f, 1.0f)); // Bright orange highlight
+    } else {
+        ImVec2 mouse_pos = ImGui::GetIO().MousePos;
+        float mx = mouse_pos.x;
+        float dist_min = std::abs(mx - x_min);
+        float dist_max = std::abs(mx - x_max);
+        if (ImGui::IsItemHovered()) {
+            if (dist_min < handle_width || dist_max < handle_width) {
+                handle_color = ImGui::GetColorU32(ImVec4(0.98f, 0.98f, 1.0f, 1.0f)); // Extremely bright white on hover
+            }
+        }
+    }
     
     // Draw background track
     draw_list->AddRectFilled(pos, ImVec2(pos.x + width, pos.y + height), bg_color, 4.0f);
@@ -664,16 +679,28 @@ static bool RangeSlider(const char* id_str, double* v_min, double* v_max, double
     ImVec2 active_max(pos.x + t_max * width, pos.y + height);
     draw_list->AddRectFilled(active_min, active_max, active_track_color, 0.0f);
     
-    // Draw handles
-    ImVec2 h1_min(pos.x + t_min * width - handle_width * 0.5f, pos.y);
-    ImVec2 h1_max(pos.x + t_min * width + handle_width * 0.5f, pos.y + height);
-    draw_list->AddRectFilled(h1_min, h1_max, handle_color, 2.0f);
-    draw_list->AddRect(h1_min, h1_max, border_color, 2.0f);
+    // Draw handles (rounded pills protruding by 4px on top and bottom)
+    float protrude = 4.0f;
+    ImVec2 h1_min(pos.x + t_min * width - handle_width * 0.5f, pos.y - protrude);
+    ImVec2 h1_max(pos.x + t_min * width + handle_width * 0.5f, pos.y + height + protrude);
+    draw_list->AddRectFilled(h1_min, h1_max, handle_color, 4.0f);
+    draw_list->AddRect(h1_min, h1_max, border_color, 4.0f);
     
-    ImVec2 h2_min(pos.x + t_max * width - handle_width * 0.5f, pos.y);
-    ImVec2 h2_max(pos.x + t_max * width + handle_width * 0.5f, pos.y + height);
-    draw_list->AddRectFilled(h2_min, h2_max, handle_color, 2.0f);
-    draw_list->AddRect(h2_min, h2_max, border_color, 2.0f);
+    ImVec2 h2_min(pos.x + t_max * width - handle_width * 0.5f, pos.y - protrude);
+    ImVec2 h2_max(pos.x + t_max * width + handle_width * 0.5f, pos.y + height + protrude);
+    draw_list->AddRectFilled(h2_min, h2_max, handle_color, 4.0f);
+    draw_list->AddRect(h2_min, h2_max, border_color, 4.0f);
+
+    // Draw tactile grab ridges inside handles
+    auto draw_ridges = [&](float x_center) {
+        float cy = pos.y + height * 0.5f;
+        for (int offset = -4; offset <= 4; offset += 4) {
+            float ry = cy + offset;
+            draw_list->AddLine(ImVec2(x_center - 3.0f, ry), ImVec2(x_center + 3.0f, ry), border_color, 1.0f);
+        }
+    };
+    draw_ridges(pos.x + t_min * width);
+    draw_ridges(pos.x + t_max * width);
     
     // Add text label overlay inside the slider
     char label_buf[128];
@@ -1137,8 +1164,13 @@ private:
         c.y_fit_plot.resize(c.t_fit_plot.size());
         
         double onset_t = !std::isnan(rec.click_onset) ? rec.click_onset : 0.0;
+        double end_t = !std::isnan(rec.click_end) ? rec.click_end : c.t_us.back();
         for (size_t i = 0; i < c.t_fit_plot.size(); ++i) {
             double t = c.t_fit_plot[i];
+            if (t > end_t) {
+                c.y_fit_plot[i] = std::numeric_limits<double>::quiet_NaN();
+                continue;
+            }
             double val = rec.f_m;
             if (t >= onset_t) {
                 double dt = t - onset_t;
@@ -1417,6 +1449,49 @@ private:
         // Update curves and triage state
         precompute_fit_plot(m_selected_roi_idx);
         build_triage_queue();
+        save_active_roi_svg();
+    }
+
+    void save_active_roi_svg() {
+        if (m_selected_roi_idx < 0 || m_selected_roi_idx >= static_cast<int>(m_records.size())) return;
+        const auto& rec = m_records[m_selected_roi_idx];
+        const auto& c = m_cache[m_selected_roi_idx];
+        
+        FitRecord frec;
+        frec.roi_id = rec.roi_id;
+        frec.subj_num = rec.subj_num;
+        frec.exp = rec.exp;
+        frec.init_amp = rec.init_amp;
+        frec.init_t2p = rec.init_t2p;
+        frec.init_fwhm = rec.init_fwhm;
+        frec.init_m = rec.init_m;
+        frec.init_snr = rec.init_snr;
+        frec.init_cnr = rec.init_cnr;
+        frec.click_start = rec.click_start;
+        frec.click_onset = rec.click_onset;
+        frec.click_peak = rec.click_peak;
+        frec.click_end = rec.click_end;
+        frec.f_amp = rec.f_amp;
+        frec.f_t2p = rec.f_t2p;
+        frec.f_fwhm = rec.f_fwhm;
+        frec.f_m = rec.f_m;
+        frec.f_snr = rec.f_snr;
+        frec.f_cnr = rec.f_cnr;
+        frec.denoise_rms = rec.denoise_rms;
+        frec.auc = rec.auc;
+        frec.aucn = rec.aucn;
+        frec.ttlb = rec.ttlb;
+        frec.ttm = rec.ttm;
+        frec.tthb = rec.tthb;
+        frec.ont = rec.ont;
+        frec.ont_sc = rec.ont_sc;
+        frec.roi_size = rec.roi_size;
+        frec.ves_type = rec.ves_type;
+        frec.qc_flag = rec.qc_flag;
+        frec.fit_source = rec.fit_source;
+        
+        bool fit_success = !std::isnan(frec.f_amp) && !std::isnan(frec.f_t2p) && !std::isnan(frec.f_fwhm) && !std::isnan(frec.f_m);
+        BolusVisualizer::save_svg_plot(frec.roi_id, m_tiff_path, c.t_raw, c.y_raw, c.y_denoised, c.t_us, c.y_us, frec, fit_success, c.drift_slope);
     }
 
     /**
@@ -1454,12 +1529,41 @@ private:
     void draw_top_bar() {
         ImGui::TextColored(ImVec4(0.2f, 0.6f, 1.0f, 1.0f), "BOLUS TRACKING MANUAL TRIAGE APP");
         ImGui::SameLine();
-        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 360.0f);
-        if (ImGui::Button("Load Subject Data", ImVec2(160, 24))) {
+        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 550.0f);
+        if (ImGui::Button("Load Subject Data", ImVec2(140, 24))) {
             m_browser.open = true;
         }
         ImGui::SameLine();
-        if (ImGui::Button("Save Final CSV", ImVec2(160, 24))) {
+        if (ImGui::Button("Save State", ImVec2(100, 24))) {
+            if (!m_csv_path.empty()) {
+                // Sync current workspace parameters to the GUI state array before saving
+                if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records.size())) {
+                    auto& s = m_gui_roi_states[m_selected_roi_idx];
+                    s.crop_min = m_crop_min;
+                    s.crop_max = m_crop_max;
+                    s.onset = m_onset_marker;
+                    s.peak = m_peak_marker;
+                    s.end = m_end_marker;
+                    s.baseline = m_baseline_marker;
+                    s.qc_flag = m_records[m_selected_roi_idx].qc_flag;
+                    s.fit_source = m_records[m_selected_roi_idx].fit_source;
+                }
+                save_gui_state();
+                ImGui::OpenPopup("Save State Success");
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Load State", ImVec2(100, 24))) {
+            if (!m_csv_path.empty()) {
+                load_gui_state();
+                if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records.size())) {
+                    select_record(m_selected_roi_idx);
+                }
+                ImGui::OpenPopup("Load State Success");
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Save Final CSV", ImVec2(140, 24))) {
             if (!m_csv_path.empty()) {
                 save_results_csv(m_csv_path, m_records);
                 save_gui_state();
@@ -1469,6 +1573,22 @@ private:
         
         if (ImGui::BeginPopupModal("Save Success", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::Text("Results written successfully to:\n%s", m_csv_path.c_str());
+            ImGui::Separator();
+            if (ImGui::Button("OK", ImVec2(120, 0))) {
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+        if (ImGui::BeginPopupModal("Save State Success", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("Analysis state paused & saved successfully to:\n%s.gui_state", m_csv_path.c_str());
+            ImGui::Separator();
+            if (ImGui::Button("OK", ImVec2(120, 0))) {
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+        if (ImGui::BeginPopupModal("Load State Success", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("Analysis state resumed successfully from:\n%s.gui_state", m_csv_path.c_str());
             ImGui::Separator();
             if (ImGui::Button("OK", ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
@@ -1556,7 +1676,7 @@ private:
         const auto& c = m_cache[m_selected_roi_idx];
         
         // Render plot
-        ImGui::Text("MFI Time Series - ROI #%d (Size: %d px) | Status: %s (Source: %s)", rec.roi_id, rec.roi_size, rec.qc_flag.c_str(), rec.fit_source.c_str());
+        ImGui::Text("Signal Time Series (SU) - ROI #%d (Size: %d px) | Status: %s (Source: %s)", rec.roi_id, rec.roi_size, rec.qc_flag.c_str(), rec.fit_source.c_str());
         
         // Calculate Y limits with a 10% buffer based on visible traces in the crop range
         double visible_y_min = std::numeric_limits<double>::max();
@@ -1622,7 +1742,7 @@ private:
         ImVec2 plot_size(0.0f, 0.0f);
         
         if (ImPlot::BeginPlot("Trace Fitting Plot", ImVec2(-1, 380))) {
-            ImPlot::SetupAxes("Time (s)", "Signal (MFI)");
+            ImPlot::SetupAxes("Time (s)", "Signal (SU)");
             
             // Limit the current axis limits to show cropped visual window on the fly
             ImPlot::SetupAxisLimits(ImAxis_X1, m_crop_min, m_crop_max, ImGuiCond_Always);
@@ -1715,10 +1835,25 @@ private:
         double max_t = c.t_raw.back();
         double base_min = 0.0;
         double base_max = 1000.0;
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.2f, 0.8f, 0.2f, 0.8f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.3f, 0.9f, 0.3f, 1.0f));
         ImGui::SliderScalar("Onset Marker (s)", ImGuiDataType_Double, &m_onset_marker, &min_t, &max_t, "%.1f");
+        ImGui::PopStyleColor(2);
+
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(1.0f, 0.7f, 0.0f, 0.8f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.0f, 0.8f, 0.2f, 1.0f));
         ImGui::SliderScalar("Peak Marker (s)", ImGuiDataType_Double, &m_peak_marker, &m_onset_marker, &max_t, "%.1f");
+        ImGui::PopStyleColor(2);
+
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(1.0f, 0.2f, 0.2f, 0.8f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
         ImGui::SliderScalar("End Marker (s)", ImGuiDataType_Double, &m_end_marker, &m_peak_marker, &max_t, "%.1f");
+        ImGui::PopStyleColor(2);
+
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.8f, 0.4f, 0.8f, 0.8f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.9f, 0.5f, 0.9f, 1.0f));
         ImGui::SliderScalar("Baseline Value", ImGuiDataType_Double, &m_baseline_marker, &base_min, &base_max, "%.1f");
+        ImGui::PopStyleColor(2);
         
         ImGui::Dummy(ImVec2(0.0f, 8.0f));
         if (ImGui::Button("Re-Fit Manual Window (LM)", ImVec2(240, 36))) {
@@ -1733,10 +1868,11 @@ private:
                 m_gui_roi_states[m_selected_roi_idx].fit_source = "override";
             }
             build_triage_queue();
+            save_active_roi_svg();
         }
         
         ImGui::Dummy(ImVec2(0.0f, 4.0f));
-        if (ImGui::Button("Revert to Manual Assignments", ImVec2(240, 30))) {
+        if (ImGui::Button("Revert to Automatic Assignments", ImVec2(240, 30))) {
             if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records_backup.size())) {
                 int idx = m_selected_roi_idx;
                 m_records[idx] = m_records_backup[idx];
@@ -1745,6 +1881,7 @@ private:
                 select_record(idx);
                 precompute_fit_plot(idx);
                 build_triage_queue();
+                save_active_roi_svg();
             }
         }
         
@@ -1815,6 +1952,7 @@ private:
 // ============================================================================
 
 int main(int argc, char** argv) {
+    TIFFSetWarningHandler(nullptr);
     BolusApp app;
     if (!app.init()) {
         std::cerr << "Failed to initialize Bolus GUI App!" << std::endl;
