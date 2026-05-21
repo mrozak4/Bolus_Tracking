@@ -1330,6 +1330,7 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
  * @brief Processes a single TIFF file containing multi-frame images and ROI definitions.
  */
 bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const std::string& rois_path, double fr, int up_f, const std::string& out_csv) const {
+    TIFFSetWarningHandler(nullptr);
     std::cout << "Starting C++ Bolus Tracking for: " << tiff_path << std::endl;
     
     TIFF* tif = TIFFOpen(tiff_path.c_str(), "r");

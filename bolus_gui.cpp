@@ -351,6 +351,7 @@ std::string find_meta_txt_file(const std::string& tiff_path) {
  * @brief Load all frames of a multi-page TIFF stack.
  */
 TiffData load_tiff(const std::string& path) {
+    TIFFSetWarningHandler(nullptr);
     TiffData data;
     TIFF* tif = TIFFOpen(path.c_str(), "r");
     if (!tif) return data;
@@ -1623,13 +1624,13 @@ private:
         if (ImPlot::BeginPlot("Trace Fitting Plot", ImVec2(-1, 380))) {
             ImPlot::SetupAxes("Time (s)", "Signal (MFI)");
             
-            // Query plot area screen coordinates and dimensions
-            plot_pos = ImPlot::GetPlotPos();
-            plot_size = ImPlot::GetPlotSize();
-            
             // Limit the current axis limits to show cropped visual window on the fly
             ImPlot::SetupAxisLimits(ImAxis_X1, m_crop_min, m_crop_max, ImGuiCond_Always);
             ImPlot::SetupAxisLimits(ImAxis_Y1, y_limit_min, y_limit_max, ImGuiCond_Always);
+
+            // Query plot area screen coordinates and dimensions after setup to avoid locking setup early
+            plot_pos = ImPlot::GetPlotPos();
+            plot_size = ImPlot::GetPlotSize();
             
             // Draw visual curves
             ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, 1.5f);
