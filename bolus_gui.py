@@ -15,8 +15,8 @@ from tkinter import ttk, filedialog, messagebox
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
-from bolus_tracking import denoise_trace, auto_estimate_params, fit_bolus, gamma_fun
-from batch_process import find_triplets, get_mask_from_poly, parse_metadata
+from bolus_tracking import SignalProcessor, BolusModel, BolusFitter
+from batch_process import BatchProcessor, Rasterizer, MetadataParser
 
 warnings.filterwarnings("ignore")
 
@@ -263,7 +263,7 @@ class BolusTrackingGUI:
         self.lbl_folder_path.config(text=folder)
         
         # Detect triplets
-        self.triplets = find_triplets(folder)
+        self.triplets = BatchProcessor.find_triplets(folder)
         if not self.triplets:
             self.cb_dataset.configure(values=[])
             self.cb_dataset.set("")
@@ -290,7 +290,7 @@ class BolusTrackingGUI:
         
         try:
             # Read metadata
-            self.frame_rate = parse_metadata(meta_path)
+            self.frame_rate = MetadataParser.parse_frame_rate(meta_path)
             
             # Read TIFF stack
             self.tiff_stack = tifffile.imread(tiff_path)
@@ -345,9 +345,9 @@ class BolusTrackingGUI:
         self.root.update()
         
         # 1. MFI Trace Extraction
-        mask = get_mask_from_poly(pos, self.tiff_stack.shape[1:])
+        mask = Rasterizer.get_mask_from_poly(pos, self.tiff_stack.shape[1:])
         self.mfi_raw = np.array([np.mean(frame[mask]) for frame in self.tiff_stack])
-        self.mfi_denoised = denoise_trace(self.mfi_raw)
+        self.mfi_denoised = SignalProcessor.denoise_trace(self.mfi_raw)
         
         # 2. Upsampling
         self.tl_raw = np.arange(len(self.mfi_raw)) / self.frame_rate
@@ -400,7 +400,7 @@ class BolusTrackingGUI:
 
     def reset_to_auto(self):
         # Run automatic heuristic estimates
-        init_params, start_idx, end_idx, self.sd_base, self.clicks = auto_estimate_params(
+        init_params, start_idx, end_idx, self.sd_base, self.clicks = BolusFitter().auto_estimate_params(
             self.y_us, self.tl_us, self.frame_rate, self.up_factor
         )
         
@@ -451,7 +451,7 @@ class BolusTrackingGUI:
             y_fit = self.y_us[start_idx:end_idx]
             
             # Run two-pass fit
-            popt, pcov = fit_bolus(t_fit, y_fit, init_params, self.sd_base)
+            popt, pcov = BolusFitter().fit(t_fit, y_fit, init_params, self.sd_base)
             self.fit_params = popt
             
             # Update plot
@@ -492,7 +492,7 @@ class BolusTrackingGUI:
         # Plot the fit curve if successful
         if self.fit_params is not None and not np.isnan(self.fit_params).any():
             t_plot = self.tl_us[0:end_idx] - onset_t
-            y_fit = gamma_fun(t_plot, *self.fit_params)
+            y_fit = BolusModel.evaluate(t_plot, *self.fit_params)
             self.ax.plot(self.tl_us[0:end_idx], y_fit, 'r-', linewidth=2.5, label='Gamma Fit')
             self.ax.plot(self.tl_us[:start_idx], np.full(start_idx, self.fit_params[3]), 'r-', linewidth=2.5)
             
@@ -549,7 +549,7 @@ class BolusTrackingGUI:
                 pos_verts = []
                 
             if len(pos_verts) >= 3:
-                mask = get_mask_from_poly(pos_verts, self.tiff_stack.shape[1:])
+                mask = Rasterizer.get_mask_from_poly(pos_verts, self.tiff_stack.shape[1:])
                 roi_size = int(np.sum(mask))
             else:
                 roi_size = 0
@@ -647,7 +647,7 @@ class BolusTrackingGUI:
                 ttm = float(abs(f_t2p - ont))
                 
                 # Standard errors
-                popt, pcov = fit_bolus(t_fit, self.y_us[start_idx:end_idx], [amp_init, t2p_init, fwhm_init, base_init], self.sd_base)
+                popt, pcov = BolusFitter().fit(t_fit, self.y_us[start_idx:end_idx], [amp_init, t2p_init, fwhm_init, base_init], self.sd_base)
                 se_t2p = 0.0
                 if pcov is not None and not np.isinf(pcov).any():
                     se = np.sqrt(np.diag(pcov))

@@ -315,3 +315,135 @@ class TestFitBolus:
         popt, _ = fit_bolus(t, y, p0, bounds_override=bounds_override)
         assert popt is not None
         assert 4.0 <= popt[1] <= 4.2, f"Expected T2p within [4.0, 4.2], got {popt[1]}"
+
+
+# ---------------------------------------------------------------------------
+# Direct OOP Class Tests
+# ---------------------------------------------------------------------------
+
+class TestSignalProcessorOOP:
+    """Direct tests for the SignalProcessor class."""
+
+    def test_denoise_trace_removes_extreme_outliers(self):
+        trace = np.ones(10) * 10.0
+        trace[5] = 500.0  # extreme outlier
+        from bolus_tracking import SignalProcessor
+        denoised = SignalProcessor.denoise_trace(trace, denoise_sd=2.0, half_win=3)
+        assert denoised[5] != 500.0
+        assert np.isclose(denoised[5], 10.0)
+
+    def test_denoise_trace_empty_failsafe(self):
+        from bolus_tracking import SignalProcessor
+        empty = np.array([])
+        result = SignalProcessor.denoise_trace(empty)
+        assert len(result) == 0
+
+
+class TestBolusModelOOP:
+    """Direct tests for the BolusModel class."""
+
+    def test_evaluate_returns_correct_shape(self):
+        t = np.array([0.0, 1.0, 2.0, 3.0])
+        from bolus_tracking import BolusModel
+        y = BolusModel.evaluate(t, 50.0, 2.0, 1.0, 10.0)
+        assert y.shape == t.shape
+
+    def test_evaluate_onset_handling(self):
+        """Values at t <= 0 should evaluate exactly to the baseline shift m."""
+        t = np.array([-5.0, -1.0, 0.0, 1.0, 2.0])
+        from bolus_tracking import BolusModel
+        y = BolusModel.evaluate(t, 50.0, 2.0, 1.0, 10.0)
+        assert np.allclose(y[t <= 0], 10.0)
+
+
+class TestBolusFitterOOP:
+    """Direct tests for the BolusFitter class."""
+
+    def test_fitter_initialization_stores_bounds(self):
+        from bolus_tracking import BolusFitter
+        fitter = BolusFitter(min_amp=1e-3, max_amp=500.0, min_t2p=0.1, min_fwhm=1.0)
+        assert fitter.min_amp == 1e-3
+        assert fitter.max_amp == 500.0
+        assert fitter.min_t2p == 0.1
+        assert fitter.min_fwhm == 1.0
+
+    def test_auto_estimate_params_on_noiseless_gaussian(self):
+        y_us, t_us = _make_gaussian_bolus(amp=150.0, baseline=40.0, peak_t=15.0, sigma=2.0)
+        from bolus_tracking import BolusFitter
+        fitter = BolusFitter()
+        p_init, start_idx, end_idx, sd_base, clicks = fitter.auto_estimate_params(y_us, t_us, fr=5.0, up_f=20)
+        
+        assert len(p_init) == 4
+        assert p_init[0] > 0.0  # Estimated amp
+        assert p_init[1] > 0.0  # Estimated t2p
+        assert p_init[2] > 0.0  # Estimated FWHM
+        assert np.isclose(p_init[3], 40.0, atol=2.0)  # Estimated baseline
+        assert start_idx < end_idx
+        assert 'onset' in clicks
+        assert 'peak' in clicks
+
+    def test_fit_returns_nan_on_pathological_input(self):
+        t = np.array([])
+        y = np.array([])
+        from bolus_tracking import BolusFitter
+        fitter = BolusFitter()
+        popt, pcov = fitter.fit(t, y, [1.0, 2.0, 1.0, 10.0])
+        assert np.all(np.isnan(popt))
+        assert np.all(np.isnan(pcov))
+
+
+    def test_fit_with_bounds_override(self):
+        t = np.linspace(0.0, 10.0, 100)
+        # Synthetic clean gamma curve
+        from bolus_tracking import BolusModel, BolusFitter
+        y = BolusModel.evaluate(t, 100.0, 3.0, 2.0, 20.0)
+        fitter = BolusFitter()
+        
+        # Override bounds to force a certain range
+        bounds_override = (
+            [80.0, 2.5, 1.5, 15.0],
+            [120.0, 3.5, 2.5, 25.0]
+        )
+        popt, _ = fitter.fit(t, y, [90.0, 2.8, 1.8, 18.0], bounds_override=bounds_override)
+        assert not np.any(np.isnan(popt))
+        assert 80.0 <= popt[0] <= 120.0
+        assert 2.5 <= popt[1] <= 3.5
+        assert 1.5 <= popt[2] <= 2.5
+        assert 15.0 <= popt[3] <= 25.0
+
+    def test_fit_physiological_bounds_rejection(self):
+        """Verify that parameters hitting the physiological boundaries are correctly detected."""
+        def is_near_bounds(val, low, high):
+            if abs(val - low) < 1e-4:
+                return True
+            if low > 0 and val <= low * 1.01:
+                return True
+            if high is not None and not np.isinf(high):
+                if abs(high - val) < 1e-4:
+                    return True
+                if high > 0 and val >= high * 0.99:
+                    return True
+            return False
+
+        min_amp, max_amp = 1e-6, 1023.0
+        min_t2p, max_t2p = 1e-6, 100.0
+        min_fwhm, max_fwhm = 0.5, 100.0
+
+        # Case 1: Amplitude is too close to min_amp or max_amp
+        assert is_near_bounds(1e-6, min_amp, max_amp) is True
+        assert is_near_bounds(1.005e-6, min_amp, max_amp) is True
+        assert is_near_bounds(1022.0, min_amp, max_amp) is True
+
+        # Case 2: FWHM is too close to min_fwhm (0.5)
+        assert is_near_bounds(0.5, min_fwhm, max_fwhm) is True
+        assert is_near_bounds(0.504, min_fwhm, max_fwhm) is True
+
+        # Case 3: T2P is too close to min_t2p (1e-6)
+        assert is_near_bounds(1e-6, min_t2p, max_t2p) is True
+
+        # Case 4: Valid parameters should NOT be near bounds
+        assert is_near_bounds(50.0, min_amp, max_amp) is False
+        assert is_near_bounds(3.5, min_t2p, max_t2p) is False
+        assert is_near_bounds(4.2, min_fwhm, max_fwhm) is False
+
+

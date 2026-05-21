@@ -280,3 +280,73 @@ class TestFindTriplets:
             self._make_triplet(sub, 'bolus1_baseline')
             result = find_triplets(folder)
         assert len(result) == 1
+
+
+# ---------------------------------------------------------------------------
+# Direct OOP Class Tests
+# ---------------------------------------------------------------------------
+
+class TestMetadataParserOOP:
+    """Direct tests for the MetadataParser class."""
+
+    def test_parse_valid_metadata(self, tmp_path):
+        content = '"T Dimension"\t"400, 0.000 - 80.000 [s], Interval FreeRun"'
+        from batch_process import MetadataParser
+        metadata_file = tmp_path / "metadata.txt"
+        metadata_file.write_text(content)
+        
+        fr = MetadataParser.parse_frame_rate(str(metadata_file))
+        assert fr == 5.0
+
+    def test_parse_raises_on_invalid_format(self, tmp_path):
+        from batch_process import MetadataParser
+        metadata_file = tmp_path / "metadata.txt"
+        metadata_file.write_text("Invalid metadata")
+        
+        with pytest.raises(ValueError, match="Could not parse frame rate"):
+            MetadataParser.parse_frame_rate(str(metadata_file))
+
+
+class TestRasterizerOOP:
+    """Direct tests for the Rasterizer class."""
+
+    def test_get_mask_from_poly_returns_boolean_array(self):
+        poly = np.array([[0, 0], [10, 0], [10, 10], [0, 10]], dtype=float)
+        from batch_process import Rasterizer
+        mask = Rasterizer.get_mask_from_poly(poly, (20, 20))
+        assert mask.shape == (20, 20)
+        assert mask.dtype == bool
+        assert mask[5, 5] == True
+        assert mask[15, 15] == False
+
+
+class TestBatchProcessorOOP:
+    """Direct tests for the BatchProcessor class."""
+
+    def _make_triplet(self, folder, name):
+        """Create a minimal TIFF, MAT, and TXT triplet for a given bolus name."""
+        tif_path = os.path.join(folder, f"{name}.tif")
+        mat_path = os.path.join(folder, f"adjusted_{name}.mat")
+        txt_path = os.path.join(folder, f"{name}.txt")
+        for p in (tif_path, mat_path, txt_path):
+            with open(p, 'w') as f:
+                f.write('placeholder')
+        return tif_path, mat_path, txt_path
+
+    def test_batch_processor_configures_processor(self):
+        from batch_process import BatchProcessor
+        bp = BatchProcessor("/tmp", drift_window=10.0, min_amp=5.0)
+        assert bp.folder_path == "/tmp"
+        assert bp.processor.drift_window == 10.0
+        assert bp.processor.fitter.min_amp == 5.0
+
+    def test_batch_processor_finds_triplets(self):
+        with tempfile.TemporaryDirectory() as folder:
+            self._make_triplet(folder, 'bolus1_baseline')
+            from batch_process import BatchProcessor
+            bp = BatchProcessor(folder)
+            triplets = bp.find_triplets(folder)
+            assert len(triplets) == 1
+            assert os.path.basename(triplets[0][0]) == 'bolus1_baseline.tif'
+
+

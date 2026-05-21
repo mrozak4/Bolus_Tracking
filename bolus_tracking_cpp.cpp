@@ -1,3 +1,5 @@
+#include "bolus_tracking_cpp.hpp"
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -19,88 +21,20 @@
 #include <unsupported/Eigen/NumericalDiff>
 
 // ---------------------------------------------------------
-// Helper Structures & Constants
+// Helper Constants
 // ---------------------------------------------------------
 const double PI = 3.14159265358979323846;
 
-struct ROI {
-    int id;
-    std::vector<std::pair<double, double>> poly;
-};
-
-struct FitRecord {
-    int roi_id;
-    int subj_num;
-    std::string exp;
-    double init_amp;
-    double init_t2p;
-    double init_fwhm;
-    double init_m;
-    double init_snr;
-    double init_cnr;
-    double click_start;
-    double click_onset;
-    double click_peak;
-    double click_end;
-    double f_amp;
-    double f_t2p;
-    double f_fwhm;
-    double f_m;
-    double f_snr;
-    double f_cnr;
-    double denoise_rms;
-    
-    // Legacy MATLAB fields
-    double auc;
-    double aucn;
-    double ttlb;
-    double ttm;
-    double tthb;
-    double ont;
-    double ont_sc;
-    int roi_size;
-    std::string ves_type;
-};
-
 // ---------------------------------------------------------
-// Math Helpers
+// SignalProcessor Implementation
 // ---------------------------------------------------------
-int parse_subject_number(const std::string& filepath) {
-    size_t pos = filepath.find("subject");
-    if (pos != std::string::npos) {
-        size_t start = pos + 7;
-        while (start < filepath.length() && (filepath[start] == '-' || filepath[start] == '_')) {
-            start++;
-        }
-        std::string num_str = "";
-        while (start < filepath.length() && std::isdigit(filepath[start])) {
-            num_str += filepath[start];
-            start++;
-        }
-        if (!num_str.empty()) {
-            try { return std::stoi(num_str); } catch (...) {}
-        }
-    }
-    for (size_t i = 0; i + 3 < filepath.length(); ++i) {
-        if (std::isdigit(filepath[i]) && std::isdigit(filepath[i+1]) &&
-            std::isdigit(filepath[i+2]) && std::isdigit(filepath[i+3])) {
-            try { return std::stoi(filepath.substr(i, 4)); } catch (...) {}
-        }
-    }
-    return 0;
-}
 
-std::string parse_experiment(const std::string& filepath) {
-    size_t last_slash = filepath.find_last_of("/\\");
-    std::string filename = (last_slash == std::string::npos) ? filepath : filepath.substr(last_slash + 1);
-    size_t last_dot = filename.find_last_of('.');
-    if (last_dot != std::string::npos) {
-        return filename.substr(0, last_dot);
-    }
-    return filename;
-}
-
-double compute_median(std::vector<double> v) {
+/**
+ * @brief Computes the median of a vector of doubles.
+ * @param v The vector of values.
+ * @return The median value.
+ */
+double SignalProcessor::compute_median(std::vector<double> v) {
     if (v.empty()) return 0.0;
     size_t n = v.size() / 2;
     std::nth_element(v.begin(), v.begin() + n, v.end());
@@ -112,7 +46,13 @@ double compute_median(std::vector<double> v) {
     }
 }
 
-double compute_std(const std::vector<double>& v, double mean) {
+/**
+ * @brief Computes the sample standard deviation (ddof=1) of a vector of doubles.
+ * @param v The vector of values.
+ * @param mean The precomputed mean of the values.
+ * @return The standard deviation.
+ */
+double SignalProcessor::compute_std(const std::vector<double>& v, double mean) {
     if (v.size() <= 1) return 0.0;
     double sum_sq = 0.0;
     for (double x : v) {
@@ -121,48 +61,13 @@ double compute_std(const std::vector<double>& v, double mean) {
     return std::sqrt(sum_sq / (v.size() - 1.0)); // ddof=1
 }
 
-std::vector<double> get_parameter_se(const std::vector<double>& t, const std::vector<double>& popt, double mse) {
-    int n = t.size();
-    int p = 4;
-    Eigen::MatrixXd J(n, p);
-    double eps = 1e-5;
-    
-    auto eval_model = [](double t_val, const std::vector<double>& params) {
-        double amp = params[0];
-        double t2p = params[1];
-        double fwhm = params[2];
-        double m = params[3];
-        double val = m;
-        if (t_val > 0) {
-            double alpha = ((t2p * t2p) / (fwhm * fwhm)) * 8.0 * std::log(2.0);
-            double beta = ((fwhm * fwhm) / t2p) / (8.0 * std::log(2.0));
-            val = m + amp * std::pow(t_val / t2p, alpha) * std::exp(-(t_val - t2p) / beta);
-        }
-        return val;
-    };
-    
-    for (int j = 0; j < p; ++j) {
-        std::vector<double> perturbed = popt;
-        perturbed[j] += eps;
-        for (int i = 0; i < n; ++i) {
-            double f1 = eval_model(t[i], perturbed);
-            double f0 = eval_model(t[i], popt);
-            J(i, j) = (f1 - f0) / eps;
-        }
-    }
-    
-    Eigen::MatrixXd JTJ = J.transpose() * J;
-    for (int j = 0; j < p; ++j) JTJ(j, j) += 1e-8; // Add regularization to prevent singular matrix
-    
-    Eigen::MatrixXd cov = mse * JTJ.inverse();
-    std::vector<double> se(p, 0.0);
-    for (int j = 0; j < p; ++j) {
-        se[j] = (cov(j, j) > 0.0) ? std::sqrt(cov(j, j)) : 0.0;
-    }
-    return se;
-}
-
-int reflect_index(int idx, int n) {
+/**
+ * @brief Reflects an out-of-bounds index for boundary padding (symmetric boundary).
+ * @param idx The index to reflect.
+ * @param n The size of the sequence.
+ * @return The reflected in-bounds index.
+ */
+int SignalProcessor::reflect_index(int idx, int n) {
     if (idx < 0) {
         return -idx;
     } else if (idx >= n) {
@@ -171,7 +76,13 @@ int reflect_index(int idx, int n) {
     return idx;
 }
 
-std::vector<double> gaussian_filter1d(const std::vector<double>& tr, double sigma) {
+/**
+ * @brief Applies a 1D Gaussian filter to a trace.
+ * @param tr The input trace.
+ * @param sigma The standard deviation of the Gaussian filter.
+ * @return The filtered trace.
+ */
+std::vector<double> SignalProcessor::gaussian_filter1d(const std::vector<double>& tr, double sigma) {
     int n = tr.size();
     if (sigma <= 0.0 || n == 0) return tr;
     
@@ -199,7 +110,12 @@ std::vector<double> gaussian_filter1d(const std::vector<double>& tr, double sigm
     return out;
 }
 
-std::vector<double> gradient(const std::vector<double>& tr) {
+/**
+ * @brief Computes the central difference gradient for a 1D trace.
+ * @param tr The input trace.
+ * @return The gradient trace.
+ */
+std::vector<double> SignalProcessor::gradient(const std::vector<double>& tr) {
     int n = tr.size();
     std::vector<double> grad(n, 0.0);
     if (n <= 1) return grad;
@@ -211,122 +127,14 @@ std::vector<double> gradient(const std::vector<double>& tr) {
     return grad;
 }
 
-// ---------------------------------------------------------
-// Cubic Spline Interpolation
-// ---------------------------------------------------------
-struct Spline {
-    std::vector<double> x, y;
-    std::vector<double> b, c, d;
-    
-    void build(const std::vector<double>& px, const std::vector<double>& py) {
-        x = px;
-        y = py;
-        int n = x.size();
-        if (n < 4) {
-            b.assign(n, 0.0);
-            c.assign(n, 0.0);
-            d.assign(n, 0.0);
-            return;
-        }
-        
-        b.resize(n);
-        c.resize(n);
-        d.resize(n);
-        
-        std::vector<double> h(n - 1);
-        for (int i = 0; i < n - 1; ++i) {
-            h[i] = x[i+1] - x[i];
-        }
-        
-        std::vector<double> rhs(n, 0.0);
-        for (int i = 1; i < n - 1; ++i) {
-            rhs[i] = (y[i+1] - y[i]) / h[i] - (y[i] - y[i-1]) / h[i-1];
-        }
-        
-        int N_red = n - 2;
-        std::vector<double> A_sub(N_red, 0.0);
-        std::vector<double> A_diag(N_red, 0.0);
-        std::vector<double> A_super(N_red, 0.0);
-        std::vector<double> R_rhs(N_red, 0.0);
-        
-        A_diag[0] = h[0] * (h[0] + h[1]) / (3.0 * h[1]) + 2.0 * (h[0] + h[1]) / 3.0;
-        A_super[0] = h[1] / 3.0 - (h[0] * h[0]) / (3.0 * h[1]);
-        R_rhs[0] = rhs[1];
-        
-        for (int i = 2; i < n - 2; ++i) {
-            int idx = i - 1;
-            A_sub[idx] = h[i-1] / 3.0;
-            A_diag[idx] = 2.0 * (h[i-1] + h[i]) / 3.0;
-            A_super[idx] = h[i] / 3.0;
-            R_rhs[idx] = rhs[i];
-        }
-        
-        int idx_last = N_red - 1;
-        A_sub[idx_last] = h[n-3] / 3.0 - (h[n-2] * h[n-2]) / (3.0 * h[n-3]);
-        A_diag[idx_last] = 2.0 * (h[n-3] + h[n-2]) / 3.0 + h[n-2] * (h[n-3] + h[n-2]) / (3.0 * h[n-3]);
-        R_rhs[idx_last] = rhs[n-2];
-        
-        std::vector<double> c_temp(N_red, 0.0);
-        std::vector<double> d_temp(N_red, 0.0);
-        
-        c_temp[0] = A_super[0] / A_diag[0];
-        d_temp[0] = R_rhs[0] / A_diag[0];
-        
-        for (int i = 1; i < N_red; ++i) {
-            double denom = A_diag[i] - A_sub[i] * c_temp[i-1];
-            c_temp[i] = A_super[i] / denom;
-            d_temp[i] = (R_rhs[i] - A_sub[i] * d_temp[i-1]) / denom;
-        }
-        
-        std::vector<double> c_red(N_red, 0.0);
-        c_red[N_red - 1] = d_temp[N_red - 1];
-        for (int i = N_red - 2; i >= 0; --i) {
-            c_red[i] = d_temp[i] - c_temp[i] * c_red[i+1];
-        }
-        
-        for (int i = 1; i < n - 1; ++i) {
-            c[i] = c_red[i-1];
-        }
-        
-        c[0] = (h[0] + h[1]) / h[1] * c[1] - h[0] / h[1] * c[2];
-        c[n-1] = (h[n-3] + h[n-2]) / h[n-3] * c[n-2] - h[n-2] / h[n-3] * c[n-3];
-        
-        for (int i = 0; i < n - 1; ++i) {
-            d[i] = (c[i+1] - c[i]) / (3.0 * h[i]);
-            b[i] = (y[i+1] - y[i]) / h[i] - h[i] * (2.0 * c[i] + c[i+1]) / 3.0;
-        }
-        
-        b[n-1] = 3.0 * d[n-2] * h[n-2] * h[n-2] + 2.0 * c[n-2] * h[n-2] + b[n-2];
-        d[n-1] = 0.0;
-    }
-    
-    double eval(double val) const {
-        int n = x.size();
-        if (n == 0) return 0.0;
-        if (n < 4) return y[0];
-        
-        if (val <= x[0]) {
-            double dx = val - x[0];
-            return ((d[0] * dx + c[0]) * dx + b[0]) * dx + y[0];
-        }
-        if (val >= x[n-1]) {
-            double dx = val - x[n-2];
-            return ((d[n-2] * dx + c[n-2]) * dx + b[n-2]) * dx + y[n-2];
-        }
-        
-        auto it = std::upper_bound(x.begin(), x.end(), val);
-        int idx = std::distance(x.begin(), it) - 1;
-        idx = std::max(0, std::min(idx, n - 2));
-        
-        double dx = val - x[idx];
-        return ((d[idx] * dx + c[idx]) * dx + b[idx]) * dx + y[idx];
-    }
-};
-
-// ---------------------------------------------------------
-// Denoising Algorithm
-// ---------------------------------------------------------
-std::vector<double> denoise_trace(const std::vector<double>& trace, double denoise_sd = 2.0, int half_win = 5) {
+/**
+ * @brief Replaces outliers in a 1D trace with their local median.
+ * @param trace The input raw trace.
+ * @param denoise_sd Standard deviation threshold factor for defining an outlier.
+ * @param half_win Half window width for local statistics.
+ * @return The denoised trace.
+ */
+std::vector<double> SignalProcessor::denoise_trace(const std::vector<double>& trace, double denoise_sd, int half_win) {
     int n_pts = trace.size();
     std::vector<double> clean_trace = trace;
     
@@ -359,38 +167,209 @@ std::vector<double> denoise_trace(const std::vector<double>& trace, double denoi
 }
 
 // ---------------------------------------------------------
-// Steepest Rise & Parameter Estimation
+// SplineInterpolator Implementation
 // ---------------------------------------------------------
-struct AutoEstimateResults {
-    std::vector<double> init_params; // [amp, t2p, fwhm, baseline]
-    int start_idx;
-    int end_idx;
-    double sd_base;
-    double click_start;
-    double click_onset;
-    double click_peak;
-    double click_end;
-};
 
-AutoEstimateResults auto_estimate_params(const std::vector<double>& tr, const std::vector<double>& t_us, double fr, int up_f = 20) {
+/**
+ * @brief Constructs a cubic spline representation for 1D interpolation.
+ * @param px The input independent variable values (sorted).
+ * @param py The input dependent variable values.
+ */
+void SplineInterpolator::build(const std::vector<double>& px, const std::vector<double>& py) {
+    x = px;
+    y = py;
+    int n = x.size();
+    if (n < 4) {
+        b.assign(n, 0.0);
+        c.assign(n, 0.0);
+        d.assign(n, 0.0);
+        return;
+    }
+    
+    b.resize(n);
+    c.resize(n);
+    d.resize(n);
+    
+    std::vector<double> h(n - 1);
+    for (int i = 0; i < n - 1; ++i) {
+        h[i] = x[i+1] - x[i];
+    }
+    
+    std::vector<double> rhs(n, 0.0);
+    for (int i = 1; i < n - 1; ++i) {
+        rhs[i] = (y[i+1] - y[i]) / h[i] - (y[i] - y[i-1]) / h[i-1];
+    }
+    
+    int N_red = n - 2;
+    std::vector<double> A_sub(N_red, 0.0);
+    std::vector<double> A_diag(N_red, 0.0);
+    std::vector<double> A_super(N_red, 0.0);
+    std::vector<double> R_rhs(N_red, 0.0);
+    
+    A_diag[0] = h[0] * (h[0] + h[1]) / (3.0 * h[1]) + 2.0 * (h[0] + h[1]) / 3.0;
+    A_super[0] = h[1] / 3.0 - (h[0] * h[0]) / (3.0 * h[1]);
+    R_rhs[0] = rhs[1];
+    
+    for (int i = 2; i < n - 2; ++i) {
+        int idx = i - 1;
+        A_sub[idx] = h[i-1] / 3.0;
+        A_diag[idx] = 2.0 * (h[i-1] + h[i]) / 3.0;
+        A_super[idx] = h[i] / 3.0;
+        R_rhs[idx] = rhs[i];
+    }
+    
+    int idx_last = N_red - 1;
+    A_sub[idx_last] = h[n-3] / 3.0 - (h[n-2] * h[n-2]) / (3.0 * h[n-3]);
+    A_diag[idx_last] = 2.0 * (h[n-3] + h[n-2]) / 3.0 + h[n-2] * (h[n-3] + h[n-2]) / (3.0 * h[n-3]);
+    R_rhs[idx_last] = rhs[n-2];
+    
+    std::vector<double> c_temp(N_red, 0.0);
+    std::vector<double> d_temp(N_red, 0.0);
+    
+    c_temp[0] = A_super[0] / A_diag[0];
+    d_temp[0] = R_rhs[0] / A_diag[0];
+    
+    for (int i = 1; i < N_red; ++i) {
+        double denom = A_diag[i] - A_sub[i] * c_temp[i-1];
+        c_temp[i] = A_super[i] / denom;
+        d_temp[i] = (R_rhs[i] - A_sub[i] * d_temp[i-1]) / denom;
+    }
+    
+    std::vector<double> c_red(N_red, 0.0);
+    c_red[N_red - 1] = d_temp[N_red - 1];
+    for (int i = N_red - 2; i >= 0; --i) {
+        c_red[i] = d_temp[i] - c_temp[i] * c_red[i+1];
+    }
+    
+    for (int i = 1; i < n - 1; ++i) {
+        c[i] = c_red[i-1];
+    }
+    
+    c[0] = (h[0] + h[1]) / h[1] * c[1] - h[0] / h[1] * c[2];
+    c[n-1] = (h[n-3] + h[n-2]) / h[n-3] * c[n-2] - h[n-2] / h[n-3] * c[n-3];
+    
+    for (int i = 0; i < n - 1; ++i) {
+        d[i] = (c[i+1] - c[i]) / (3.0 * h[i]);
+        b[i] = (y[i+1] - y[i]) / h[i] - h[i] * (2.0 * c[i] + c[i+1]) / 3.0;
+    }
+    
+    b[n-1] = 3.0 * d[n-2] * h[n-2] * h[n-2] + 2.0 * c[n-2] * h[n-2] + b[n-2];
+    d[n-1] = 0.0;
+}
+
+/**
+ * @brief Evaluates the cubic spline interpolation at a specific value.
+ * @param val The position to evaluate.
+ * @return The interpolated value.
+ */
+double SplineInterpolator::eval(double val) const {
+    int n = x.size();
+    if (n == 0) return 0.0;
+    if (n < 4) return y[0];
+    
+    if (val <= x[0]) {
+        double dx = val - x[0];
+        return ((d[0] * dx + c[0]) * dx + b[0]) * dx + y[0];
+    }
+    if (val >= x[n-1]) {
+        double dx = val - x[n-2];
+        return ((d[n-2] * dx + c[n-2]) * dx + b[n-2]) * dx + y[n-2];
+    }
+    
+    auto it = std::upper_bound(x.begin(), x.end(), val);
+    int idx = std::distance(x.begin(), it) - 1;
+    idx = std::max(0, std::min(idx, n - 2));
+    
+    double dx = val - x[idx];
+    return ((d[idx] * dx + c[idx]) * dx + b[idx]) * dx + y[idx];
+}
+
+// ---------------------------------------------------------
+// GammaFunctor Implementation
+// ---------------------------------------------------------
+
+/**
+ * @brief Evaluates the residuals between the fitted model and data for Levenberg-Marquardt optimization.
+ * @param x The parameter vector in unbounded space.
+ * @param fvec The output residuals vector.
+ * @return Return code.
+ */
+int GammaFunctor::operator()(const Eigen::VectorXd& x, Eigen::VectorXd& fvec) const {
+    double a1 = min_amp + (max_amp - min_amp) / (1.0 + std::exp(-x[0]));
+    double peak1 = min_t2p + (max_t2p - min_t2p) / (1.0 + std::exp(-x[1]));
+    double fwhm1 = min_fwhm + (max_fwhm - min_fwhm) / (1.0 + std::exp(-x[2]));
+    
+    double L_m = m_init - m_bound;
+    double U_m = m_init + m_bound;
+    double m = L_m + (U_m - L_m) / (1.0 + std::exp(-x[3]));
+    
+    double alpha1 = ((peak1 * peak1) / (fwhm1 * fwhm1)) * 8.0 * std::log(2.0);
+    double beta1 = ((fwhm1 * fwhm1) / peak1) / (8.0 * std::log(2.0));
+    
+    for (int i = 0; i < values(); ++i) {
+        double ti = t[i];
+        double model_val = m;
+        if (ti > 0) {
+            double base = ti / peak1;
+            model_val = a1 * std::pow(base, alpha1) * std::exp(-(ti - peak1) / beta1) + m;
+        }
+        
+        double r = y[i] - model_val;
+        if (use_cauchy) {
+            double r2 = r * r;
+            double c2 = f_scale * f_scale;
+            double val = c2 * std::log(1.0 + r2 / c2);
+            double sign = (r >= 0.0) ? 1.0 : -1.0;
+            fvec[i] = sign * std::sqrt(std::max(0.0, val));
+        } else {
+            fvec[i] = r;
+        }
+    }
+    return 0;
+}
+
+// ---------------------------------------------------------
+// BolusFitter Implementation
+// ---------------------------------------------------------
+
+/**
+ * @brief Constructs a BolusFitter instance with standard boundary parameters.
+ */
+BolusFitter::BolusFitter(double min_amp, double max_amp,
+                         double min_t2p, double max_t2p,
+                         double min_fwhm, double max_fwhm)
+    : min_amp(min_amp), max_amp(max_amp),
+      min_t2p(min_t2p), max_t2p(max_t2p),
+      min_fwhm(min_fwhm), max_fwhm(max_fwhm) {}
+
+/**
+ * @brief Automatically estimates initial guess parameters from the upsampled trace.
+ * @param tr The upsampled trace.
+ * @param t_us The time axis of the upsampled trace.
+ * @param fr The camera frame rate.
+ * @param up_f The upsampling factor.
+ * @return Estimated results including bounds indices.
+ */
+AutoEstimateResults BolusFitter::auto_estimate_params(const std::vector<double>& tr, const std::vector<double>& t_us, double fr, int up_f, bool low_cnr) const {
     int n = tr.size();
     
     int n_base_frames = std::min((int)std::round(2.0 * fr * up_f), (int)std::round(n * 0.1));
     n_base_frames = std::max(1, n_base_frames);
     
     std::vector<double> base_win(tr.begin(), tr.begin() + n_base_frames);
-    double baseline = compute_median(base_win);
+    double baseline = SignalProcessor::compute_median(base_win);
     
     double mean_base = 0.0;
     for (double x : base_win) mean_base += x;
     mean_base /= base_win.size();
-    double sd_base = compute_std(base_win, mean_base);
+    double sd_base = SignalProcessor::compute_std(base_win, mean_base);
     
     int ignore_points = std::min((int)(3.0 * fr * up_f), (int)(0.05 * n));
     int valid_end = n - ignore_points;
     
-    std::vector<double> smoothed_rise = gaussian_filter1d(tr, 1.0 * fr * up_f);
-    std::vector<double> deriv_rise = gradient(smoothed_rise);
+    double rise_sigma = low_cnr ? (2.0 * fr * up_f) : (1.0 * fr * up_f);
+    std::vector<double> smoothed_rise = SignalProcessor::gaussian_filter1d(tr, rise_sigma);
+    std::vector<double> deriv_rise = SignalProcessor::gradient(smoothed_rise);
     
     int rise_idx = 0;
     double max_deriv = -1e9;
@@ -423,8 +402,6 @@ AutoEstimateResults auto_estimate_params(const std::vector<double>& tr, const st
         }
     }
     
-    // Also detect onset where the derivative drops below 15% of max_deriv.
-    // This is highly robust to upward/downward baseline drift.
     int deriv_start_idx = 0;
     double slope_thresh = 0.15 * max_deriv;
     for (int i = rise_idx; i >= 0; --i) {
@@ -434,7 +411,11 @@ AutoEstimateResults auto_estimate_params(const std::vector<double>& tr, const st
         }
     }
     if (deriv_start_idx > start_idx) {
-        start_idx = deriv_start_idx;
+        if ((double)(deriv_start_idx - start_idx) / (fr * up_f) > 2.0) {
+            // Fallback to amplitude threshold alone
+        } else {
+            start_idx = deriv_start_idx;
+        }
     }
     
     double t_start = t_us[start_idx];
@@ -459,7 +440,7 @@ AutoEstimateResults auto_estimate_params(const std::vector<double>& tr, const st
     
     double fwhm = 0.0;
     if (idx_down == -1) {
-        std::vector<double> deriv1 = gradient(smoothed_rise);
+        std::vector<double> deriv1 = SignalProcessor::gradient(smoothed_rise);
         int search_window_frames = std::round(15.0 * fr * up_f);
         int end_search_idx = std::min(n, max_idx + search_window_frames);
         
@@ -488,8 +469,8 @@ AutoEstimateResults auto_estimate_params(const std::vector<double>& tr, const st
     if (fwhm <= 0) fwhm = 0.5;
     
     double sigma_end = 0.8 * fr * up_f;
-    std::vector<double> smoothed_end = gaussian_filter1d(tr, sigma_end);
-    std::vector<double> deriv_end = gradient(smoothed_end);
+    std::vector<double> smoothed_end = SignalProcessor::gaussian_filter1d(tr, sigma_end);
+    std::vector<double> deriv_end = SignalProcessor::gradient(smoothed_end);
     
     int local_min_idx = valid_end - 1;
     int downslope_start = max_idx;
@@ -510,17 +491,17 @@ AutoEstimateResults auto_estimate_params(const std::vector<double>& tr, const st
     }
     
     double sigma_baseline = 1.0 * fr * up_f;
-    std::vector<double> smoothed_tr = gaussian_filter1d(tr, sigma_baseline);
+    std::vector<double> smoothed_tr = SignalProcessor::gaussian_filter1d(tr, sigma_baseline);
     int n_end_frames = std::min((int)std::round(2.0 * fr * up_f), (int)std::round(valid_end * 0.1));
     n_end_frames = std::max(1, n_end_frames);
     
     std::vector<double> end_win(smoothed_tr.begin() + (valid_end - n_end_frames), smoothed_tr.begin() + valid_end);
-    double end_baseline = compute_median(end_win);
+    double end_baseline = SignalProcessor::compute_median(end_win);
     
     double mean_end = 0.0;
     for (double x : end_win) mean_end += x;
     mean_end /= end_win.size();
-    double end_sd_base = compute_std(end_win, mean_end);
+    double end_sd_base = SignalProcessor::compute_std(end_win, mean_end);
     
     double end_thresh = end_baseline + std::max(3.0 * end_sd_base, 0.03 * amp);
     if (end_sd_base == 0.0 || end_thresh >= max_val) {
@@ -538,6 +519,11 @@ AutoEstimateResults auto_estimate_params(const std::vector<double>& tr, const st
         end_idx = valid_end - 1;
     }
     
+    // Extend fit window by 25% of the fit duration
+    int fit_dur = end_idx - start_idx;
+    end_idx = std::min((int)tr.size() - 1, end_idx + (int)std::round(0.25 * fit_dur));
+    double t_end = t_us[end_idx];
+    
     return {
         {amp, t2p, fwhm, baseline},
         start_idx,
@@ -546,172 +532,221 @@ AutoEstimateResults auto_estimate_params(const std::vector<double>& tr, const st
         t_us[0],
         t_start,
         t_us[max_idx],
-        t_us[end_idx]
+        t_end
     };
 }
 
-// ---------------------------------------------------------
-// Nonlinear Optimization Functor & Solver
-// ---------------------------------------------------------
-struct GammaFunctor {
-    typedef double Scalar;
-    enum {
-        InputsAtCompileTime = Eigen::Dynamic,
-        ValuesAtCompileTime = Eigen::Dynamic
+/**
+ * @brief Computes standard errors for the fitted parameters using Jacobian numerical approximation.
+ * @param t The time vector.
+ * @param popt The fitted parameters.
+ * @param mse The mean squared error of the residuals.
+ * @return Vector of standard errors.
+ */
+std::vector<double> BolusFitter::get_parameter_se(const std::vector<double>& t, const std::vector<double>& popt, double mse) const {
+    int n = t.size();
+    int p = 4;
+    Eigen::MatrixXd J(n, p);
+    double eps = 1e-5;
+    
+    auto eval_model = [](double t_val, const std::vector<double>& params) {
+        double amp = params[0];
+        double t2p = params[1];
+        double fwhm = params[2];
+        double m = params[3];
+        double val = m;
+        if (t_val > 0) {
+            double alpha = ((t2p * t2p) / (fwhm * fwhm)) * 8.0 * std::log(2.0);
+            double beta = ((fwhm * fwhm) / t2p) / (8.0 * std::log(2.0));
+            val = m + amp * std::pow(t_val / t2p, alpha) * std::exp(-(t_val - t2p) / beta);
+        }
+        return val;
     };
-    typedef Eigen::VectorXd InputType;
-    typedef Eigen::VectorXd ValueType;
-    typedef Eigen::MatrixXd JacobianType;
+    
+    for (int j = 0; j < p; ++j) {
+        std::vector<double> perturbed = popt;
+        perturbed[j] += eps;
+        for (int i = 0; i < n; ++i) {
+            double f1 = eval_model(t[i], perturbed);
+            double f0 = eval_model(t[i], popt);
+            J(i, j) = (f1 - f0) / eps;
+        }
+    }
+    
+    Eigen::MatrixXd JTJ = J.transpose() * J;
+    for (int j = 0; j < p; ++j) JTJ(j, j) += 1e-8;
+    
+    Eigen::MatrixXd cov = mse * JTJ.inverse();
+    std::vector<double> se(p, 0.0);
+    for (int j = 0; j < p; ++j) {
+        se[j] = (cov(j, j) > 0.0) ? std::sqrt(cov(j, j)) : 0.0;
+    }
+    return se;
+}
 
-    int inputs() const { return 4; }
-    int values() const { return t.size(); }
+/**
+ * @brief Performs two-pass non-linear least squares optimization (least squares followed by Cauchy robust IRLS).
+ * @param t The time vector.
+ * @param y The raw signal intensity values.
+ * @param params_init The initial guesses.
+ * @param sd_base Baseline standard deviation.
+ * @param success Returns true if optimization successfully converged.
+ * @return The fitted parameter vector.
+ */
+std::vector<double> BolusFitter::run_nonlinear_fit(const std::vector<double>& t, const std::vector<double>& y,
+                                                 const std::vector<double>& params_init, double sd_base, bool& success) const {
+    success = false;
     
-    const std::vector<double>& t;
-    const std::vector<double>& y;
-    
-    double m_init;
-    double m_bound;
-    
-    bool use_cauchy;
-    double f_scale;
-    
-    double min_amp;
-    double max_amp;
-    double min_t2p;
-    double max_t2p;
-    double min_fwhm;
-    double max_fwhm;
-    
-    int operator()(const Eigen::VectorXd& x, Eigen::VectorXd& fvec) const {
-        double a1 = min_amp + (max_amp - min_amp) / (1.0 + std::exp(-x[0]));
-        double peak1 = min_t2p + (max_t2p - min_t2p) / (1.0 + std::exp(-x[1]));
-        double fwhm1 = min_fwhm + (max_fwhm - min_fwhm) / (1.0 + std::exp(-x[2]));
-        
+    auto fit_once = [&](double b_min_amp, double b_max_amp,
+                        double b_min_t2p, double b_max_t2p,
+                        double b_min_fwhm, double b_max_fwhm,
+                        bool& fit_ok) -> std::vector<double> {
+        fit_ok = false;
+        double m_init = params_init[3];
+        double m_bound = std::max({0.5 * sd_base, 0.005 * m_init, 0.2});
         double L_m = m_init - m_bound;
         double U_m = m_init + m_bound;
-        double m = L_m + (U_m - L_m) / (1.0 + std::exp(-x[3]));
+        
+        auto inv_map = [](double val, double L, double U) {
+            double eps = 1e-5;
+            double clamped = std::max(L + eps, std::min(U - eps, val));
+            double ratio = (U - L) / (clamped - L);
+            double arg = std::max(1e-9, ratio - 1.0);
+            return -std::log(arg);
+        };
+        
+        Eigen::VectorXd x(4);
+        x[0] = inv_map(params_init[0], b_min_amp, b_max_amp);
+        x[1] = inv_map(params_init[1], b_min_t2p, b_max_t2p);
+        x[2] = inv_map(params_init[2], b_min_fwhm, b_max_fwhm);
+        x[3] = inv_map(m_init, L_m, U_m);
+        
+        GammaFunctor functor{t, y, m_init, m_bound, false, 1.0, b_min_amp, b_max_amp, b_min_t2p, b_max_t2p, b_min_fwhm, b_max_fwhm};
+        Eigen::NumericalDiff<GammaFunctor> numDiff(functor);
+        Eigen::LevenbergMarquardt<Eigen::NumericalDiff<GammaFunctor>, double> lm(numDiff);
+        lm.parameters.maxfev = 2000;
+        lm.parameters.xtol = 1e-10;
+        lm.parameters.ftol = 1e-10;
+        
+        int info = lm.minimize(x);
+        
+        auto map_param = [](double x_val, double L, double U) {
+            return L + (U - L) / (1.0 + std::exp(-x_val));
+        };
+        
+        double a1 = map_param(x[0], b_min_amp, b_max_amp);
+        double peak1 = map_param(x[1], b_min_t2p, b_max_t2p);
+        double fwhm1 = map_param(x[2], b_min_fwhm, b_max_fwhm);
+        double m = map_param(x[3], L_m, U_m);
         
         double alpha1 = ((peak1 * peak1) / (fwhm1 * fwhm1)) * 8.0 * std::log(2.0);
         double beta1 = ((fwhm1 * fwhm1) / peak1) / (8.0 * std::log(2.0));
         
-        for (int i = 0; i < values(); ++i) {
+        std::vector<double> residuals(t.size());
+        for (size_t i = 0; i < t.size(); ++i) {
             double ti = t[i];
             double model_val = m;
             if (ti > 0) {
                 double base = ti / peak1;
                 model_val = a1 * std::pow(base, alpha1) * std::exp(-(ti - peak1) / beta1) + m;
             }
-            
-            double r = y[i] - model_val;
-            if (use_cauchy) {
-                double r2 = r * r;
-                double c2 = f_scale * f_scale;
-                double val = c2 * std::log(1.0 + r2 / c2);
-                double sign = (r >= 0.0) ? 1.0 : -1.0;
-                fvec[i] = sign * std::sqrt(std::max(0.0, val));
-            } else {
-                fvec[i] = r;
-            }
+            residuals[i] = y[i] - model_val;
         }
-        return 0;
-    }
-};
-
-std::vector<double> run_nonlinear_fit(const std::vector<double>& t, const std::vector<double>& y, 
-                                     const std::vector<double>& params_init, double sd_base, bool& success,
-                                     double min_amp, double max_amp,
-                                     double min_t2p, double max_t2p,
-                                     double min_fwhm, double max_fwhm) {
-    success = false;
-    double m_init = params_init[3];
-    double m_bound = std::max({0.5 * sd_base, 0.005 * m_init, 0.2});
+        
+        double median_res = SignalProcessor::compute_median(residuals);
+        std::vector<double> abs_res(residuals.size());
+        for (size_t i = 0; i < residuals.size(); ++i) {
+            abs_res[i] = std::abs(residuals[i] - median_res);
+        }
+        double mad = SignalProcessor::compute_median(abs_res) / 0.6745;
+        double dynamic_f_scale = std::max(2.3849 * mad, 0.1);
+        
+        functor.use_cauchy = true;
+        functor.f_scale = dynamic_f_scale;
+        
+        info = lm.minimize(x);
+        if (info >= 1 && info <= 4) {
+            fit_ok = true;
+        }
+        
+        double final_a1 = map_param(x[0], b_min_amp, b_max_amp);
+        double final_peak1 = map_param(x[1], b_min_t2p, b_max_t2p);
+        double final_fwhm1 = map_param(x[2], b_min_fwhm, b_max_fwhm);
+        double final_m = map_param(x[3], L_m, U_m);
+        
+        return {final_a1, final_peak1, final_fwhm1, final_m};
+    };
     
-    double L_m = m_init - m_bound;
-    double U_m = m_init + m_bound;
+    auto compute_rss = [&](const std::vector<double>& p) -> double {
+        if (p.size() < 4 || std::isnan(p[0]) || std::isnan(p[1]) || std::isnan(p[2]) || std::isnan(p[3])) {
+            return 1e30;
+        }
+        double a1 = p[0];
+        double peak1 = p[1];
+        double fwhm1 = p[2];
+        double m = p[3];
+        double alpha = ((peak1 * peak1) / (fwhm1 * fwhm1)) * 8.0 * std::log(2.0);
+        double beta = ((fwhm1 * fwhm1) / peak1) / (8.0 * std::log(2.0));
+        
+        double rss = 0.0;
+        for (size_t i = 0; i < t.size(); ++i) {
+            double ti = t[i];
+            double model_val = m;
+            if (ti > 0) {
+                double base = ti / peak1;
+                model_val = a1 * std::pow(base, alpha) * std::exp(-(ti - peak1) / beta) + m;
+            }
+            double diff = y[i] - model_val;
+            rss += diff * diff;
+        }
+        return rss;
+    };
     
-    // Dynamically cap max_t2p and max_fwhm to the fit window duration if unconstrained/default
     double actual_max_t2p = (max_t2p >= 1e5 && !t.empty()) ? t.back() : max_t2p;
     double actual_max_fwhm = (max_fwhm >= 1e5 && !t.empty()) ? t.back() : max_fwhm;
     
-    auto inv_map = [](double val, double L, double U) {
-        double eps = 1e-5;
-        double clamped = std::max(L + eps, std::min(U - eps, val));
-        double ratio = (U - L) / (clamped - L);
-        double arg = std::max(1e-9, ratio - 1.0);
-        return -std::log(arg);
-    };
+    bool pass1_success = false;
+    std::vector<double> popt1 = fit_once(min_amp, max_amp, min_t2p, actual_max_t2p, min_fwhm, actual_max_fwhm, pass1_success);
     
-    // Map initial guesses to search space
-    Eigen::VectorXd x(4);
-    x[0] = inv_map(params_init[0], min_amp, max_amp);
-    x[1] = inv_map(params_init[1], min_t2p, actual_max_t2p);
-    x[2] = inv_map(params_init[2], min_fwhm, actual_max_fwhm);
-    x[3] = inv_map(m_init, L_m, U_m);
-    
-    // Pass 1: Linear Least Squares
-    GammaFunctor functor{t, y, m_init, m_bound, false, 1.0, min_amp, max_amp, min_t2p, actual_max_t2p, min_fwhm, actual_max_fwhm};
-    Eigen::NumericalDiff<GammaFunctor> numDiff(functor);
-    Eigen::LevenbergMarquardt<Eigen::NumericalDiff<GammaFunctor>, double> lm(numDiff);
-    lm.parameters.maxfev = 2000;
-    lm.parameters.xtol = 1e-10;
-    lm.parameters.ftol = 1e-10;
-    
-    int info = lm.minimize(x);
-    
-    auto map_param = [](double x_val, double L, double U) {
-        return L + (U - L) / (1.0 + std::exp(-x_val));
-    };
-    
-    // Pass 1 solution
-    double a1 = map_param(x[0], min_amp, max_amp);
-    double peak1 = map_param(x[1], min_t2p, actual_max_t2p);
-    double fwhm1 = map_param(x[2], min_fwhm, actual_max_fwhm);
-    double m = map_param(x[3], L_m, U_m);
-    
-    // Calculate residuals and MAD
-    double alpha1 = ((peak1 * peak1) / (fwhm1 * fwhm1)) * 8.0 * std::log(2.0);
-    double beta1 = ((fwhm1 * fwhm1) / peak1) / (8.0 * std::log(2.0));
-    
-    std::vector<double> residuals(t.size());
-    for (size_t i = 0; i < t.size(); ++i) {
-        double ti = t[i];
-        double model_val = m;
-        if (ti > 0) {
-            double base = ti / peak1;
-            model_val = a1 * std::pow(base, alpha1) * std::exp(-(ti - peak1) / beta1) + m;
+    bool trigger_pass2 = !pass1_success || std::isnan(popt1[0]) || popt1[2] > 20.0 || popt1[1] > 15.0;
+    if (trigger_pass2) {
+        double clamp_min_amp = 1.0;
+        double clamp_max_amp = std::max(10.0 * params_init[0], 100.0);
+        double clamp_min_t2p = 0.01;
+        double clamp_max_t2p = 12.0;
+        double clamp_min_fwhm = 0.1;
+        double clamp_max_fwhm = 20.0;
+        
+        bool pass2_success = false;
+        std::vector<double> popt2 = fit_once(clamp_min_amp, clamp_max_amp, clamp_min_t2p, clamp_max_t2p, clamp_min_fwhm, clamp_max_fwhm, pass2_success);
+        
+        if (pass2_success) {
+            double rss1 = compute_rss(popt1);
+            double rss2 = compute_rss(popt2);
+            bool use_pass2 = !pass1_success || (popt1[2] > 20.0 || popt1[1] > 15.0) || (rss2 < rss1);
+            if (use_pass2) {
+                success = true;
+                return popt2;
+            }
         }
-        residuals[i] = y[i] - model_val;
     }
     
-    double median_res = compute_median(residuals);
-    std::vector<double> abs_res(residuals.size());
-    for (size_t i = 0; i < residuals.size(); ++i) {
-        abs_res[i] = std::abs(residuals[i] - median_res);
-    }
-    double mad = compute_median(abs_res) / 0.6745;
-    double dynamic_f_scale = std::max(2.3849 * mad, 0.1);
-    
-    // Pass 2: Cauchy Robust Fit
-    functor.use_cauchy = true;
-    functor.f_scale = dynamic_f_scale;
-    
-    info = lm.minimize(x);
-    if (info >= 1 && info <= 4) {
-        success = true;
-    }
-    
-    double final_a1 = map_param(x[0], min_amp, max_amp);
-    double final_peak1 = map_param(x[1], min_t2p, actual_max_t2p);
-    double final_fwhm1 = map_param(x[2], min_fwhm, actual_max_fwhm);
-    double final_m = map_param(x[3], L_m, U_m);
-    
-    return {final_a1, final_peak1, final_fwhm1, final_m};
+    success = pass1_success;
+    return popt1;
 }
 
 // ---------------------------------------------------------
-// Scanline Polygon Fill (Rasterization)
+// ROIMaskRasterizer Implementation
 // ---------------------------------------------------------
-std::vector<int> get_mask_pixels(const std::vector<std::pair<double, double>>& poly, int width, int height) {
+
+/**
+ * @brief Scanline rasterization algorithm to convert ROI polygon points to pixel coordinate mask.
+ * @param poly Vector of polygon vertices.
+ * @param width Image width.
+ * @param height Image height.
+ * @return Flat binary pixel mask array.
+ */
+std::vector<int> ROIMaskRasterizer::get_mask_pixels(const std::vector<std::pair<double, double>>& poly, int width, int height) {
     std::vector<int> mask(width * height, 0);
     int n = poly.size();
     if (n < 3) return mask;
@@ -743,14 +778,13 @@ std::vector<int> get_mask_pixels(const std::vector<std::pair<double, double>>& p
 }
 
 // ---------------------------------------------------------
-// SVG Fit Visualizer Helpers
+// BolusVisualizer Implementation
 // ---------------------------------------------------------
-struct NiceTicks {
-    double step;
-    std::vector<double> ticks;
-};
 
-inline NiceTicks get_nice_ticks(double min_val, double max_val, int max_ticks = 5) {
+/**
+ * @brief Generates nice tick steps and positions using base-10 exponent log scaling.
+ */
+NiceTicks BolusVisualizer::get_nice_ticks(double min_val, double max_val, int max_ticks) {
     NiceTicks nt;
     double range = max_val - min_val;
     if (range < 1e-6) {
@@ -781,7 +815,10 @@ inline NiceTicks get_nice_ticks(double min_val, double max_val, int max_ticks = 
     return nt;
 }
 
-inline std::string format_tick(double val) {
+/**
+ * @brief Formats floating point values for SVG presentation.
+ */
+std::string BolusVisualizer::format_tick(double val) {
     if (std::abs(val - std::round(val)) < 1e-7) {
         return std::to_string(static_cast<int>(std::round(val)));
     }
@@ -795,20 +832,19 @@ inline std::string format_tick(double val) {
     return s;
 }
 
-// ---------------------------------------------------------
-// SVG Fit Visualizer
-// ---------------------------------------------------------
-void save_svg_plot(int roi_id, const std::string& tiff_path,
-                   const std::vector<double>& tl_raw, const std::vector<double>& mfi_raw,
-                   const std::vector<double>& mfi_denoised,
-                   const std::vector<double>& tl_us, const std::vector<double>& y_us,
-                   const FitRecord& rec, bool fit_success, double k) {
+/**
+ * @brief Generates and writes an SVG plot illustrating fitting steps and results.
+ */
+void BolusVisualizer::save_svg_plot(int roi_id, const std::string& tiff_path,
+                                    const std::vector<double>& tl_raw, const std::vector<double>& mfi_raw,
+                                    const std::vector<double>& mfi_denoised,
+                                    const std::vector<double>& tl_us, const std::vector<double>& y_us,
+                                    const FitRecord& rec, bool fit_success, double k) {
     std::filesystem::path tiff_p(tiff_path);
     auto parent_dir = tiff_p.parent_path();
     auto stem = tiff_p.stem().string();
     auto plot_dir = parent_dir / "plots_cpp";
     
-    // Create plots_cpp folder if not exists
     std::error_code ec;
     std::filesystem::create_directories(plot_dir, ec);
     
@@ -816,7 +852,6 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
     std::ofstream out(svg_path);
     if (!out.is_open()) return;
 
-    // 1. Calculate boundaries
     double t_min = tl_raw.front();
     double t_max = tl_raw.back();
     
@@ -832,7 +867,6 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
     y_max += 0.05 * y_range;
     y_range = y_max - y_min;
 
-    // Canvas sizes (Expanded width to accommodate legend box outside on the right)
     const int W = 1000;
     const int H = 500;
     const int margin_left = 75;
@@ -850,15 +884,10 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
     };
 
     out << std::fixed << std::setprecision(3);
-    
-    // 2. Start SVG document
     out << "<svg width=\"" << W << "\" height=\"" << H << "\" viewBox=\"0 0 " << W << " " << H 
         << "\" xmlns=\"http://www.w3.org/2000/svg\">\n";
-        
-    // Background rect
     out << "  <rect width=\"100%\" height=\"100%\" fill=\"#0d1117\" />\n";
     
-    // Grid Lines (Horizontal - Nice Ticks)
     NiceTicks y_ticks = get_nice_ticks(y_min, y_max, 5);
     for (double y_val : y_ticks.ticks) {
         if (y_val < y_min || y_val > y_max) continue;
@@ -870,7 +899,6 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
             << format_tick(y_val) << "</text>\n";
     }
 
-    // Grid Lines (Vertical - Nice Ticks)
     NiceTicks x_ticks = get_nice_ticks(t_min, t_max, 6);
     for (double t_val : x_ticks.ticks) {
         if (t_val < t_min || t_val > t_max) continue;
@@ -882,23 +910,19 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
             << format_tick(t_val) << "s</text>\n";
     }
 
-    // Axis titles
     out << "  <text x=\"" << (margin_left + plot_w / 2) << "\" y=\"" << (H - 15) 
         << "\" fill=\"#c9d1d9\" font-family=\"sans-serif\" font-weight=\"bold\" font-size=\"13\" text-anchor=\"middle\">Time (seconds)</text>\n";
     out << "  <text x=\"" << 22 << "\" y=\"" << (margin_top + plot_h / 2) 
         << "\" fill=\"#c9d1d9\" font-family=\"sans-serif\" font-weight=\"bold\" font-size=\"13\" text-anchor=\"middle\" transform=\"rotate(-90 " << 22 << " " << (margin_top + plot_h / 2) << ")\">Mean Fluorescence Intensity (SU)</text>\n";
 
-    // Bounding Box
     out << "  <rect x=\"" << margin_left << "\" y=\"" << margin_top << "\" width=\"" << plot_w 
         << "\" height=\"" << plot_h << "\" fill=\"none\" stroke=\"#30363d\" stroke-width=\"1.5\" />\n";
 
-    // 3. Draw raw points
     for (size_t i = 0; i < tl_raw.size(); ++i) {
         out << "  <circle cx=\"" << X(tl_raw[i]) << "\" cy=\"" << Y(mfi_raw[i]) 
             << "\" r=\"2\" fill=\"#8b949e\" opacity=\"0.6\" />\n";
     }
 
-    // 4. Draw denoised line (adds linear drift back)
     out << "  <path d=\"M";
     for (size_t i = 0; i < tl_raw.size(); ++i) {
         out << " " << X(tl_raw[i]) << "," << Y(mfi_denoised[i] + k * tl_raw[i]);
@@ -906,7 +930,6 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
     }
     out << "\" stroke=\"#58a6ff\" stroke-width=\"1.5\" fill=\"none\" opacity=\"0.7\" />\n";
 
-    // 5. Draw upsampled spline (adds linear drift back)
     out << "  <path d=\"M";
     for (size_t i = 0; i < tl_us.size(); ++i) {
         out << " " << X(tl_us[i]) << "," << Y(y_us[i] + k * tl_us[i]);
@@ -928,7 +951,6 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
         return best_val;
     };
 
-    // 6. Draw markers (Circles instead of Lines, adds linear drift back)
     if (!std::isnan(rec.click_onset)) {
         double xo = X(rec.click_onset);
         double yo = Y(get_y_val_at_time(rec.click_onset, tl_us, y_us) + k * rec.click_onset);
@@ -951,7 +973,6 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
             << "\" fill=\"#ff5555\" font-family=\"sans-serif\" font-weight=\"bold\" font-size=\"12\">End</text>\n";
     }
 
-    // 7. Draw fitted curve (adds linear drift back)
     if (fit_success && !std::isnan(rec.f_amp) && !std::isnan(rec.f_t2p) && !std::isnan(rec.f_fwhm) && !std::isnan(rec.f_m)) {
         double onset = rec.click_onset;
         double end = rec.click_end;
@@ -961,7 +982,7 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
         double m = rec.f_m;
 
         double alpha = (t2p * t2p) / (fwhm * fwhm) * 8.0 * std::log(2.0);
-        double beta = (fwhm * fwhm) / t2p * (1.0 / (8.0 * std::log(2.0)));
+        double beta = ((fwhm * fwhm) / t2p) / (8.0 * std::log(2.0));
         
         out << "  <path d=\"M";
         bool first = true;
@@ -983,12 +1004,10 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
         out << "\" stroke=\"#ff7b72\" stroke-width=\"3.5\" fill=\"none\" />\n";
     }
 
-    // 8. Title
     out << "  <text x=\"" << margin_left << "\" y=\"" << (margin_top - 20) 
         << "\" fill=\"#f0f6fc\" font-family=\"sans-serif\" font-weight=\"bold\" font-size=\"16\">" 
         << stem << " - ROI " << roi_id << " (C++ fit)</text>\n";
 
-    // 9. Glassmorphism legend card (Positioned outside the graph area on the right)
     double card_x = W - margin_right + 20;
     double card_y = margin_top;
     double card_w = 190;
@@ -1013,19 +1032,64 @@ void save_svg_plot(int roi_id, const std::string& tiff_path,
 }
 
 // ---------------------------------------------------------
-// Pipeline Execution for a single ROI
+// DatasetProcessor Implementation
 // ---------------------------------------------------------
-FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, double>>& poly,
-                             const std::vector<std::vector<float>>& frames, int width, int height,
-                             double fr, int up_f, const std::string& tiff_path, bool enable_plots,
-                             double drift_window,
-                             double min_amp, double max_amp,
-                             double min_t2p, double max_t2p,
-                             double min_fwhm, double max_fwhm) {
-    // 1. Rasterize Mask
-    std::vector<int> mask = get_mask_pixels(poly, width, height);
+
+/**
+ * @brief Constructs a DatasetProcessor instance.
+ */
+DatasetProcessor::DatasetProcessor(double drift_window, bool enable_plots, const BolusFitter& fitter, const QCSettings& qc_settings)
+    : drift_window(drift_window), enable_plots(enable_plots), fitter(fitter), qc_settings(qc_settings) {}
+
+/**
+ * @brief Extracts the subject number from a filepath using regex matching.
+ */
+int DatasetProcessor::parse_subject_number(const std::string& filepath) const {
+    size_t pos = filepath.find("subject");
+    if (pos != std::string::npos) {
+        size_t start = pos + 7;
+        while (start < filepath.length() && (filepath[start] == '-' || filepath[start] == '_')) {
+            start++;
+        }
+        std::string num_str = "";
+        while (start < filepath.length() && std::isdigit(filepath[start])) {
+            num_str += filepath[start];
+            start++;
+        }
+        if (!num_str.empty()) {
+            try { return std::stoi(num_str); } catch (...) {}
+        }
+    }
+    for (size_t i = 0; i + 3 < filepath.length(); ++i) {
+        if (std::isdigit(filepath[i]) && std::isdigit(filepath[i+1]) &&
+            std::isdigit(filepath[i+2]) && std::isdigit(filepath[i+3])) {
+            try { return std::stoi(filepath.substr(i, 4)); } catch (...) {}
+        }
+    }
+    return 0;
+}
+
+/**
+ * @brief Extracts the experiment name from a filepath.
+ */
+std::string DatasetProcessor::parse_experiment(const std::string& filepath) const {
+    size_t last_slash = filepath.find_last_of("/\\");
+    std::string filename = (last_slash == std::string::npos) ? filepath : filepath.substr(last_slash + 1);
+    size_t last_dot = filename.find_last_of('.');
+    if (last_dot != std::string::npos) {
+        return filename.substr(0, last_dot);
+    }
+    return filename;
+}
+
+/**
+ * @brief Runs the complete signal processing and curve fitting workflow on a single ROI.
+ */
+FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std::pair<double, double>>& poly,
+                                               const std::vector<std::vector<float>>& frames, int width, int height,
+                                               double fr, int up_f, const std::string& tiff_path) const {
+    std::vector<int> mask = ROIMaskRasterizer::get_mask_pixels(poly, width, height);
     
-    // Calculate size and mean intensity
     int mask_size = 0;
     for (int val : mask) mask_size += val;
     
@@ -1044,11 +1108,9 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
         }
     }
     
-    // Create time vector
     std::vector<double> tl_raw(mfi_raw.size());
     for (size_t i = 0; i < tl_raw.size(); ++i) tl_raw[i] = i / fr;
 
-    // Compute linear drift slope k using the first drift_window seconds (t <= drift_window)
     double sum_t = 0.0, sum_y = 0.0;
     double sum_tt = 0.0, sum_ty = 0.0;
     int count = 0;
@@ -1074,29 +1136,32 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
         }
     }
 
-    // Detrend raw signal before running fitting pipeline
     std::vector<double> mfi_raw_detrended = mfi_raw;
     for (size_t i = 0; i < mfi_raw.size(); ++i) {
         mfi_raw_detrended[i] -= k * tl_raw[i];
     }
     
-    // 2. Denoise
-    std::vector<double> mfi_denoised = denoise_trace(mfi_raw_detrended);
+    std::vector<double> mfi_denoised = SignalProcessor::denoise_trace(mfi_raw_detrended);
     
-    // 3. Spline upsample
     std::vector<double> tl_us(mfi_raw.size() * up_f);
     for (size_t i = 0; i < tl_us.size(); ++i) tl_us[i] = i / (fr * up_f);
     
-    Spline spline;
+    SplineInterpolator spline;
     spline.build(tl_raw, mfi_denoised);
     
     std::vector<double> y_us(tl_us.size());
     for (size_t i = 0; i < tl_us.size(); ++i) y_us[i] = spline.eval(tl_us[i]);
     
-    // 4. Estimate Parameters
-    AutoEstimateResults auto_res = auto_estimate_params(y_us, tl_us, fr, up_f);
+    AutoEstimateResults auto_res = fitter.auto_estimate_params(y_us, tl_us, fr, up_f);
     
-    // 5. Fit
+    double init_cnr = (auto_res.sd_base > 0.0) ? (auto_res.init_params[0] / auto_res.sd_base) : 0.0;
+    if (init_cnr < 5.0) {
+        mfi_denoised = SignalProcessor::denoise_trace(mfi_raw_detrended, 1.5);
+        spline.build(tl_raw, mfi_denoised);
+        for (size_t i = 0; i < tl_us.size(); ++i) y_us[i] = spline.eval(tl_us[i]);
+        auto_res = fitter.auto_estimate_params(y_us, tl_us, fr, up_f, true);
+    }
+    
     int start_idx = auto_res.start_idx;
     int end_idx = auto_res.end_idx;
     
@@ -1108,8 +1173,7 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
     }
     
     bool fit_success = false;
-    std::vector<double> popt = run_nonlinear_fit(t_fit, y_fit, auto_res.init_params, auto_res.sd_base, fit_success,
-                                                 min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm);
+    std::vector<double> popt = fitter.run_nonlinear_fit(t_fit, y_fit, auto_res.init_params, auto_res.sd_base, fit_success);
     
     FitRecord rec;
     rec.roi_id = roi_id;
@@ -1129,23 +1193,27 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
     rec.click_peak = auto_res.click_peak;
     rec.click_end = auto_res.click_end;
     
+    std::string qc_flag = "PASS";
     if (fit_success) {
-        auto is_near_bounds = [](double val, double low, double high) {
-            if (std::abs(val - low) < 1e-4) return true;
-            if (low > 0.0 && val <= low * 1.01) return true;
-            if (!std::isinf(high)) {
-                if (std::abs(high - val) < 1e-4) return true;
-                if (high > 0.0 && val >= high * 0.99) return true;
-            }
-            return false;
-        };
-        
-        if (is_near_bounds(popt[0], min_amp, max_amp) ||
-            is_near_bounds(popt[1], min_t2p, max_t2p) ||
-            is_near_bounds(popt[2], min_fwhm, max_fwhm)) {
+        // Validation check against fitting bounds logic
+        // If parameters are too close to absolute bounds, invalidate fit to remain consistent with original Python logic
+        if (popt[0] <= 1.0001e-6 || popt[0] >= 1023.0 * 0.9999 ||
+            popt[1] <= 1.0001e-6 || popt[2] <= 0.5001) {
             fit_success = false;
+            qc_flag = "FAIL";
+        } else {
+            double f_cnr = (auto_res.sd_base > 0.0) ? (popt[0] / auto_res.sd_base) : 0.0;
+            if (f_cnr < qc_settings.cnr_fail || popt[2] > qc_settings.fwhm_fail || popt[1] > qc_settings.t2p_fail || popt[0] < qc_settings.amp_fail) {
+                qc_flag = "FAIL";
+            } else if (f_cnr < qc_settings.cnr_min || popt[2] > qc_settings.fwhm_max || popt[1] > qc_settings.t2p_max) {
+                qc_flag = "WARN";
+            }
         }
+    } else {
+        qc_flag = "FAIL";
     }
+    rec.qc_flag = qc_flag;
+    rec.fit_source = "auto";
     
     if (fit_success) {
         rec.f_amp = popt[0];
@@ -1155,7 +1223,6 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
         rec.f_cnr = (auto_res.sd_base > 0.0) ? (popt[0] / auto_res.sd_base) : NAN;
         rec.f_snr = (auto_res.sd_base > 0.0) ? (popt[3] / auto_res.sd_base) : NAN;
         
-        // Calculate AUC and AUCn
         std::vector<double> y_fit_model(t_fit.size());
         double alpha = ((popt[1] * popt[1]) / (popt[2] * popt[2])) * 8.0 * std::log(2.0);
         double beta = ((popt[2] * popt[2]) / popt[1]) / (8.0 * std::log(2.0));
@@ -1187,7 +1254,6 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
         double last_yn = (range > 0.0) ? (y_fit_model.back() - min_y) / range : 0.0;
         rec.aucn = sum_yn - (first_yn + last_yn) / 2.0;
         
-        // Calculate OnT
         std::vector<int> I;
         for (size_t i = 0; i < y_fit_model.size(); ++i) {
             double val_n = (range > 0.0) ? (y_fit_model[i] - min_y) / range : 0.0;
@@ -1212,14 +1278,13 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
         rec.ont = (double)onset_idx / (fr * up_f);
         rec.ttm = std::abs(popt[1] - rec.ont);
         
-        // Calculate standard errors and TTlb / TThb
         double sum_sq_resid = 0.0;
         for (size_t i = 0; i < y_fit.size(); ++i) {
             double diff = y_fit[i] - y_fit_model[i];
             sum_sq_resid += diff * diff;
         }
         double mse = (y_fit.size() > 4) ? (sum_sq_resid / (y_fit.size() - 4)) : 0.0;
-        std::vector<double> se = get_parameter_se(t_fit, popt, mse);
+        std::vector<double> se = fitter.get_parameter_se(t_fit, popt, mse);
         double se_t2p = se[1];
         
         double ci_lower = popt[1] - 1.96 * se_t2p;
@@ -1241,7 +1306,6 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
         rec.ont = NAN;
     }
     
-    // Calculate RMS of noise removed by denoising
     double sum_sq_diff = 0.0;
     for (size_t i = 0; i < mfi_raw.size(); ++i) {
         double diff = mfi_raw_detrended[i] - mfi_denoised[i];
@@ -1249,24 +1313,19 @@ FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, dou
     }
     rec.denoise_rms = (mfi_raw.size() > 0) ? std::sqrt(sum_sq_diff / mfi_raw.size()) : 0.0;
     
-    // Save vector SVG plot of raw points, denoised spline, markers, and fitted curve
     if (enable_plots) {
-        save_svg_plot(roi_id, tiff_path, tl_raw, mfi_raw, mfi_denoised, tl_us, y_us, rec, fit_success, k);
+        BolusVisualizer::save_svg_plot(roi_id, tiff_path, tl_raw, mfi_raw, mfi_denoised, tl_us, y_us, rec, fit_success, k);
     }
     
     return rec;
 }
 
-// ---------------------------------------------------------
-// Main Function
-// ---------------------------------------------------------
-bool process_dataset_file(const std::string& tiff_path, const std::string& rois_path, double fr, int up_f, const std::string& out_csv, bool enable_plots, double drift_window,
-                          double min_amp, double max_amp,
-                          double min_t2p, double max_t2p,
-                          double min_fwhm, double max_fwhm) {
+/**
+ * @brief Processes a single TIFF file containing multi-frame images and ROI definitions.
+ */
+bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const std::string& rois_path, double fr, int up_f, const std::string& out_csv) const {
     std::cout << "Starting C++ Bolus Tracking for: " << tiff_path << std::endl;
     
-    // 1. Read TIFF Stack
     TIFF* tif = TIFFOpen(tiff_path.c_str(), "r");
     if (!tif) {
         std::cerr << "Failed to open TIFF file: " << tiff_path << std::endl;
@@ -1307,7 +1366,6 @@ bool process_dataset_file(const std::string& tiff_path, const std::string& rois_
     TIFFClose(tif);
     std::cout << "Loaded " << frames.size() << " frames (" << width << "x" << height << ")" << std::endl;
     
-    // 2. Read ROIs
     std::ifstream rois_file(rois_path);
     if (!rois_file.is_open()) {
         std::cerr << "Failed to open ROIs file: " << rois_path << std::endl;
@@ -1329,17 +1387,15 @@ bool process_dataset_file(const std::string& tiff_path, const std::string& rois_
     rois_file.close();
     std::cout << "Loaded " << n_rois << " ROIs" << std::endl;
     
-    // 3. Process ROIs in Parallel
     auto start_time = std::chrono::high_resolution_clock::now();
     
     std::vector<std::future<FitRecord>> futures;
     futures.reserve(n_rois);
     
     for (int i = 0; i < n_rois; ++i) {
-        futures.push_back(std::async(std::launch::async, process_single_roi,
+        futures.push_back(std::async(std::launch::async, &DatasetProcessor::process_single_roi, this,
                                      rois[i].id + 1, rois[i].poly, std::ref(frames),
-                                     (int)width, (int)height, fr, up_f, tiff_path, enable_plots,
-                                     drift_window, min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm));
+                                     (int)width, (int)height, fr, up_f, tiff_path));
     }
     
     std::vector<FitRecord> results;
@@ -1352,7 +1408,6 @@ bool process_dataset_file(const std::string& tiff_path, const std::string& rois_
     std::chrono::duration<double> diff = end_time - start_time;
     std::cout << "Parallel fitting complete in " << diff.count() << " seconds!" << std::endl;
     
-    // Calculate OnTSc (Onset time in Scan) relative to the minimum OnT among all ROIs
     double min_ont = 999999.0;
     for (const auto& rec : results) {
         if (!std::isnan(rec.ont) && rec.ont < min_ont) {
@@ -1360,7 +1415,6 @@ bool process_dataset_file(const std::string& tiff_path, const std::string& rois_
         }
     }
     
-    // 4. Save CSV results
     std::ofstream out(out_csv);
     if (!out.is_open()) {
         std::cerr << "Failed to open output CSV: " << out_csv << std::endl;
@@ -1370,7 +1424,7 @@ bool process_dataset_file(const std::string& tiff_path, const std::string& rois_
     out << "ROI,SubjNum,Exp,InitAmp,InitT2p,InitFWHM,InitM,InitSNR,InitCNR,"
         << "Click1_Start_T,Click2_Onset_T,Click3_Peak_T,Click4_End_T,"
         << "F_Amp,F_T2p,F_FWHM,F_M,F_SNR,F_CNR,"
-        << "AUC,AUCn,TTlb,TTm,TThb,OnT,OnTSc,ROISize,Denoise_RMS,VesType\n";
+        << "AUC,AUCn,TTlb,TTm,TThb,OnT,OnTSc,ROISize,Denoise_RMS,VesType,QC_Flag,Fit_Source\n";
     
     for (auto& rec : results) {
         if (!std::isnan(rec.ont) && min_ont < 99999.0) {
@@ -1386,14 +1440,28 @@ bool process_dataset_file(const std::string& tiff_path, const std::string& rois_
             << rec.click_start << "," << rec.click_onset << "," << rec.click_peak << "," << rec.click_end << ","
             << rec.f_amp << "," << rec.f_t2p << "," << rec.f_fwhm << "," << rec.f_m << "," << rec.f_snr << "," << rec.f_cnr << ","
             << rec.auc << "," << rec.aucn << "," << rec.ttlb << "," << rec.ttm << "," << rec.tthb << "," << rec.ont << "," << rec.ont_sc << ","
-            << rec.roi_size << "," << rec.denoise_rms << "," << rec.ves_type << "\n";
+            << rec.roi_size << "," << rec.denoise_rms << "," << rec.ves_type << ","
+            << rec.qc_flag << "," << rec.fit_source << "\n";
     }
     out.close();
     std::cout << "Saved C++ results to: " << out_csv << std::endl;
     return true;
 }
 
-double parse_frame_rate(const std::string& filepath) {
+// ---------------------------------------------------------
+// BatchProcessor Implementation
+// ---------------------------------------------------------
+
+/**
+ * @brief Constructs a BatchProcessor instance.
+ */
+BatchProcessor::BatchProcessor(const std::string& folder_path, double drift_window, bool enable_plots, const BolusFitter& fitter, const QCSettings& qc_settings)
+    : folder_path(folder_path), drift_window(drift_window), enable_plots(enable_plots), fitter(fitter), qc_settings(qc_settings) {}
+
+/**
+ * @brief Parses the camera frame rate from the Fluoview metadata file format.
+ */
+double BatchProcessor::parse_frame_rate(const std::string& filepath) const {
     std::ifstream f(filepath);
     if (!f.is_open()) return 0.0;
     std::string line;
@@ -1415,7 +1483,10 @@ double parse_frame_rate(const std::string& filepath) {
     return 0.0;
 }
 
-std::string extract_identifier(const std::string& filename) {
+/**
+ * @brief Extracts the logical bolus identifier from a filename.
+ */
+std::string BatchProcessor::extract_identifier(const std::string& filename) const {
     std::regex re("(bolus\\d+[-_](baseline|co2))", std::regex_constants::icase);
     std::smatch m;
     if (std::regex_search(filename, m, re)) {
@@ -1426,7 +1497,10 @@ std::string extract_identifier(const std::string& filename) {
     return "";
 }
 
-std::string get_top_relative_dir(const std::filesystem::path& file_path, const std::filesystem::path& base_folder) {
+/**
+ * @brief Extracts the directory folder relative to the scanning base directory.
+ */
+std::string BatchProcessor::get_top_relative_dir(const std::filesystem::path& file_path, const std::filesystem::path& base_folder) const {
     try {
         std::filesystem::path abs_file = std::filesystem::absolute(file_path).lexically_normal();
         std::filesystem::path abs_base = std::filesystem::absolute(base_folder).lexically_normal();
@@ -1447,15 +1521,10 @@ std::string get_top_relative_dir(const std::filesystem::path& file_path, const s
     return "";
 }
 
-struct PathInfo {
-    std::filesystem::path path;
-    std::string identifier;
-    std::string top_dir;
-};
-
-
-
-bool contains_ignored_pattern(const std::string& path) {
+/**
+ * @brief Checks if a path string contains any of the pattern directories/files to ignore.
+ */
+bool BatchProcessor::contains_ignored_pattern(const std::string& path) const {
     std::vector<std::string> ignores = {"mips", "results", "shift_info", "max_"};
     for (const auto& pat : ignores) {
         if (path.find(pat) != std::string::npos) return true;
@@ -1463,6 +1532,144 @@ bool contains_ignored_pattern(const std::string& path) {
     return false;
 }
 
+/**
+ * @brief Runs recursive scanning, pairing, and batch processing for all matching triplets.
+ */
+bool BatchProcessor::run() const {
+    std::cout << "Pure C++ Pipeline - Scanning: " << folder_path << std::endl;
+    std::cout << "Drift window duration: " << drift_window << " seconds." << std::endl;
+    if (enable_plots) {
+        std::cout << "Plotting enabled. Fits will be saved to plots_cpp/ folder." << std::endl;
+    } else {
+        std::cout << "Plotting disabled. Only results CSVs will be generated." << std::endl;
+    }
+    
+    std::vector<PathInfo> rois_files;
+    std::vector<PathInfo> meta_files;
+    
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(folder_path)) {
+        if (entry.is_regular_file()) {
+            std::string ext = entry.path().extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            
+            if (ext == ".txt") {
+                std::string filename = entry.path().filename().string();
+                if (filename.empty() || filename.front() == '.') continue;
+                
+                std::string identifier = extract_identifier(filename);
+                if (identifier.empty()) continue;
+                
+                std::transform(identifier.begin(), identifier.end(), identifier.begin(), ::tolower);
+                
+                std::string filename_lower = filename;
+                std::transform(filename_lower.begin(), filename_lower.end(), filename_lower.begin(), ::tolower);
+                
+                PathInfo pinfo;
+                pinfo.path = entry.path();
+                pinfo.identifier = identifier;
+                pinfo.top_dir = get_top_relative_dir(entry.path(), folder_path);
+                
+                if (filename_lower.find("_rois.txt") != std::string::npos || filename_lower.find("_rois_cpp.txt") != std::string::npos) {
+                    rois_files.push_back(pinfo);
+                } else if (filename_lower.find("_rois") == std::string::npos) {
+                    meta_files.push_back(pinfo);
+                }
+            }
+        }
+    }
+    
+    std::vector<std::filesystem::path> tiff_files;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(folder_path)) {
+        if (entry.is_regular_file()) {
+            std::string filename = entry.path().filename().string();
+            if (filename.empty() || filename.front() == '.') continue;
+            
+            std::string ext = entry.path().extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            if (ext == ".tif" || ext == ".tiff") {
+                std::string p_str = entry.path().string();
+                std::transform(p_str.begin(), p_str.end(), p_str.begin(), ::tolower);
+                if (!contains_ignored_pattern(p_str)) {
+                    tiff_files.push_back(entry.path());
+                }
+            }
+        }
+    }
+    
+    std::cout << "Found " << tiff_files.size() << " TIFF files to process." << std::endl;
+    int processed_count = 0;
+    
+    DatasetProcessor ds_processor(drift_window, enable_plots, fitter, qc_settings);
+    
+    for (const auto& tiff_path : tiff_files) {
+        std::string filename = tiff_path.filename().string();
+        std::string identifier = extract_identifier(filename);
+        if (identifier.empty()) {
+            std::cout << "Skipping non-bolus TIFF: " << filename << std::endl;
+            continue;
+        }
+        
+        std::string id_lower = identifier;
+        std::transform(id_lower.begin(), id_lower.end(), id_lower.begin(), ::tolower);
+        
+        std::string tif_subj = get_top_relative_dir(tiff_path, folder_path);
+        
+        std::string rois_file = "";
+        std::string meta_file = "";
+        
+        for (const auto& r : rois_files) {
+            if (r.identifier == id_lower) {
+                if (tif_subj.empty() || r.top_dir == tif_subj) {
+                    rois_file = r.path.string();
+                    break;
+                }
+            }
+        }
+        
+        for (const auto& m : meta_files) {
+            if (m.identifier == id_lower) {
+                if (tif_subj.empty() || m.top_dir == tif_subj) {
+                    meta_file = m.path.string();
+                    break;
+                }
+            }
+        }
+        
+        if (rois_file.empty() || meta_file.empty()) {
+            std::cerr << "Warning: Could not find matching rois.txt or metadata.txt for " << filename 
+                      << " (rois: " << (rois_file.empty() ? "missing" : "found")
+                      << ", meta: " << (meta_file.empty() ? "missing" : "found") << "). Skipping." << std::endl;
+            continue;
+        }
+        
+        double fr = parse_frame_rate(meta_file);
+        if (fr <= 0.0) {
+            std::cerr << "Warning: Failed to parse frame rate from " << meta_file << ". Skipping." << std::endl;
+            continue;
+        }
+        
+        std::string out_csv = tiff_path.parent_path().string() + "/" + tiff_path.stem().string() + "_results_cpp.csv";
+        
+        std::cout << "\n==================================================" << std::endl;
+        std::cout << "Processing bolus: " << identifier << std::endl;
+        std::cout << "TIFF: " << tiff_path.string() << std::endl;
+        std::cout << "ROIs: " << rois_file << std::endl;
+        std::cout << "Metadata: " << meta_file << " (Frame Rate: " << fr << " Hz)" << std::endl;
+        std::cout << "Output: " << out_csv << std::endl;
+        std::cout << "==================================================" << std::endl;
+        
+        ds_processor.process_dataset_file(tiff_path.string(), rois_file, fr, 20, out_csv);
+        processed_count++;
+    }
+    
+    std::cout << "\nPure C++ Processing Complete! Successfully processed " << processed_count << " datasets." << std::endl;
+    return true;
+}
+
+// ---------------------------------------------------------
+// Main Entrypoint
+// ---------------------------------------------------------
+#if !defined(BUILD_TESTS) && !defined(BUILD_GUI)
 int main(int argc, char** argv) {
     bool enable_plots = false;
     bool folder_mode = false;
@@ -1473,9 +1680,11 @@ int main(int argc, char** argv) {
     double min_amp = 1e-6;
     double max_amp = 1023.0; // microscope 10-bit max value
     double min_t2p = 1e-6;
-    double max_t2p = 1e6;   // dynamically capped to scan duration inside fit function
+    double max_t2p = 1e6;   // dynamically capped inside fit function
     double min_fwhm = 0.5;   // physiological minimum duration (seconds)
-    double max_fwhm = 1e6;   // dynamically capped to scan duration inside fit function
+    double max_fwhm = 1e6;   // dynamically capped inside fit function
+    
+    QCSettings qc_settings;
     
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -1485,7 +1694,7 @@ int main(int argc, char** argv) {
             folder_mode = true;
             if (i + 1 < argc) {
                 folder_path = argv[i + 1];
-                i++; // skip next arg
+                i++;
             }
         } else if (arg == "--drift" || arg == "--drift-window") {
             if (i + 1 < argc) {
@@ -1522,10 +1731,47 @@ int main(int argc, char** argv) {
                 max_fwhm = std::stod(argv[i + 1]);
                 i++;
             }
+        } else if (arg == "--qc-cnr-min") {
+            if (i + 1 < argc) {
+                qc_settings.cnr_min = std::stod(argv[i + 1]);
+                i++;
+            }
+        } else if (arg == "--qc-fwhm-max") {
+            if (i + 1 < argc) {
+                qc_settings.fwhm_max = std::stod(argv[i + 1]);
+                i++;
+            }
+        } else if (arg == "--qc-t2p-max") {
+            if (i + 1 < argc) {
+                qc_settings.t2p_max = std::stod(argv[i + 1]);
+                i++;
+            }
+        } else if (arg == "--qc-cnr-fail") {
+            if (i + 1 < argc) {
+                qc_settings.cnr_fail = std::stod(argv[i + 1]);
+                i++;
+            }
+        } else if (arg == "--qc-fwhm-fail") {
+            if (i + 1 < argc) {
+                qc_settings.fwhm_fail = std::stod(argv[i + 1]);
+                i++;
+            }
+        } else if (arg == "--qc-t2p-fail") {
+            if (i + 1 < argc) {
+                qc_settings.t2p_fail = std::stod(argv[i + 1]);
+                i++;
+            }
+        } else if (arg == "--qc-amp-fail") {
+            if (i + 1 < argc) {
+                qc_settings.amp_fail = std::stod(argv[i + 1]);
+                i++;
+            }
         } else {
             pos_args.push_back(arg);
         }
     }
+    
+    BolusFitter fitter(min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm);
     
     if (folder_mode) {
         if (folder_path.empty()) {
@@ -1537,136 +1783,10 @@ int main(int argc, char** argv) {
             return 1;
         }
         
-        std::cout << "Pure C++ Pipeline - Scanning: " << folder_path << std::endl;
-        std::cout << "Drift window duration: " << drift_window << " seconds." << std::endl;
-        if (enable_plots) {
-            std::cout << "Plotting enabled. Fits will be saved to plots_cpp/ folder." << std::endl;
-        } else {
-            std::cout << "Plotting disabled. Only results CSVs will be generated." << std::endl;
-        }
-        
-        // 1. Scan for all ROI and Metadata files first
-        std::vector<PathInfo> rois_files;
-        std::vector<PathInfo> meta_files;
-        
-        for (const auto& entry : std::filesystem::recursive_directory_iterator(folder_path)) {
-            if (entry.is_regular_file()) {
-                std::string ext = entry.path().extension().string();
-                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-                
-                if (ext == ".txt") {
-                    std::string filename = entry.path().filename().string();
-                    if (filename.empty() || filename.front() == '.') continue;
-                    
-                    std::string identifier = extract_identifier(filename);
-                    if (identifier.empty()) continue;
-                    
-                    std::transform(identifier.begin(), identifier.end(), identifier.begin(), ::tolower);
-                    
-                    std::string filename_lower = filename;
-                    std::transform(filename_lower.begin(), filename_lower.end(), filename_lower.begin(), ::tolower);
-                    
-                    PathInfo pinfo;
-                    pinfo.path = entry.path();
-                    pinfo.identifier = identifier;
-                    pinfo.top_dir = get_top_relative_dir(entry.path(), folder_path);
-                    
-                    if (filename_lower.find("_rois.txt") != std::string::npos || filename_lower.find("_rois_cpp.txt") != std::string::npos) {
-                        rois_files.push_back(pinfo);
-                    } else if (filename_lower.find("_rois") == std::string::npos) {
-                        meta_files.push_back(pinfo);
-                    }
-                }
-            }
-        }
-        
-        // 2. Scan for all TIFF files
-        std::vector<std::filesystem::path> tiff_files;
-        for (const auto& entry : std::filesystem::recursive_directory_iterator(folder_path)) {
-            if (entry.is_regular_file()) {
-                std::string filename = entry.path().filename().string();
-                if (filename.empty() || filename.front() == '.') continue;
-                
-                std::string ext = entry.path().extension().string();
-                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-                if (ext == ".tif" || ext == ".tiff") {
-                    std::string p_str = entry.path().string();
-                    std::transform(p_str.begin(), p_str.end(), p_str.begin(), ::tolower);
-                    if (!contains_ignored_pattern(p_str)) {
-                        tiff_files.push_back(entry.path());
-                    }
-                }
-            }
-        }
-        
-        std::cout << "Found " << tiff_files.size() << " TIFF files to process." << std::endl;
-        int processed_count = 0;
-        
-        for (const auto& tiff_path : tiff_files) {
-            std::string filename = tiff_path.filename().string();
-            std::string identifier = extract_identifier(filename);
-            if (identifier.empty()) {
-                std::cout << "Skipping non-bolus TIFF: " << filename << std::endl;
-                continue;
-            }
-            
-            std::string id_lower = identifier;
-            std::transform(id_lower.begin(), id_lower.end(), id_lower.begin(), ::tolower);
-            
-            std::string tif_subj = get_top_relative_dir(tiff_path, folder_path);
-            
-            std::string rois_file = "";
-            std::string meta_file = "";
-            
-            for (const auto& r : rois_files) {
-                if (r.identifier == id_lower) {
-                    if (tif_subj.empty() || r.top_dir == tif_subj) {
-                        rois_file = r.path.string();
-                        break;
-                    }
-                }
-            }
-            
-            for (const auto& m : meta_files) {
-                if (m.identifier == id_lower) {
-                    if (tif_subj.empty() || m.top_dir == tif_subj) {
-                        meta_file = m.path.string();
-                        break;
-                    }
-                }
-            }
-            
-            if (rois_file.empty() || meta_file.empty()) {
-                std::cerr << "Warning: Could not find matching rois.txt or metadata.txt for " << filename 
-                          << " (rois: " << (rois_file.empty() ? "missing" : "found")
-                          << ", meta: " << (meta_file.empty() ? "missing" : "found") << "). Skipping." << std::endl;
-                continue;
-            }
-            
-            double fr = parse_frame_rate(meta_file);
-            if (fr <= 0.0) {
-                std::cerr << "Warning: Failed to parse frame rate from " << meta_file << ". Skipping." << std::endl;
-                continue;
-            }
-            
-            std::string out_csv = tiff_path.parent_path().string() + "/" + tiff_path.stem().string() + "_results_cpp.csv";
-            
-            std::cout << "\n==================================================" << std::endl;
-            std::cout << "Processing bolus: " << identifier << std::endl;
-            std::cout << "TIFF: " << tiff_path.string() << std::endl;
-            std::cout << "ROIs: " << rois_file << std::endl;
-            std::cout << "Metadata: " << meta_file << " (Frame Rate: " << fr << " Hz)" << std::endl;
-            std::cout << "Output: " << out_csv << std::endl;
-            std::cout << "==================================================" << std::endl;
-            
-            process_dataset_file(tiff_path.string(), rois_file, fr, 20, out_csv, enable_plots, drift_window,
-                                 min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm);
-            processed_count++;
-        }
-        
-        std::cout << "\nPure C++ Processing Complete! Successfully processed " << processed_count << " datasets." << std::endl;
-        return 0;
-    } 
+        BatchProcessor batch_processor(folder_path, drift_window, enable_plots, fitter, qc_settings);
+        bool run_success = batch_processor.run();
+        return run_success ? 0 : 1;
+    }
     
     if (pos_args.size() >= 5) {
         std::string tiff_path = pos_args[0];
@@ -1675,16 +1795,20 @@ int main(int argc, char** argv) {
         int up_f = std::stoi(pos_args[3]);
         std::string out_csv = pos_args[4];
         
-        bool success = process_dataset_file(tiff_path, rois_path, fr, up_f, out_csv, enable_plots, drift_window,
-                                            min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm);
+        DatasetProcessor ds_processor(drift_window, enable_plots, fitter, qc_settings);
+        bool success = ds_processor.process_dataset_file(tiff_path, rois_path, fr, up_f, out_csv);
         return success ? 0 : 1;
     }
     
-    std::cerr << "Usage for single file:\n  " << argv[0] << " <tiff_path> <rois_txt_path> <fr> <up_f> <out_csv_path> [--plot] [--drift <seconds>] [--min-amp <val>] [--max-amp <val>] [--min-t2p <val>] [--max-t2p <val>] [--min-fwhm <val>] [--max-fwhm <val>]\n"
-              << "Usage for folder batch processing:\n  " << argv[0] << " --folder <path_to_folder> [--plot] [--drift <seconds>] [bounds_options...]\n\n"
+    std::cerr << "Usage for single file:\n  " << argv[0] << " <tiff_path> <rois_txt_path> <fr> <up_f> <out_csv_path> [--plot] [--drift <seconds>] [--min-amp <val>] [--max-amp <val>] [--min-t2p <val>] [--max-t2p <val>] [--min-fwhm <val>] [--max-fwhm <val>] [qc_options...]\n"
+              << "Usage for folder batch processing:\n  " << argv[0] << " --folder <path_to_folder> [--plot] [--drift <seconds>] [bounds_options...] [qc_options...]\n\n"
               << "Bounds Options (Defaults):\n"
-              << "  --min-amp (1e-6)   --max-amp (1023.0 - 10-bit microscope limit)\n"
-              << "  --min-t2p (1e-6)   --max-t2p (dynamically set to fit window duration)\n"
-              << "  --min-fwhm (0.5)   --max-fwhm (dynamically set to fit window duration)\n" << std::endl;
+              << "  --min-amp (1e-6)   --max-amp (1023.0)\n"
+              << "  --min-t2p (1e-6)   --max-t2p (dynamically set)\n"
+              << "  --min-fwhm (0.5)   --max-fwhm (dynamically set)\n\n"
+              << "QC Options (Defaults):\n"
+              << "  --qc-cnr-min (5.0)   --qc-fwhm-max (15.0)   --qc-t2p-max (10.0)\n"
+              << "  --qc-cnr-fail (3.0)  --qc-fwhm-fail (100.0)  --qc-t2p-fail (50.0)  --qc-amp-fail (1.0)\n" << std::endl;
     return 1;
 }
+#endif
