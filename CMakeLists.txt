@@ -82,6 +82,7 @@ if(BUILD_GUI)
     # Add GUI executable
     add_executable(bolus_tracking_gui
         bolus_gui.cpp
+        bolus_gui.hpp
         bolus_tracking_cpp.cpp
         bolus_tracking_cpp.hpp
         ${IMGUI_SRCS}

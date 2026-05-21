@@ -593,89 +593,95 @@ std::vector<double> BolusFitter::get_parameter_se(const std::vector<double>& t, 
  * @param success Returns true if optimization successfully converged.
  * @return The fitted parameter vector.
  */
+std::vector<double> BolusFitter::run_nonlinear_fit_with_bounds(const std::vector<double>& t, const std::vector<double>& y,
+                                                               const std::vector<double>& params_init, double sd_base,
+                                                               double b_min_amp, double b_max_amp,
+                                                               double b_min_t2p, double b_max_t2p,
+                                                               double b_min_fwhm, double b_max_fwhm,
+                                                               bool& success) const {
+    success = false;
+    double m_init = params_init[3];
+    double m_bound = std::max({0.5 * sd_base, 0.005 * m_init, 0.2});
+    double L_m = m_init - m_bound;
+    double U_m = m_init + m_bound;
+    
+    auto inv_map = [](double val, double L, double U) {
+        double eps = 1e-5;
+        double clamped = std::max(L + eps, std::min(U - eps, val));
+        double ratio = (U - L) / (clamped - L);
+        double arg = std::max(1e-9, ratio - 1.0);
+        return -std::log(arg);
+    };
+    
+    Eigen::VectorXd x(4);
+    x[0] = inv_map(params_init[0], b_min_amp, b_max_amp);
+    x[1] = inv_map(params_init[1], b_min_t2p, b_max_t2p);
+    x[2] = inv_map(params_init[2], b_min_fwhm, b_max_fwhm);
+    x[3] = inv_map(m_init, L_m, U_m);
+    
+    GammaFunctor functor{t, y, m_init, m_bound, false, 1.0, b_min_amp, b_max_amp, b_min_t2p, b_max_t2p, b_min_fwhm, b_max_fwhm};
+    Eigen::NumericalDiff<GammaFunctor> numDiff(functor);
+    Eigen::LevenbergMarquardt<Eigen::NumericalDiff<GammaFunctor>, double> lm(numDiff);
+    lm.parameters.maxfev = 2000;
+    lm.parameters.xtol = 1e-10;
+    lm.parameters.ftol = 1e-10;
+    
+    int info = lm.minimize(x);
+    
+    auto map_param = [](double x_val, double L, double U) {
+        return L + (U - L) / (1.0 + std::exp(-x_val));
+    };
+    
+    double a1 = map_param(x[0], b_min_amp, b_max_amp);
+    double peak1 = map_param(x[1], b_min_t2p, b_max_t2p);
+    double fwhm1 = map_param(x[2], b_min_fwhm, b_max_fwhm);
+    double m = map_param(x[3], L_m, U_m);
+    
+    double alpha1 = ((peak1 * peak1) / (fwhm1 * fwhm1)) * 8.0 * std::log(2.0);
+    double beta1 = ((fwhm1 * fwhm1) / peak1) / (8.0 * std::log(2.0));
+    
+    std::vector<double> residuals(t.size());
+    for (size_t i = 0; i < t.size(); ++i) {
+        double ti = t[i];
+        double model_val = m;
+        if (ti > 0) {
+            double base = ti / peak1;
+            model_val = a1 * std::pow(base, alpha1) * std::exp(-(ti - peak1) / beta1) + m;
+        }
+        residuals[i] = y[i] - model_val;
+    }
+    
+    double median_res = SignalProcessor::compute_median(residuals);
+    std::vector<double> abs_res(residuals.size());
+    for (size_t i = 0; i < residuals.size(); ++i) {
+        abs_res[i] = std::abs(residuals[i] - median_res);
+    }
+    double mad = SignalProcessor::compute_median(abs_res) / 0.6745;
+    double dynamic_f_scale = std::max(2.3849 * mad, 0.1);
+    
+    functor.use_cauchy = true;
+    functor.f_scale = dynamic_f_scale;
+    
+    info = lm.minimize(x);
+    if (info >= 1 && info <= 4) {
+        success = true;
+    }
+    
+    double final_a1 = map_param(x[0], b_min_amp, b_max_amp);
+    double final_peak1 = map_param(x[1], b_min_t2p, b_max_t2p);
+    double final_fwhm1 = map_param(x[2], b_min_fwhm, b_max_fwhm);
+    double final_m = map_param(x[3], L_m, U_m);
+    
+    return {final_a1, final_peak1, final_fwhm1, final_m};
+}
+
 std::vector<double> BolusFitter::run_nonlinear_fit(const std::vector<double>& t, const std::vector<double>& y,
                                                  const std::vector<double>& params_init, double sd_base, bool& success) const {
-    success = false;
+    double actual_max_t2p = (max_t2p >= 1e5 && !t.empty()) ? t.back() : max_t2p;
+    double actual_max_fwhm = (max_fwhm >= 1e5 && !t.empty()) ? t.back() : max_fwhm;
     
-    auto fit_once = [&](double b_min_amp, double b_max_amp,
-                        double b_min_t2p, double b_max_t2p,
-                        double b_min_fwhm, double b_max_fwhm,
-                        bool& fit_ok) -> std::vector<double> {
-        fit_ok = false;
-        double m_init = params_init[3];
-        double m_bound = std::max({0.5 * sd_base, 0.005 * m_init, 0.2});
-        double L_m = m_init - m_bound;
-        double U_m = m_init + m_bound;
-        
-        auto inv_map = [](double val, double L, double U) {
-            double eps = 1e-5;
-            double clamped = std::max(L + eps, std::min(U - eps, val));
-            double ratio = (U - L) / (clamped - L);
-            double arg = std::max(1e-9, ratio - 1.0);
-            return -std::log(arg);
-        };
-        
-        Eigen::VectorXd x(4);
-        x[0] = inv_map(params_init[0], b_min_amp, b_max_amp);
-        x[1] = inv_map(params_init[1], b_min_t2p, b_max_t2p);
-        x[2] = inv_map(params_init[2], b_min_fwhm, b_max_fwhm);
-        x[3] = inv_map(m_init, L_m, U_m);
-        
-        GammaFunctor functor{t, y, m_init, m_bound, false, 1.0, b_min_amp, b_max_amp, b_min_t2p, b_max_t2p, b_min_fwhm, b_max_fwhm};
-        Eigen::NumericalDiff<GammaFunctor> numDiff(functor);
-        Eigen::LevenbergMarquardt<Eigen::NumericalDiff<GammaFunctor>, double> lm(numDiff);
-        lm.parameters.maxfev = 2000;
-        lm.parameters.xtol = 1e-10;
-        lm.parameters.ftol = 1e-10;
-        
-        int info = lm.minimize(x);
-        
-        auto map_param = [](double x_val, double L, double U) {
-            return L + (U - L) / (1.0 + std::exp(-x_val));
-        };
-        
-        double a1 = map_param(x[0], b_min_amp, b_max_amp);
-        double peak1 = map_param(x[1], b_min_t2p, b_max_t2p);
-        double fwhm1 = map_param(x[2], b_min_fwhm, b_max_fwhm);
-        double m = map_param(x[3], L_m, U_m);
-        
-        double alpha1 = ((peak1 * peak1) / (fwhm1 * fwhm1)) * 8.0 * std::log(2.0);
-        double beta1 = ((fwhm1 * fwhm1) / peak1) / (8.0 * std::log(2.0));
-        
-        std::vector<double> residuals(t.size());
-        for (size_t i = 0; i < t.size(); ++i) {
-            double ti = t[i];
-            double model_val = m;
-            if (ti > 0) {
-                double base = ti / peak1;
-                model_val = a1 * std::pow(base, alpha1) * std::exp(-(ti - peak1) / beta1) + m;
-            }
-            residuals[i] = y[i] - model_val;
-        }
-        
-        double median_res = SignalProcessor::compute_median(residuals);
-        std::vector<double> abs_res(residuals.size());
-        for (size_t i = 0; i < residuals.size(); ++i) {
-            abs_res[i] = std::abs(residuals[i] - median_res);
-        }
-        double mad = SignalProcessor::compute_median(abs_res) / 0.6745;
-        double dynamic_f_scale = std::max(2.3849 * mad, 0.1);
-        
-        functor.use_cauchy = true;
-        functor.f_scale = dynamic_f_scale;
-        
-        info = lm.minimize(x);
-        if (info >= 1 && info <= 4) {
-            fit_ok = true;
-        }
-        
-        double final_a1 = map_param(x[0], b_min_amp, b_max_amp);
-        double final_peak1 = map_param(x[1], b_min_t2p, b_max_t2p);
-        double final_fwhm1 = map_param(x[2], b_min_fwhm, b_max_fwhm);
-        double final_m = map_param(x[3], L_m, U_m);
-        
-        return {final_a1, final_peak1, final_fwhm1, final_m};
-    };
+    bool pass1_success = false;
+    std::vector<double> popt1 = run_nonlinear_fit_with_bounds(t, y, params_init, sd_base, min_amp, max_amp, min_t2p, actual_max_t2p, min_fwhm, actual_max_fwhm, pass1_success);
     
     auto compute_rss = [&](const std::vector<double>& p) -> double {
         if (p.size() < 4 || std::isnan(p[0]) || std::isnan(p[1]) || std::isnan(p[2]) || std::isnan(p[3])) {
@@ -702,12 +708,6 @@ std::vector<double> BolusFitter::run_nonlinear_fit(const std::vector<double>& t,
         return rss;
     };
     
-    double actual_max_t2p = (max_t2p >= 1e5 && !t.empty()) ? t.back() : max_t2p;
-    double actual_max_fwhm = (max_fwhm >= 1e5 && !t.empty()) ? t.back() : max_fwhm;
-    
-    bool pass1_success = false;
-    std::vector<double> popt1 = fit_once(min_amp, max_amp, min_t2p, actual_max_t2p, min_fwhm, actual_max_fwhm, pass1_success);
-    
     bool trigger_pass2 = !pass1_success || std::isnan(popt1[0]) || popt1[2] > 20.0 || popt1[1] > 15.0;
     if (trigger_pass2) {
         double clamp_min_amp = 1.0;
@@ -718,7 +718,7 @@ std::vector<double> BolusFitter::run_nonlinear_fit(const std::vector<double>& t,
         double clamp_max_fwhm = 20.0;
         
         bool pass2_success = false;
-        std::vector<double> popt2 = fit_once(clamp_min_amp, clamp_max_amp, clamp_min_t2p, clamp_max_t2p, clamp_min_fwhm, clamp_max_fwhm, pass2_success);
+        std::vector<double> popt2 = run_nonlinear_fit_with_bounds(t, y, params_init, sd_base, clamp_min_amp, clamp_max_amp, clamp_min_t2p, clamp_max_t2p, clamp_min_fwhm, clamp_max_fwhm, pass2_success);
         
         if (pass2_success) {
             double rss1 = compute_rss(popt1);
@@ -733,6 +733,53 @@ std::vector<double> BolusFitter::run_nonlinear_fit(const std::vector<double>& t,
     
     success = pass1_success;
     return popt1;
+}
+
+bool BolusFitter::is_near_bounds(double val, double low, double high) {
+    if (std::isnan(val)) return true;
+    if (std::abs(val - low) < 1e-4) return true;
+    if (low > 0.0 && val <= low * 1.01) return true;
+    if (high > 0.0 && !std::isinf(high) && high < 99999.0) {
+        if (std::abs(high - val) < 1e-4) return true;
+        if (val >= high * 0.99) return true;
+    }
+    return false;
+}
+
+std::string BolusFitter::determine_qc_flag(double f_amp, double f_t2p, double f_fwhm, double f_m, double f_cnr,
+                                           double min_amp, double max_amp, double min_t2p, double max_t2p,
+                                           double min_fwhm, double max_fwhm, bool fit_success) {
+    if (!fit_success || std::isnan(f_amp) || std::isnan(f_t2p) || std::isnan(f_fwhm) || std::isnan(f_m) || std::isnan(f_cnr)) {
+        return "FAIL";
+    }
+    if (f_cnr < 3.0) {
+        return "FAIL";
+    }
+    bool near_bounds = is_near_bounds(f_amp, min_amp, max_amp) ||
+                       is_near_bounds(f_t2p, min_t2p, max_t2p) ||
+                       is_near_bounds(f_fwhm, min_fwhm, max_fwhm);
+                       
+    bool inside_pass_ranges = (f_fwhm >= 0.5 && f_fwhm <= 15.0) &&
+                              (f_t2p >= 0.1 && f_t2p <= 10.0);
+                              
+    if (!near_bounds && f_cnr > 5.0 && inside_pass_ranges) {
+        return "PASS";
+    }
+    return "WARN";
+}
+
+std::string BolusFitter::suggest_vessel_type(double ont, double t2p, double fwhm, double amp, const std::string& qc_flag) {
+    if (qc_flag == "FAIL" || std::isnan(ont) || std::isnan(t2p)) {
+        return "U";
+    }
+    double ttm = std::abs(t2p - ont);
+    if (ont < 1.8 && ttm < 3.0) {
+        return "A";
+    }
+    if (ont > 3.0 || ttm > 4.5) {
+        return "V";
+    }
+    return "C";
 }
 
 // ---------------------------------------------------------
@@ -1087,7 +1134,8 @@ std::string DatasetProcessor::parse_experiment(const std::string& filepath) cons
  */
 FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std::pair<double, double>>& poly,
                                                const std::vector<std::vector<float>>& frames, int width, int height,
-                                               double fr, int up_f, const std::string& tiff_path) const {
+                                               double fr, int up_f, const std::string& tiff_path,
+                                               double prior_t2p, double prior_fwhm) const {
     std::vector<int> mask = ROIMaskRasterizer::get_mask_pixels(poly, width, height);
     
     int mask_size = 0;
@@ -1141,7 +1189,33 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
         mfi_raw_detrended[i] -= k * tl_raw[i];
     }
     
-    std::vector<double> mfi_denoised = SignalProcessor::denoise_trace(mfi_raw_detrended);
+    // Calculate raw trace CNR
+    int n_base = std::min((int)std::round(2.0 * fr), (int)std::round(mfi_raw.size() * 0.1));
+    n_base = std::max(2, n_base);
+    std::vector<double> raw_base_win(mfi_raw_detrended.begin(), mfi_raw_detrended.begin() + n_base);
+    double raw_baseline = SignalProcessor::compute_median(raw_base_win);
+    double sum_raw_base = 0.0;
+    for (double val : raw_base_win) sum_raw_base += val;
+    double mean_raw_base = sum_raw_base / raw_base_win.size();
+    double raw_sd_base = SignalProcessor::compute_std(raw_base_win, mean_raw_base);
+    
+    double raw_max_val = -1e9;
+    for (double val : mfi_raw_detrended) {
+        if (val > raw_max_val) raw_max_val = val;
+    }
+    double raw_amp = raw_max_val - raw_baseline;
+    double raw_cnr = (raw_sd_base > 0.0) ? (raw_amp / raw_sd_base) : 0.0;
+    
+    double denoise_thresh = 2.0;
+    int denoise_half_win = 5;
+    bool is_low_cnr = false;
+    if (raw_cnr < 4.0) {
+        denoise_thresh = 1.5;
+        denoise_half_win = 7;
+        is_low_cnr = true;
+    }
+    
+    std::vector<double> mfi_denoised = SignalProcessor::denoise_trace(mfi_raw_detrended, denoise_thresh, denoise_half_win);
     
     std::vector<double> tl_us(mfi_raw.size() * up_f);
     for (size_t i = 0; i < tl_us.size(); ++i) tl_us[i] = i / (fr * up_f);
@@ -1152,11 +1226,11 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
     std::vector<double> y_us(tl_us.size());
     for (size_t i = 0; i < tl_us.size(); ++i) y_us[i] = spline.eval(tl_us[i]);
     
-    AutoEstimateResults auto_res = fitter.auto_estimate_params(y_us, tl_us, fr, up_f);
+    AutoEstimateResults auto_res = fitter.auto_estimate_params(y_us, tl_us, fr, up_f, is_low_cnr);
     
     double init_cnr = (auto_res.sd_base > 0.0) ? (auto_res.init_params[0] / auto_res.sd_base) : 0.0;
-    if (init_cnr < 5.0) {
-        mfi_denoised = SignalProcessor::denoise_trace(mfi_raw_detrended, 1.5);
+    if (init_cnr < 5.0 && !is_low_cnr) {
+        mfi_denoised = SignalProcessor::denoise_trace(mfi_raw_detrended, 1.5, 7);
         spline.build(tl_raw, mfi_denoised);
         for (size_t i = 0; i < tl_us.size(); ++i) y_us[i] = spline.eval(tl_us[i]);
         auto_res = fitter.auto_estimate_params(y_us, tl_us, fr, up_f, true);
@@ -1164,6 +1238,18 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
     
     int start_idx = auto_res.start_idx;
     int end_idx = auto_res.end_idx;
+    
+    if (roi_id == 21) {
+        std::cout << "[C++ ROI 21 DEBUG] k = " << k << ", raw_baseline = " << raw_baseline 
+                  << ", raw_sd_base = " << raw_sd_base << ", raw_amp = " << raw_amp 
+                  << ", raw_cnr = " << raw_cnr << ", is_low_cnr = " << is_low_cnr 
+                  << ", init_cnr = " << init_cnr << std::endl;
+        std::cout << "  Initial parameters: Amp = " << auto_res.init_params[0] 
+                  << ", T2p = " << auto_res.init_params[1] << ", FWHM = " << auto_res.init_params[2] 
+                  << ", M = " << auto_res.init_params[3] << std::endl;
+        std::cout << "  Start_idx = " << auto_res.start_idx << ", End_idx = " << auto_res.end_idx 
+                  << ", sd_base = " << auto_res.sd_base << std::endl;
+    }
     
     std::vector<double> t_fit(end_idx - start_idx);
     std::vector<double> y_fit(end_idx - start_idx);
@@ -1173,7 +1259,28 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
     }
     
     bool fit_success = false;
-    std::vector<double> popt = fitter.run_nonlinear_fit(t_fit, y_fit, auto_res.init_params, auto_res.sd_base, fit_success);
+    std::vector<double> popt;
+    
+    if (prior_t2p > 0.0 && prior_fwhm > 0.0) {
+        std::vector<double> prior_params = auto_res.init_params;
+        prior_params[1] = prior_t2p;
+        prior_params[2] = prior_fwhm;
+        
+        double b_min_amp = fitter.min_amp;
+        double b_max_amp = fitter.max_amp;
+        double b_min_t2p = 0.5 * prior_t2p;
+        double b_max_t2p = 1.5 * prior_t2p;
+        double b_min_fwhm = 0.5 * prior_fwhm;
+        double b_max_fwhm = 1.5 * prior_fwhm;
+        
+        popt = fitter.run_nonlinear_fit_with_bounds(t_fit, y_fit, prior_params, auto_res.sd_base,
+                                                    b_min_amp, b_max_amp,
+                                                    b_min_t2p, b_max_t2p,
+                                                    b_min_fwhm, b_max_fwhm,
+                                                    fit_success);
+    } else {
+        popt = fitter.run_nonlinear_fit(t_fit, y_fit, auto_res.init_params, auto_res.sd_base, fit_success);
+    }
     
     FitRecord rec;
     rec.roi_id = roi_id;
@@ -1193,27 +1300,25 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
     rec.click_peak = auto_res.click_peak;
     rec.click_end = auto_res.click_end;
     
-    std::string qc_flag = "PASS";
+    std::string qc_flag = "FAIL";
     if (fit_success) {
-        // Validation check against fitting bounds logic
-        // If parameters are too close to absolute bounds, invalidate fit to remain consistent with original Python logic
-        if (popt[0] <= 1.0001e-6 || popt[0] >= 1023.0 * 0.9999 ||
-            popt[1] <= 1.0001e-6 || popt[2] <= 0.5001) {
-            fit_success = false;
-            qc_flag = "FAIL";
-        } else {
-            double f_cnr = (auto_res.sd_base > 0.0) ? (popt[0] / auto_res.sd_base) : 0.0;
-            if (f_cnr < qc_settings.cnr_fail || popt[2] > qc_settings.fwhm_fail || popt[1] > qc_settings.t2p_fail || popt[0] < qc_settings.amp_fail) {
-                qc_flag = "FAIL";
-            } else if (f_cnr < qc_settings.cnr_min || popt[2] > qc_settings.fwhm_max || popt[1] > qc_settings.t2p_max) {
-                qc_flag = "WARN";
-            }
-        }
+        double actual_max_t2p = (fitter.max_t2p >= 1e5 && !t_fit.empty()) ? (tl_us[end_idx] - tl_us[start_idx]) : fitter.max_t2p;
+        double actual_max_fwhm = (fitter.max_fwhm >= 1e5 && !t_fit.empty()) ? (tl_us[end_idx] - tl_us[start_idx]) : fitter.max_fwhm;
+        
+        double final_min_t2p = (prior_t2p > 0.0) ? (0.5 * prior_t2p) : fitter.min_t2p;
+        double final_max_t2p = (prior_t2p > 0.0) ? (1.5 * prior_t2p) : actual_max_t2p;
+        double final_min_fwhm = (prior_fwhm > 0.0) ? (0.5 * prior_fwhm) : fitter.min_fwhm;
+        double final_max_fwhm = (prior_fwhm > 0.0) ? (1.5 * prior_fwhm) : actual_max_fwhm;
+        
+        double f_cnr = (auto_res.sd_base > 0.0) ? (popt[0] / auto_res.sd_base) : 0.0;
+        qc_flag = BolusFitter::determine_qc_flag(popt[0], popt[1], popt[2], popt[3], f_cnr,
+                                                 fitter.min_amp, fitter.max_amp, final_min_t2p, final_max_t2p,
+                                                 final_min_fwhm, final_max_fwhm, fit_success);
     } else {
         qc_flag = "FAIL";
     }
     rec.qc_flag = qc_flag;
-    rec.fit_source = "auto";
+    rec.fit_source = (prior_t2p > 0.0) ? "population_prior" : "auto";
     
     if (fit_success) {
         rec.f_amp = popt[0];
@@ -1312,6 +1417,8 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
         rec.ont = NAN;
     }
     
+    rec.ves_type = BolusFitter::suggest_vessel_type(rec.ont, rec.f_t2p, rec.f_fwhm, rec.f_amp, rec.qc_flag);
+    
     double sum_sq_diff = 0.0;
     for (size_t i = 0; i < mfi_raw.size(); ++i) {
         double diff = mfi_raw_detrended[i] - mfi_denoised[i];
@@ -1402,13 +1509,59 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
     for (int i = 0; i < n_rois; ++i) {
         futures.push_back(std::async(std::launch::async, &DatasetProcessor::process_single_roi, this,
                                      rois[i].id + 1, rois[i].poly, std::ref(frames),
-                                     (int)width, (int)height, fr, up_f, tiff_path));
+                                     (int)width, (int)height, fr, up_f, tiff_path, 0.0, 0.0));
     }
     
     std::vector<FitRecord> results;
     results.reserve(n_rois);
     for (auto& f : futures) {
         results.push_back(f.get());
+    }
+    
+    // --- Pass 3: Quality-Aware Population Priors Refitting ---
+    std::vector<double> high_quality_t2ps;
+    std::vector<double> high_quality_fwhms;
+    for (const auto& rec : results) {
+        if (rec.qc_flag == "PASS" && rec.f_cnr > 10.0) {
+            high_quality_t2ps.push_back(rec.f_t2p);
+            high_quality_fwhms.push_back(rec.f_fwhm);
+        }
+    }
+    
+    if (!high_quality_t2ps.empty()) {
+        double median_t2p = SignalProcessor::compute_median(high_quality_t2ps);
+        double median_fwhm = SignalProcessor::compute_median(high_quality_fwhms);
+        
+        std::cout << "[Population Priors] Calculated scan-wide medians: median_t2p = " << median_t2p 
+                  << " s, median_fwhm = " << median_fwhm << " s from " 
+                  << high_quality_t2ps.size() << " high-CNR PASS vessels." << std::endl;
+                  
+        // Parallel rerun of warned/failed vessels using the population priors
+        std::vector<std::pair<size_t, std::future<FitRecord>>> prior_futures;
+        for (size_t i = 0; i < results.size(); ++i) {
+            const auto& rec = results[i];
+            if (rec.qc_flag == "FAIL" || rec.qc_flag == "WARN") {
+                prior_futures.push_back({i, std::async(std::launch::async, &DatasetProcessor::process_single_roi, this,
+                                                      rois[i].id + 1, rois[i].poly, std::ref(frames),
+                                                      (int)width, (int)height, fr, up_f, tiff_path,
+                                                      median_t2p, median_fwhm)});
+            }
+        }
+        
+        for (auto& pf : prior_futures) {
+            size_t idx = pf.first;
+            FitRecord refit_rec = pf.second.get();
+            bool improvement = false;
+            if (refit_rec.qc_flag == "PASS" && results[idx].qc_flag != "PASS") {
+                improvement = true;
+            } else if (refit_rec.qc_flag == "WARN" && results[idx].qc_flag == "FAIL") {
+                improvement = true;
+            }
+            if (improvement) {
+                results[idx] = refit_rec;
+                std::cout << "  ROI " << results[idx].roi_id << " successfully refit with population priors: QC -> " << results[idx].qc_flag << std::endl;
+            }
+        }
     }
     
     auto end_time = std::chrono::high_resolution_clock::now();

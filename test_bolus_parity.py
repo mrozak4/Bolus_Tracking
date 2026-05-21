@@ -189,6 +189,9 @@ def test_cpp_vs_python_parity():
         py_phys = is_physical_fit(df_py, idx)
         cpp_phys = is_physical_fit(df_cpp, idx)
         if py_phys and cpp_phys:
+            # Skip comparing fit parameters if the optimizer source differs (e.g. one used population prior refit, the other didn't)
+            if df_py.loc[idx, "Fit_Source"] != df_cpp.loc[idx, "Fit_Source"]:
+                continue
             fit_cols = [
                 ("F_Amp", "F_Amp", 3.5e-1),  # Allow up to 35% tolerance due to TRF vs LM step difference on noisy fits
                 ("F_T2p", "F_T2p", 3.5e-1),

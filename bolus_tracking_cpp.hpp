@@ -143,7 +143,7 @@ struct GammaFunctor {
  * @brief Class encapsulating bolus initial parameter estimation and non-linear curve fitting.
  */
 class BolusFitter {
-private:
+public:
     double min_amp;
     double max_amp;
     double min_t2p;
@@ -151,7 +151,6 @@ private:
     double min_fwhm;
     double max_fwhm;
 
-public:
     BolusFitter(double min_amp = 1e-6, double max_amp = 1023.0,
                 double min_t2p = 1e-6, double max_t2p = 1e6,
                 double min_fwhm = 0.5, double max_fwhm = 1e6);
@@ -159,7 +158,19 @@ public:
     AutoEstimateResults auto_estimate_params(const std::vector<double>& tr, const std::vector<double>& t_us, double fr, int up_f = 20, bool low_cnr = false) const;
     std::vector<double> run_nonlinear_fit(const std::vector<double>& t, const std::vector<double>& y,
                                          const std::vector<double>& params_init, double sd_base, bool& success) const;
+    std::vector<double> run_nonlinear_fit_with_bounds(const std::vector<double>& t, const std::vector<double>& y,
+                                                     const std::vector<double>& params_init, double sd_base,
+                                                     double b_min_amp, double b_max_amp,
+                                                     double b_min_t2p, double b_max_t2p,
+                                                     double b_min_fwhm, double b_max_fwhm,
+                                                     bool& success) const;
     std::vector<double> get_parameter_se(const std::vector<double>& t, const std::vector<double>& popt, double mse) const;
+    
+    static bool is_near_bounds(double val, double low, double high);
+    static std::string determine_qc_flag(double f_amp, double f_t2p, double f_fwhm, double f_m, double f_cnr,
+                                         double min_amp, double max_amp, double min_t2p, double max_t2p,
+                                         double min_fwhm, double max_fwhm, bool fit_success);
+    static std::string suggest_vessel_type(double ont, double t2p, double fwhm, double amp, const std::string& qc_flag);
 };
 
 /**
@@ -202,7 +213,8 @@ public:
     
     FitRecord process_single_roi(int roi_id, const std::vector<std::pair<double, double>>& poly,
                                  const std::vector<std::vector<float>>& frames, int width, int height,
-                                 double fr, int up_f, const std::string& tiff_path) const;
+                                 double fr, int up_f, const std::string& tiff_path,
+                                 double prior_t2p = -1.0, double prior_fwhm = -1.0) const;
                                  
     bool process_dataset_file(const std::string& tiff_path, const std::string& rois_path, double fr, int up_f, const std::string& out_csv) const;
 };

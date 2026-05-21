@@ -99,6 +99,47 @@ class BolusFitter:
     for Bolus tracking.
     """
     
+    @staticmethod
+    def is_near_bounds(val, low, high):
+        if np.isnan(val):
+            return True
+        if np.abs(val - low) < 1e-4:
+            return True
+        if low > 0.0 and val <= low * 1.01:
+            return True
+        if high > 0.0 and not np.isinf(high) and high < 99999.0:
+            if np.abs(high - val) < 1e-4:
+                return True
+            if val >= high * 0.99:
+                return True
+        return False
+
+    @staticmethod
+    def determine_qc_flag(f_amp, f_t2p, f_fwhm, f_m, f_cnr, min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm, fit_success):
+        if not fit_success or np.isnan([f_amp, f_t2p, f_fwhm, f_m, f_cnr]).any():
+            return "FAIL"
+        if f_cnr < 3.0:
+            return "FAIL"
+        near_bounds = (BolusFitter.is_near_bounds(f_amp, min_amp, max_amp) or
+                       BolusFitter.is_near_bounds(f_t2p, min_t2p, max_t2p) or
+                       BolusFitter.is_near_bounds(f_fwhm, min_fwhm, max_fwhm))
+        inside_pass_ranges = (0.5 <= f_fwhm <= 15.0) and (0.1 <= f_t2p <= 10.0)
+        
+        if not near_bounds and f_cnr > 5.0 and inside_pass_ranges:
+            return "PASS"
+        return "WARN"
+
+    @staticmethod
+    def suggest_vessel_type(ont, t2p, fwhm, amp, qc_flag):
+        if qc_flag == "FAIL" or np.isnan(ont) or np.isnan(t2p):
+            return "U"
+        ttm = np.abs(t2p - ont)
+        if ont < 1.8 and ttm < 3.0:
+            return "A"
+        if ont > 3.0 or ttm > 4.5:
+            return "V"
+        return "C"
+
     def __init__(self, min_amp=1e-6, max_amp=1023.0, min_t2p=1e-6, min_fwhm=0.5):
         """
         Initializes the BolusFitter with constraints.

@@ -183,18 +183,241 @@ class DatasetProcessor:
         self.qc_t2p_fail = qc_t2p_fail
         self.qc_amp_fail = qc_amp_fail
 
+    def process_single_roi(self, roi_id, pos, tiff_stack, img_shape, fr, up_f, tiff_path,
+                           prior_t2p=None, prior_fwhm=None):
+        mask = Rasterizer.get_mask_from_poly(pos, img_shape)
+        
+        # Calculate mean fluorescence intensity (MFI)
+        mfi_raw = np.array([np.mean(frame[mask]) for frame in tiff_stack])
+        
+        # Create time vector
+        tl_raw = np.arange(len(mfi_raw)) / fr
+        
+        # Compute linear drift slope k using first drift_window seconds
+        drift_mask = tl_raw <= self.drift_window
+        k = 0.0
+        if np.sum(drift_mask) > 1:
+            t_drift = tl_raw[drift_mask]
+            y_drift = mfi_raw[drift_mask]
+            cov = np.cov(t_drift, y_drift)
+            if cov[0, 0] > 1e-9:
+                k = cov[0, 1] / cov[0, 0]
+                
+        # Detrend raw signal before running fitting pipeline
+        mfi_raw_detrended = mfi_raw - k * tl_raw
+        
+        # Calculate raw trace CNR
+        n_base = min(round(2.0 * fr), round(len(mfi_raw) * 0.1))
+        n_base = max(2, n_base)
+        raw_base_win = mfi_raw_detrended[:n_base]
+        raw_baseline = np.median(raw_base_win)
+        raw_sd_base = np.std(raw_base_win, ddof=1) if len(raw_base_win) > 1 else 0.0
+        raw_amp = np.max(mfi_raw_detrended) - raw_baseline
+        raw_cnr = raw_amp / raw_sd_base if raw_sd_base > 0.0 else 0.0
+        
+        denoise_thresh = 2.0
+        denoise_half_win = 5
+        is_low_cnr = False
+        if raw_cnr < 4.0:
+            denoise_thresh = 1.5
+            denoise_half_win = 7
+            is_low_cnr = True
+            
+        mfi = SignalProcessor.denoise_trace(mfi_raw_detrended, denoise_sd=denoise_thresh, half_win=denoise_half_win)
+        
+        # Spline upsample
+        tl_us = np.arange(len(mfi) * up_f) / (fr * up_f)
+        
+        spline_interp = interp1d(tl_raw, mfi, kind='cubic', fill_value='extrapolate')
+        y_us = spline_interp(tl_us)
+        
+        # Estimate parameters
+        init_params, start_idx, end_idx, sd_base, clicks = self.fitter.auto_estimate_params(y_us, tl_us, fr, up_f, low_cnr=is_low_cnr)
+        
+        # Adaptive Wider-Denoising Fallback for Low CNR
+        init_cnr = init_params[0] / sd_base if sd_base > 0 else np.nan
+        if not np.isnan(init_cnr) and init_cnr < 5.0 and not is_low_cnr:
+            mfi = SignalProcessor.denoise_trace(mfi_raw_detrended, denoise_sd=1.5, half_win=7)
+            spline_interp = interp1d(tl_raw, mfi, kind='cubic', fill_value='extrapolate')
+            y_us = spline_interp(tl_us)
+            init_params, start_idx, end_idx, sd_base, clicks = self.fitter.auto_estimate_params(y_us, tl_us, fr, up_f, low_cnr=True)
+        
+        # Fit Gamma Function
+        t_fit = tl_us[start_idx:end_idx] - tl_us[start_idx]
+        t_duration = t_fit[-1] if len(t_fit) > 0 else 1.0
+        
+        # Determine bounds
+        if prior_t2p is not None and prior_fwhm is not None:
+            # Narrow prior-based bounds
+            actual_max_amp = self.fitter.max_amp
+            actual_min_t2p = 0.5 * prior_t2p
+            actual_max_t2p = 1.5 * prior_t2p
+            actual_min_fwhm = 0.5 * prior_fwhm
+            actual_max_fwhm = 1.5 * prior_fwhm
+            
+            fit_init_params = list(init_params)
+            fit_init_params[1] = prior_t2p
+            fit_init_params[2] = prior_fwhm
+            
+            m_init = init_params[3]
+            m_bound = max(0.5 * sd_base, 0.005 * m_init, 0.2)
+            bounds_override = (
+                [self.fitter.min_amp, actual_min_t2p, actual_min_fwhm, m_init - m_bound],
+                [actual_max_amp, actual_max_t2p, actual_max_fwhm, m_init + m_bound]
+            )
+        else:
+            fit_init_params = init_params
+            actual_max_amp = self.fitter.max_amp
+            actual_min_t2p = self.fitter.min_t2p
+            actual_max_t2p = min(self.max_t2p, t_duration) if self.max_t2p is not None and not np.isinf(self.max_t2p) else t_duration
+            actual_min_fwhm = self.fitter.min_fwhm
+            actual_max_fwhm = min(self.max_fwhm, t_duration) if self.max_fwhm is not None and not np.isinf(self.max_fwhm) else t_duration
+            
+            m_init = init_params[3]
+            m_bound = max(0.5 * sd_base, 0.005 * m_init, 0.2)
+            bounds_override = (
+                [self.fitter.min_amp, actual_min_t2p, actual_min_fwhm, m_init - m_bound],
+                [actual_max_amp, actual_max_t2p, actual_max_fwhm, m_init + m_bound]
+            )
+            
+        popt, pcov = self.fitter.fit(t_fit, y_us[start_idx:end_idx], fit_init_params, sd_base, bounds_override=bounds_override)
+        
+        subj_match = re.search(r'(?:subject[_-]?)(\d+)', tiff_path, re.IGNORECASE)
+        if not subj_match:
+            subj_match = re.search(r'\b\d{4}\b', tiff_path)
+        subj_num = int(subj_match.group(1)) if subj_match else 0
+        exp = os.path.splitext(os.path.basename(tiff_path))[0]
+        
+        init_snr = init_params[3] / sd_base if sd_base > 0 else np.nan
+        init_cnr = init_params[0] / sd_base if sd_base > 0 else np.nan
+        denoise_rms = np.sqrt(np.mean((mfi_raw_detrended - mfi)**2))
+        roi_size = int(np.sum(mask))
+        ves_type = 'U'
+        
+        auc = np.nan
+        aucn = np.nan
+        ttlb = np.nan
+        ttm = np.nan
+        tthb = np.nan
+        ont = np.nan
+        
+        fit_valid = popt is not None and not np.isnan(popt).any()
+        
+        qc_flag = "FAIL"
+        f_amp, f_t2p, f_fwhm, f_m, f_snr, f_cnr = [np.nan] * 6
+        
+        if fit_valid:
+            f_amp, f_t2p, f_fwhm, f_m = popt
+            f_snr = f_m / sd_base if sd_base > 0 else np.nan
+            f_cnr = f_amp / sd_base if sd_base > 0 else np.nan
+            
+            # Use static helper for QC Flag
+            qc_flag = BolusFitter.determine_qc_flag(
+                f_amp, f_t2p, f_fwhm, f_m, f_cnr,
+                self.fitter.min_amp, self.fitter.max_amp,
+                bounds_override[0][1], bounds_override[1][1],
+                bounds_override[0][2], bounds_override[1][2],
+                fit_valid
+            )
+            
+            # Evaluate model
+            alpha = ((f_t2p ** 2) / (f_fwhm ** 2)) * 8.0 * np.log(2.0)
+            beta_param = ((f_fwhm ** 2) / f_t2p) / (8.0 * np.log(2.0))
+            
+            y_fit_model = np.zeros_like(t_fit)
+            for idx, t_val in enumerate(t_fit):
+                if t_val > 0:
+                    y_fit_model[idx] = f_m + f_amp * (t_val / f_t2p)**alpha * np.exp(-(t_val - f_t2p) / beta_param)
+                else:
+                    y_fit_model[idx] = f_m
+            
+            # AUC & AUCn
+            auc = np.sum(y_fit_model) - (y_fit_model[0] + y_fit_model[-1]) / 2.0
+            
+            min_y = np.min(y_fit_model)
+            max_y = np.max(y_fit_model)
+            range_y = max_y - min_y
+            y_fit_model_n = (y_fit_model - min_y) / range_y if range_y > 0 else np.zeros_like(y_fit_model)
+            aucn = np.sum(y_fit_model_n) - (y_fit_model_n[0] + y_fit_model_n[-1]) / 2.0
+            
+            # OnT
+            I = np.where(y_fit_model_n < 0.1)[0]
+            onset_idx = 0
+            if len(I) > 0:
+                diffs = np.diff(I)
+                contig_idxs = np.where(diffs == 1)[0]
+                if len(contig_idxs) > 0:
+                    last_idx = contig_idxs[-1]
+                    onset_idx = I[last_idx] + 1
+                else:
+                    onset_idx = I[0]
+            ont = onset_idx / (fr * up_f)
+            ttm = abs(f_t2p - ont)
+            
+            # standard error
+            se_t2p = 0.0
+            if pcov is not None and not np.isinf(pcov).any():
+                se = np.sqrt(np.diag(pcov))
+                if len(se) > 1:
+                    se_t2p = se[1]
+            ci_lower = f_t2p - 1.96 * se_t2p
+            ci_upper = f_t2p + 1.96 * se_t2p
+            ttlb = abs(ci_lower - ont)
+            tthb = abs(ci_upper - ont)
+            
+            if np.isnan([f_amp, f_t2p, f_fwhm, f_m, f_snr, f_cnr, auc, aucn, ttlb, ttm, tthb, ont]).any():
+                qc_flag = "FAIL"
+                
+            ves_type = BolusFitter.suggest_vessel_type(ont, f_t2p, f_fwhm, f_amp, qc_flag)
+            
+        fit_source = 'population_prior' if prior_t2p is not None else 'auto'
+        
+        return {
+            'ROI': roi_id,
+            'SubjNum': subj_num,
+            'Exp': exp,
+            'InitAmp': init_params[0],
+            'InitT2p': init_params[1],
+            'InitFWHM': init_params[2],
+            'InitM': init_params[3],
+            'InitSNR': init_snr,
+            'InitCNR': init_cnr,
+            'Click1_Start_T': clicks['baseline_start'][0],
+            'Click2_Onset_T': clicks['onset'][0],
+            'Click3_Peak_T': clicks['peak'][0],
+            'Click4_End_T': clicks['end'][0],
+            'F_Amp': f_amp,
+            'F_T2p': f_t2p,
+            'F_FWHM': f_fwhm,
+            'F_M': f_m,
+            'F_SNR': f_snr,
+            'F_CNR': f_cnr,
+            'AUC': auc,
+            'AUCn': aucn,
+            'TTlb': ttlb,
+            'TTm': ttm,
+            'TThb': tthb,
+            'OnT': ont,
+            'OnTSc': np.nan,
+            'ROISize': roi_size,
+            'Denoise_RMS': denoise_rms,
+            'VesType': ves_type,
+            'QC_Flag': qc_flag,
+            'Fit_Source': fit_source,
+            '_popt': popt,
+            '_end_idx': end_idx,
+            '_tl_raw': tl_raw,
+            '_mfi_raw': mfi_raw,
+            '_mfi': mfi,
+            '_k': k,
+            '_tl_us': tl_us,
+            '_y_us': y_us,
+            '_clicks': clicks
+        }
+
     def process(self, tiff_path, mask_path, meta_path, out_dir=None):
         """
         Processes a single bolus dataset.
-        
-        Args:
-            tiff_path (str): Path to the multi-page TIFF image stack.
-            mask_path (str): Path to the MATLAB .mat file containing maskObj.
-            meta_path (str): Path to the metadata .txt file.
-            out_dir (str, optional): Target folder to save CSV results.
-            
-        Returns:
-            pd.DataFrame: Dataframe containing fitting parameter results.
         """
         if not out_dir:
             out_dir = os.path.dirname(tiff_path)
@@ -221,7 +444,7 @@ class DatasetProcessor:
         
         results = []
         
-        # 2. Process each ROI
+        # 2. Process each ROI (Pass 1 & 2)
         for i, obj in enumerate(mask_objs):
             # Extract polygon vertices depending on MATLAB structure
             if hasattr(obj, 'poli'):
@@ -236,219 +459,55 @@ class DatasetProcessor:
                 print(f"Skipping ROI {i+1}: Not enough points for a polygon ({len(pos)}).")
                 continue
                 
-            mask = Rasterizer.get_mask_from_poly(pos, img_shape)
+            rec = self.process_single_roi(i+1, pos, tiff_stack, img_shape, fr, up_f, tiff_path)
+            results.append(rec)
             
-            # Calculate mean fluorescence intensity (MFI)
-            mfi_raw = np.array([np.mean(frame[mask]) for frame in tiff_stack])
+        # --- Pass 3: Quality-Aware Population Priors Refitting ---
+        high_quality_t2ps = []
+        high_quality_fwhms = []
+        for r in results:
+            if r['QC_Flag'] == "PASS" and r['F_CNR'] is not None and not np.isnan(r['F_CNR']) and r['F_CNR'] > 10.0:
+                high_quality_t2ps.append(r['F_T2p'])
+                high_quality_fwhms.append(r['F_FWHM'])
+                
+        if len(high_quality_t2ps) > 0:
+            median_t2p = np.median(high_quality_t2ps)
+            median_fwhm = np.median(high_quality_fwhms)
+            print(f"[Population Priors] Calculated scan-wide medians: median_t2p = {median_t2p:.2f} s, median_fwhm = {median_fwhm:.2f} s from {len(high_quality_t2ps)} vessels.")
             
-            # Create time vector
-            tl_raw = np.arange(len(mfi_raw)) / fr
-            
-            # Compute linear drift slope k using first drift_window seconds
-            drift_mask = tl_raw <= self.drift_window
-            k = 0.0
-            if np.sum(drift_mask) > 1:
-                t_drift = tl_raw[drift_mask]
-                y_drift = mfi_raw[drift_mask]
-                cov = np.cov(t_drift, y_drift)
-                if cov[0, 0] > 1e-9:
-                    k = cov[0, 1] / cov[0, 0]
+            for i, r in enumerate(results):
+                if r['QC_Flag'] in ["FAIL", "WARN"]:
+                    obj = mask_objs[i]
+                    if hasattr(obj, 'poli'):
+                        pos = obj.poli.Position
+                    elif hasattr(obj, 'Position'):
+                        pos = obj.Position
+                    else:
+                        continue
                     
-            # Detrend raw signal before running fitting pipeline
-            mfi_raw_detrended = mfi_raw - k * tl_raw
-            mfi = SignalProcessor.denoise_trace(mfi_raw_detrended)
-            
-            # Spline upsample
-            tl_us = np.arange(len(mfi) * up_f) / (fr * up_f)
-            
-            spline_interp = interp1d(tl_raw, mfi, kind='cubic', fill_value='extrapolate')
-            y_us = spline_interp(tl_us)
-            
-            # Estimate parameters
-            init_params, start_idx, end_idx, sd_base, clicks = self.fitter.auto_estimate_params(y_us, tl_us, fr, up_f)
-            
-            # Adaptive Wider-Denoising Fallback for Low CNR
-            init_cnr = init_params[0] / sd_base if sd_base > 0 else np.nan
-            if not np.isnan(init_cnr) and init_cnr < 5.0:
-                mfi = SignalProcessor.denoise_trace(mfi_raw_detrended, denoise_sd=1.5)
-                spline_interp = interp1d(tl_raw, mfi, kind='cubic', fill_value='extrapolate')
-                y_us = spline_interp(tl_us)
-                init_params, start_idx, end_idx, sd_base, clicks = self.fitter.auto_estimate_params(y_us, tl_us, fr, up_f, low_cnr=True)
-            
-            # Fit Gamma Function (evaluate on a time vector starting at 0 to match MATLAB logic)
-            t_fit = tl_us[start_idx:end_idx] - tl_us[start_idx]
-            t_duration = t_fit[-1] if len(t_fit) > 0 else 1.0
-            
-            # Dynamically cap max_t2p and max_fwhm to the fit window duration if unconstrained/default
-            actual_max_amp = self.fitter.max_amp
-            actual_max_t2p = min(self.max_t2p, t_duration) if self.max_t2p is not None and not np.isinf(self.max_t2p) else t_duration
-            actual_max_fwhm = min(self.max_fwhm, t_duration) if self.max_fwhm is not None and not np.isinf(self.max_fwhm) else t_duration
-            
-            m_init = init_params[3]
-            m_bound = max(0.5 * sd_base, 0.005 * m_init, 0.2)
-            bounds_override = (
-                [self.fitter.min_amp, self.fitter.min_t2p, self.fitter.min_fwhm, m_init - m_bound],
-                [actual_max_amp, actual_max_t2p, actual_max_fwhm, m_init + m_bound]
-            )
-            popt, pcov = self.fitter.fit(t_fit, y_us[start_idx:end_idx], init_params, sd_base, bounds_override=bounds_override)
-            
-            subj_match = re.search(r'(?:subject[_-]?)(\d+)', tiff_path, re.IGNORECASE)
-            if not subj_match:
-                subj_match = re.search(r'\b\d{4}\b', tiff_path)
-            subj_num = int(subj_match.group(1)) if subj_match else 0
-            exp = os.path.splitext(os.path.basename(tiff_path))[0]
-            
-            init_snr = init_params[3] / sd_base if sd_base > 0 else np.nan
-            init_cnr = init_params[0] / sd_base if sd_base > 0 else np.nan
-            denoise_rms = np.sqrt(np.mean((mfi_raw_detrended - mfi)**2))
-            roi_size = int(np.sum(mask))
-            ves_type = 'U'
-            
-            auc = np.nan
-            aucn = np.nan
-            ttlb = np.nan
-            ttm = np.nan
-            tthb = np.nan
-            ont = np.nan
-            
-            def is_near_bounds(val, low, high):
-                if abs(val - low) < 1e-4:
-                    return True
-                if low > 0 and val <= low * 1.01:
-                    return True
-                if high is not None and not np.isinf(high):
-                    if abs(high - val) < 1e-4:
-                        return True
-                    if high > 0 and val >= high * 0.99:
-                        return True
-                return False
-
-            fit_valid = False
-            if popt is not None and not np.isnan(popt).any():
-                f_amp, f_t2p, f_fwhm, f_m = popt
-                if not (is_near_bounds(f_amp, self.fitter.min_amp, self.fitter.max_amp) or
-                        is_near_bounds(f_t2p, self.fitter.min_t2p, actual_max_t2p) or
-                        is_near_bounds(f_fwhm, self.fitter.min_fwhm, actual_max_fwhm)):
-                    fit_valid = True
-            
-            qc_flag = "PASS"
-            if fit_valid:
-                f_snr = f_m / sd_base if sd_base > 0 else np.nan
-                f_cnr = f_amp / sd_base if sd_base > 0 else np.nan
-                
-                if f_cnr < self.qc_cnr_fail or f_fwhm > self.qc_fwhm_fail or f_t2p > self.qc_t2p_fail or f_amp < self.qc_amp_fail:
-                    qc_flag = "FAIL"
-                elif f_cnr < self.qc_cnr_min or f_fwhm > self.qc_fwhm_max or f_t2p > self.qc_t2p_max:
-                    qc_flag = "WARN"
-                
-                # Evaluate model
-                alpha = ((f_t2p ** 2) / (f_fwhm ** 2)) * 8.0 * np.log(2.0)
-                beta_param = ((f_fwhm ** 2) / f_t2p) / (8.0 * np.log(2.0))
-                
-                y_fit_model = np.zeros_like(t_fit)
-                for idx, t_val in enumerate(t_fit):
-                    if t_val > 0:
-                        y_fit_model[idx] = f_m + f_amp * (t_val / f_t2p)**alpha * np.exp(-(t_val - f_t2p) / beta_param)
-                    else:
-                        y_fit_model[idx] = f_m
-                
-                # AUC & AUCn
-                auc = np.sum(y_fit_model) - (y_fit_model[0] + y_fit_model[-1]) / 2.0
-                
-                min_y = np.min(y_fit_model)
-                max_y = np.max(y_fit_model)
-                range_y = max_y - min_y
-                y_fit_model_n = (y_fit_model - min_y) / range_y if range_y > 0 else np.zeros_like(y_fit_model)
-                aucn = np.sum(y_fit_model_n) - (y_fit_model_n[0] + y_fit_model_n[-1]) / 2.0
-                
-                # OnT
-                I = np.where(y_fit_model_n < 0.1)[0]
-                onset_idx = 0
-                if len(I) > 0:
-                    diffs = np.diff(I)
-                    contig_idxs = np.where(diffs == 1)[0]
-                    if len(contig_idxs) > 0:
-                        last_idx = contig_idxs[-1]
-                        onset_idx = I[last_idx] + 1
-                    else:
-                        onset_idx = I[0]
-                ont = onset_idx / (fr * up_f)
-                ttm = abs(f_t2p - ont)
-                
-                # standard error
-                se_t2p = 0.0
-                if pcov is not None and not np.isinf(pcov).any():
-                    se = np.sqrt(np.diag(pcov))
-                    if len(se) > 1:
-                        se_t2p = se[1]
-                ci_lower = f_t2p - 1.96 * se_t2p
-                ci_upper = f_t2p + 1.96 * se_t2p
-                ttlb = abs(ci_lower - ont)
-                tthb = abs(ci_upper - ont)
-                
-                if np.isnan([f_amp, f_t2p, f_fwhm, f_m, f_snr, f_cnr, auc, aucn, ttlb, ttm, tthb, ont]).any():
-                    qc_flag = "FAIL"
-
-                results.append({
-                    'ROI': i+1,
-                    'SubjNum': subj_num,
-                    'Exp': exp,
-                    'InitAmp': init_params[0],
-                    'InitT2p': init_params[1],
-                    'InitFWHM': init_params[2],
-                    'InitM': init_params[3],
-                    'InitSNR': init_snr,
-                    'InitCNR': init_cnr,
-                    'Click1_Start_T': clicks['baseline_start'][0],
-                    'Click2_Onset_T': clicks['onset'][0],
-                    'Click3_Peak_T': clicks['peak'][0],
-                    'Click4_End_T': clicks['end'][0],
-                    'F_Amp': f_amp,
-                    'F_T2p': f_t2p,
-                    'F_FWHM': f_fwhm,
-                    'F_M': f_m,
-                    'F_SNR': f_snr,
-                    'F_CNR': f_cnr,
-                    'AUC': auc,
-                    'AUCn': aucn,
-                    'TTlb': ttlb,
-                    'TTm': ttm,
-                    'TThb': tthb,
-                    'OnT': ont,
-                    'OnTSc': np.nan,
-                    'ROISize': roi_size,
-                    'Denoise_RMS': denoise_rms,
-                    'VesType': ves_type,
-                    'QC_Flag': qc_flag,
-                    'Fit_Source': 'auto'
-                })
-            else:
-                qc_flag = "FAIL"
-                results.append({
-                    'ROI': i+1,
-                    'SubjNum': subj_num,
-                    'Exp': exp,
-                    'InitAmp': init_params[0],
-                    'InitT2p': init_params[1],
-                    'InitFWHM': init_params[2],
-                    'InitM': init_params[3],
-                    'InitSNR': init_snr,
-                    'InitCNR': init_cnr,
-                    'Click1_Start_T': clicks['baseline_start'][0],
-                    'Click2_Onset_T': clicks['onset'][0],
-                    'Click3_Peak_T': clicks['peak'][0],
-                    'Click4_End_T': clicks['end'][0],
-                    'F_Amp': np.nan, 'F_T2p': np.nan, 'F_FWHM': np.nan, 'F_M': np.nan, 'F_SNR': np.nan, 'F_CNR': np.nan,
-                    'AUC': np.nan, 'AUCn': np.nan, 'TTlb': np.nan, 'TTm': np.nan, 'TThb': np.nan, 'OnT': np.nan, 'OnTSc': np.nan,
-                    'ROISize': roi_size,
-                    'Denoise_RMS': denoise_rms,
-                    'VesType': ves_type,
-                    'QC_Flag': qc_flag,
-                    'Fit_Source': 'auto'
-                })
-                
-            BolusVisualizer.save_plot(tiff_path, out_dir, i+1, tl_raw, mfi_raw, mfi, k, tl_us, y_us, clicks, popt, end_idx)
-            
+                    refit_rec = self.process_single_roi(i+1, pos, tiff_stack, img_shape, fr, up_f, tiff_path,
+                                                         prior_t2p=median_t2p, prior_fwhm=median_fwhm)
+                    
+                    improvement = False
+                    if refit_rec['QC_Flag'] == "PASS" and r['QC_Flag'] != "PASS":
+                        improvement = True
+                    elif refit_rec['QC_Flag'] == "WARN" and r['QC_Flag'] == "FAIL":
+                        improvement = True
+                        
+                    if improvement:
+                        results[i] = refit_rec
+                        print(f"  ROI {r['ROI']} successfully refit with population priors: QC -> {refit_rec['QC_Flag']}")
+                        
+        # 3. Save plots and clean up temporary plotting keys from dict
+        for r in results:
+            BolusVisualizer.save_plot(tiff_path, out_dir, r['ROI'],
+                                      r['_tl_raw'], r['_mfi_raw'], r['_mfi'], r['_k'],
+                                      r['_tl_us'], r['_y_us'], r['_clicks'], r['_popt'], r['_end_idx'])
+            # Delete private keys to avoid cluttering CSV
+            for key in list(r.keys()):
+                if key.startswith('_'):
+                    del r[key]
+                    
         # Calculate OnTSc (Onset time in Scan) relative to minimum OnT
         valid_onts = [r['OnT'] for r in results if not np.isnan(r['OnT'])]
         if len(valid_onts) > 0:
