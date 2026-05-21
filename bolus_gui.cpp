@@ -867,6 +867,23 @@ public:
         
         precompute_all_traces();
         
+        // Reconstruct missing interactive markers if NaN
+        for (size_t i = 0; i < m_records.size(); ++i) {
+            auto& rec = m_records[i];
+            const auto& c = m_cache[i];
+            if (std::isnan(rec.click_onset) || std::isnan(rec.click_peak) || std::isnan(rec.click_end) || std::isnan(rec.click_start)) {
+                if (!c.y_us.empty()) {
+                    AutoEstimateResults auto_res = m_fitter.auto_estimate_params(c.y_us, c.t_us, m_fr, m_upsample_factor);
+                    if (std::isnan(rec.click_start)) rec.click_start = auto_res.click_start;
+                    if (std::isnan(rec.click_onset)) rec.click_onset = auto_res.click_onset;
+                    if (std::isnan(rec.click_peak)) rec.click_peak = auto_res.click_peak;
+                    if (std::isnan(rec.click_end)) rec.click_end = auto_res.click_end;
+                }
+            }
+            // Recompute fit curve now that we have the reconstructed click_onset
+            precompute_fit_plot(i);
+        }
+        
         // Initialize default GUI ROI states
         m_gui_roi_states.resize(m_records.size());
         for (size_t i = 0; i < m_records.size(); ++i) {
@@ -876,8 +893,8 @@ public:
             s.roi_id = rec.roi_id;
             s.crop_min = (!std::isnan(rec.click_start) && rec.click_start >= 0.0) ? rec.click_start : 0.0;
             s.crop_max = c.t_raw.empty() ? 120.0 : c.t_raw.back();
-            s.onset = !std::isnan(rec.click_onset) ? rec.click_onset : (!std::isnan(rec.ont) ? rec.ont : s.crop_max * 0.35);
-            s.peak = !std::isnan(rec.click_peak) ? rec.click_peak : (!std::isnan(rec.f_t2p) && !std::isnan(rec.ont) ? rec.ont + rec.f_t2p : s.onset + 4.0);
+            s.onset = !std::isnan(rec.click_onset) ? rec.click_onset : s.crop_max * 0.35;
+            s.peak = !std::isnan(rec.click_peak) ? rec.click_peak : (!std::isnan(rec.f_t2p) && !std::isnan(rec.click_onset) ? rec.click_onset + rec.f_t2p : s.onset + 4.0);
             s.end = !std::isnan(rec.click_end) ? rec.click_end : s.peak + 6.0;
             s.baseline = !std::isnan(rec.f_m) ? rec.f_m : (!std::isnan(rec.init_m) ? rec.init_m : c.y_denoised.front());
             s.qc_flag = rec.qc_flag;
@@ -1110,7 +1127,7 @@ private:
         c.t_fit_plot = c.t_us;
         c.y_fit_plot.resize(c.t_fit_plot.size());
         
-        double onset_t = !std::isnan(rec.click_onset) ? rec.click_onset : (!std::isnan(rec.ont) ? rec.ont : 0.0);
+        double onset_t = !std::isnan(rec.click_onset) ? rec.click_onset : 0.0;
         for (size_t i = 0; i < c.t_fit_plot.size(); ++i) {
             double t = c.t_fit_plot[i];
             double val = rec.f_m;
@@ -1565,8 +1582,8 @@ private:
         double y_range = visible_y_max - visible_y_min;
         if (y_range <= 0.0) y_range = 1.0;
         
-        double y_limit_min = visible_y_min - 0.10 * y_range;
-        double y_limit_max = visible_y_max + 0.10 * y_range;
+        double y_limit_min = visible_y_min - 0.15 * y_range;
+        double y_limit_max = visible_y_max + 0.15 * y_range;
         
         // Draggable Baseline visual crop limits setup
         ImPlot::SetNextAxesLimits(m_crop_min, m_crop_max, y_limit_min, y_limit_max, ImGuiCond_Always);
