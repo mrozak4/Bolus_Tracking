@@ -483,7 +483,7 @@ class DatasetProcessor:
             
             for i, r in enumerate(results):
                 if r['QC_Flag'] in ["FAIL", "WARN"]:
-                    obj = mask_objs[i]
+                    obj = mask_objs[r['ROI'] - 1]
                     if hasattr(obj, 'poli'):
                         pos = obj.poli.Position
                     elif hasattr(obj, 'Position'):
@@ -491,7 +491,7 @@ class DatasetProcessor:
                     else:
                         continue
                     
-                    refit_rec = self.process_single_roi(i+1, pos, tiff_stack, img_shape, fr, up_f, tiff_path,
+                    refit_rec = self.process_single_roi(r['ROI'], pos, tiff_stack, img_shape, fr, up_f, tiff_path,
                                                          prior_t2p=median_t2p, prior_fwhm=median_fwhm)
                     
                     improvement = False
@@ -499,6 +499,11 @@ class DatasetProcessor:
                         improvement = True
                     elif refit_rec['QC_Flag'] == "WARN" and r['QC_Flag'] == "FAIL":
                         improvement = True
+                    elif refit_rec['QC_Flag'] == "WARN" and r['QC_Flag'] == "WARN":
+                        first_outside = (r['F_T2p'] < 0.1 or r['F_FWHM'] < 0.5)
+                        refit_inside = (refit_rec['F_T2p'] >= 0.1 and refit_rec['F_FWHM'] >= 0.5)
+                        if first_outside and refit_inside:
+                            improvement = True
                         
                     if improvement:
                         results[i] = refit_rec

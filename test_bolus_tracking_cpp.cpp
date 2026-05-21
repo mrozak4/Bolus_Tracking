@@ -114,24 +114,16 @@ void test_gamma_functor() {
     // Functor setup
     GammaFunctor func{t, y, 10.0, 5.0, false, 0.0, 1e-6, 1000.0, 1e-6, 10.0, 0.5, 10.0};
     
-    auto inv_map = [](double val, double L, double U) {
-        double eps = 1e-5;
-        double clamped = std::max(L + eps, std::min(U - eps, val));
-        double ratio = (U - L) / (clamped - L);
-        double arg = std::max(1e-9, ratio - 1.0);
-        return -std::log(arg);
-    };
-
     Eigen::VectorXd params(4);
-    params[0] = inv_map(20.0, 1e-6, 1000.0);    // amp = 20
-    params[1] = inv_map(2.0, 1e-6, 10.0);      // t2p = 2
-    params[2] = inv_map(1.5, 0.5, 10.0);       // fwhm = 1.5
-    params[3] = inv_map(10.0, 5.0, 15.0);      // base = 10 (range: m_init(10) +/- m_bound(5))
+    params[0] = 20.0;    // amp = 20
+    params[1] = 2.0;     // t2p = 2
+    params[2] = 1.5;     // fwhm = 1.5
+    params[3] = 10.0;    // base = 10 (range: m_init(10) +/- m_bound(5))
     
-    Eigen::VectorXd residuals(t.size());
+    Eigen::VectorXd residuals(func.values());
     func(params, residuals);
     
-    assert(residuals.size() == t.size());
+    assert(residuals.size() == t.size() + 4);
     // For t = 0.0, evaluated model value should be exactly base = 10
     // residual[0] = y[0] - evaluated = 10.0 - 10.0 = 0.0
     assert(is_approx(residuals[0], 0.0));
@@ -139,6 +131,12 @@ void test_gamma_functor() {
     // Check that peak evaluated value happens at t2p = 2.0 (so model evaluated = base + amp = 30)
     // residual[2] = y[2] - evaluated = 30.0 - 30.0 = 0.0
     assert(is_approx(residuals[2], 0.0));
+    
+    // Check that inside bounds penalty terms are exactly 0
+    assert(is_approx(residuals[t.size() + 0], 0.0));
+    assert(is_approx(residuals[t.size() + 1], 0.0));
+    assert(is_approx(residuals[t.size() + 2], 0.0));
+    assert(is_approx(residuals[t.size() + 3], 0.0));
     
     std::cout << "  -> GammaFunctor tests passed!" << std::endl;
 }

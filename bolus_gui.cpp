@@ -775,17 +775,17 @@ void BolusApp::update_locale() {
         m_tr.section_actions = "FITTING ACTIONS";
     } else {
         m_tr.title_app = "SUIVI DE BOLUS - TRIAGE MANUEL";
-        m_tr.section_markers = "FENÊTRE DE MODÉLISATION ET MARQUEURS INTERACTIFS";
+        m_tr.section_markers = "FENÊTRE D'AJUSTEMENT ET MARQUEURS INTERACTIFS";
         m_tr.section_crop = "ROGNAGE ET AFFICHAGE";
         m_tr.section_params = "PARAMÈTRES HÉMODYNAMIQUES";
         m_tr.sidebar_title = "Volet de triage";
         m_tr.checkbox_flagged = "Afficher uniquement les cas à réviser (ÉCHEC/AVERT.)";
-        m_tr.btn_save_csv = "Enregistrer le CSV final";
+        m_tr.btn_save_csv = "Exporter les résultats (CSV)";
         m_tr.btn_reset_all = "Réinitialiser tout";
         m_tr.btn_load_state = "Charger l'état";
         m_tr.btn_save_state = "Enregistrer l'état";
         m_tr.btn_refit = "Réajuster (LM)";
-        m_tr.btn_override = "Forcer conforme";
+        m_tr.btn_override = "Déroger (PASS)";
         m_tr.btn_revert = "Rétablir les estimations automatiques";
         m_tr.btn_reset_crop = "Réinitialiser le rognage";
         m_tr.btn_crop_bounds = "Rogner aux limites";
@@ -793,7 +793,7 @@ void BolusApp::update_locale() {
         m_tr.label_peak = "Pic (s)";
         m_tr.label_end = "Fin (s)";
         m_tr.label_baseline = "Ligne de base";
-        m_tr.text_slider_desc = "Utilisez le glisseur de plage sous le graphique pour ajuster la zone de rognage.";
+        m_tr.text_slider_desc = "Utilisez la glissière de plage sous le graphique pour ajuster la zone de rognage.";
         m_tr.btn_ok = "OK";
         m_tr.btn_cancel = "Annuler";
         m_tr.modal_reset_title = "Réinitialiser toutes les modifications ?";
@@ -803,7 +803,7 @@ void BolusApp::update_locale() {
         m_tr.modal_save_state_success = "État enregistré avec succès";
         m_tr.modal_load_state_success = "État chargé avec succès";
         m_tr.text_active_roi = "ROI active :";
-        m_tr.text_qc_flag = "Statut CQ :";
+        m_tr.text_qc_flag = "Statut de contrôle de qualité (CQ) :";
         m_tr.text_fit_source = "Source de l'ajustement :";
         m_tr.text_dataset_loaded = "Jeu de données chargé :";
         m_tr.text_roi_count = "Nombre de ROI :";
@@ -811,11 +811,11 @@ void BolusApp::update_locale() {
         m_tr.text_manual_count = "Ajustés manuellement :";
         m_tr.col_variable = "Variable";
         m_tr.col_amplitude = "Amplitude";
-        m_tr.col_t2p = "Temps de pic (T2p)";
-        m_tr.col_fwhm = "Largeur à mi-hauteur (FWHM)";
+        m_tr.col_t2p = "Temps au pic (TAP)";
+        m_tr.col_fwhm = "Largeur à mi-hauteur (LMH)";
         m_tr.col_baseline = "Ligne de base";
-        m_tr.col_cnr = "Rapport contraste-bruit (CNR)";
-        m_tr.col_onset = "Temps de début (OnT)";
+        m_tr.col_cnr = "Rapport contraste-bruit (RCB)";
+        m_tr.col_onset = "Temps de début (TD)";
         m_tr.plot_title = "Graphique de modélisation";
         m_tr.plot_x_axis = "Temps (s)";
         m_tr.plot_y_axis = "Intensité (UA)";

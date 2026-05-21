@@ -118,7 +118,7 @@ struct GammaFunctor {
     typedef Eigen::MatrixXd JacobianType;
 
     int inputs() const { return 4; }
-    int values() const { return t.size(); }
+    int values() const { return static_cast<int>(t.size()) + 4; }
     
     const std::vector<double>& t;
     const std::vector<double>& y;
@@ -157,13 +157,13 @@ public:
 
     AutoEstimateResults auto_estimate_params(const std::vector<double>& tr, const std::vector<double>& t_us, double fr, int up_f = 20, bool low_cnr = false) const;
     std::vector<double> run_nonlinear_fit(const std::vector<double>& t, const std::vector<double>& y,
-                                         const std::vector<double>& params_init, double sd_base, bool& success) const;
+                                         const std::vector<double>& params_init, double sd_base, bool& success, bool debug_print = false) const;
     std::vector<double> run_nonlinear_fit_with_bounds(const std::vector<double>& t, const std::vector<double>& y,
                                                      const std::vector<double>& params_init, double sd_base,
                                                      double b_min_amp, double b_max_amp,
                                                      double b_min_t2p, double b_max_t2p,
                                                      double b_min_fwhm, double b_max_fwhm,
-                                                     bool& success) const;
+                                                     bool& success, bool debug_print = false) const;
     std::vector<double> get_parameter_se(const std::vector<double>& t, const std::vector<double>& popt, double mse) const;
     
     static bool is_near_bounds(double val, double low, double high);

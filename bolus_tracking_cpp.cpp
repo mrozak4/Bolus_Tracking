@@ -284,6 +284,18 @@ double SplineInterpolator::eval(double val) const {
     return ((d[idx] * dx + c[idx]) * dx + b[idx]) * dx + y[idx];
 }
 
+static inline double evaluate_gamma_model(double t, double amp, double t2p, double fwhm, double m) {
+    if (t <= 0.0) return m;
+    if (fwhm <= 1e-9 || t2p <= 1e-9) return m;
+    double alpha = ((t2p * t2p) / (fwhm * fwhm)) * 8.0 * std::log(2.0);
+    double beta = ((fwhm * fwhm) / t2p) / (8.0 * std::log(2.0));
+    double L_val = alpha * std::log(t / t2p) - (t - t2p) / beta;
+    if (L_val > -700.0) {
+        return m + amp * std::exp(L_val);
+    }
+    return m;
+}
+
 // ---------------------------------------------------------
 // GammaFunctor Implementation
 // ---------------------------------------------------------
@@ -295,25 +307,17 @@ double SplineInterpolator::eval(double val) const {
  * @return Return code.
  */
 int GammaFunctor::operator()(const Eigen::VectorXd& x, Eigen::VectorXd& fvec) const {
-    double a1 = min_amp + (max_amp - min_amp) / (1.0 + std::exp(-x[0]));
-    double peak1 = min_t2p + (max_t2p - min_t2p) / (1.0 + std::exp(-x[1]));
-    double fwhm1 = min_fwhm + (max_fwhm - min_fwhm) / (1.0 + std::exp(-x[2]));
+    double a1 = std::clamp(x[0], min_amp, max_amp);
+    double peak1 = std::clamp(x[1], min_t2p, max_t2p);
+    double fwhm1 = std::clamp(x[2], min_fwhm, max_fwhm);
     
     double L_m = m_init - m_bound;
     double U_m = m_init + m_bound;
-    double m = L_m + (U_m - L_m) / (1.0 + std::exp(-x[3]));
+    double m = std::clamp(x[3], L_m, U_m);
     
-    double alpha1 = ((peak1 * peak1) / (fwhm1 * fwhm1)) * 8.0 * std::log(2.0);
-    double beta1 = ((fwhm1 * fwhm1) / peak1) / (8.0 * std::log(2.0));
-    
-    for (int i = 0; i < values(); ++i) {
-        double ti = t[i];
-        double model_val = m;
-        if (ti > 0) {
-            double base = ti / peak1;
-            model_val = a1 * std::pow(base, alpha1) * std::exp(-(ti - peak1) / beta1) + m;
-        }
-        
+    int n = static_cast<int>(t.size());
+    for (int i = 0; i < n; ++i) {
+        double model_val = evaluate_gamma_model(t[i], a1, peak1, fwhm1, m);
         double r = y[i] - model_val;
         if (use_cauchy) {
             double r2 = r * r;
@@ -325,6 +329,14 @@ int GammaFunctor::operator()(const Eigen::VectorXd& x, Eigen::VectorXd& fvec) co
             fvec[i] = r;
         }
     }
+    
+    // Enforce parameter boundaries using quadratic penalties
+    double weight = 1000.0;
+    fvec[n + 0] = weight * (x[0] - a1);
+    fvec[n + 1] = weight * (x[1] - peak1);
+    fvec[n + 2] = weight * (x[2] - fwhm1);
+    fvec[n + 3] = weight * (x[3] - m);
+    
     return 0;
 }
 
@@ -550,17 +562,7 @@ std::vector<double> BolusFitter::get_parameter_se(const std::vector<double>& t, 
     double eps = 1e-5;
     
     auto eval_model = [](double t_val, const std::vector<double>& params) {
-        double amp = params[0];
-        double t2p = params[1];
-        double fwhm = params[2];
-        double m = params[3];
-        double val = m;
-        if (t_val > 0) {
-            double alpha = ((t2p * t2p) / (fwhm * fwhm)) * 8.0 * std::log(2.0);
-            double beta = ((fwhm * fwhm) / t2p) / (8.0 * std::log(2.0));
-            val = m + amp * std::pow(t_val / t2p, alpha) * std::exp(-(t_val - t2p) / beta);
-        }
-        return val;
+        return evaluate_gamma_model(t_val, params[0], params[1], params[2], params[3]);
     };
     
     for (int j = 0; j < p; ++j) {
@@ -598,26 +600,18 @@ std::vector<double> BolusFitter::run_nonlinear_fit_with_bounds(const std::vector
                                                                double b_min_amp, double b_max_amp,
                                                                double b_min_t2p, double b_max_t2p,
                                                                double b_min_fwhm, double b_max_fwhm,
-                                                               bool& success) const {
+                                                               bool& success, bool debug_print) const {
     success = false;
     double m_init = params_init[3];
     double m_bound = std::max({0.5 * sd_base, 0.005 * m_init, 0.2});
     double L_m = m_init - m_bound;
     double U_m = m_init + m_bound;
     
-    auto inv_map = [](double val, double L, double U) {
-        double eps = 1e-5;
-        double clamped = std::max(L + eps, std::min(U - eps, val));
-        double ratio = (U - L) / (clamped - L);
-        double arg = std::max(1e-9, ratio - 1.0);
-        return -std::log(arg);
-    };
-    
     Eigen::VectorXd x(4);
-    x[0] = inv_map(params_init[0], b_min_amp, b_max_amp);
-    x[1] = inv_map(params_init[1], b_min_t2p, b_max_t2p);
-    x[2] = inv_map(params_init[2], b_min_fwhm, b_max_fwhm);
-    x[3] = inv_map(m_init, L_m, U_m);
+    x[0] = std::clamp(params_init[0], b_min_amp, b_max_amp);
+    x[1] = std::clamp(params_init[1], b_min_t2p, b_max_t2p);
+    x[2] = std::clamp(params_init[2], b_min_fwhm, b_max_fwhm);
+    x[3] = std::clamp(m_init, L_m, U_m);
     
     GammaFunctor functor{t, y, m_init, m_bound, false, 1.0, b_min_amp, b_max_amp, b_min_t2p, b_max_t2p, b_min_fwhm, b_max_fwhm};
     Eigen::NumericalDiff<GammaFunctor> numDiff(functor);
@@ -628,27 +622,21 @@ std::vector<double> BolusFitter::run_nonlinear_fit_with_bounds(const std::vector
     
     int info = lm.minimize(x);
     
-    auto map_param = [](double x_val, double L, double U) {
-        return L + (U - L) / (1.0 + std::exp(-x_val));
-    };
+    double a1 = std::clamp(x[0], b_min_amp, b_max_amp);
+    double peak1 = std::clamp(x[1], b_min_t2p, b_max_t2p);
+    double fwhm1 = std::clamp(x[2], b_min_fwhm, b_max_fwhm);
+    double m = std::clamp(x[3], L_m, U_m);
     
-    double a1 = map_param(x[0], b_min_amp, b_max_amp);
-    double peak1 = map_param(x[1], b_min_t2p, b_max_t2p);
-    double fwhm1 = map_param(x[2], b_min_fwhm, b_max_fwhm);
-    double m = map_param(x[3], L_m, U_m);
-    
-    double alpha1 = ((peak1 * peak1) / (fwhm1 * fwhm1)) * 8.0 * std::log(2.0);
-    double beta1 = ((fwhm1 * fwhm1) / peak1) / (8.0 * std::log(2.0));
+    if (std::abs(params_init[1] - 0.206693) < 1e-4) {
+        debug_print = true;
+    }
+    if (debug_print) {
+        std::cout << "    [DEBUG ROI bounds] linear fit: " << a1 << ", " << peak1 << ", " << fwhm1 << ", " << m << " (info=" << info << ")" << std::endl;
+    }
     
     std::vector<double> residuals(t.size());
     for (size_t i = 0; i < t.size(); ++i) {
-        double ti = t[i];
-        double model_val = m;
-        if (ti > 0) {
-            double base = ti / peak1;
-            model_val = a1 * std::pow(base, alpha1) * std::exp(-(ti - peak1) / beta1) + m;
-        }
-        residuals[i] = y[i] - model_val;
+        residuals[i] = y[i] - evaluate_gamma_model(t[i], a1, peak1, fwhm1, m);
     }
     
     double median_res = SignalProcessor::compute_median(residuals);
@@ -667,46 +655,59 @@ std::vector<double> BolusFitter::run_nonlinear_fit_with_bounds(const std::vector
     lm2.parameters.ftol = 1e-10;
     
     info = lm2.minimize(x);
+    if (debug_print) {
+        double a2 = std::clamp(x[0], b_min_amp, b_max_amp);
+        double peak2 = std::clamp(x[1], b_min_t2p, b_max_t2p);
+        double fwhm2 = std::clamp(x[2], b_min_fwhm, b_max_fwhm);
+        double m2 = std::clamp(x[3], L_m, U_m);
+        std::cout << "    [DEBUG ROI bounds] cauchy fit: " << a2 << ", " << peak2 << ", " << fwhm2 << ", " << m2 << " (info=" << info << ")" << std::endl;
+    }
     if (info >= 1 && info <= 4) {
         success = true;
     }
     
-    double final_a1 = map_param(x[0], b_min_amp, b_max_amp);
-    double final_peak1 = map_param(x[1], b_min_t2p, b_max_t2p);
-    double final_fwhm1 = map_param(x[2], b_min_fwhm, b_max_fwhm);
-    double final_m = map_param(x[3], L_m, U_m);
+    double final_a1 = std::clamp(x[0], b_min_amp, b_max_amp);
+    double final_peak1 = std::clamp(x[1], b_min_t2p, b_max_t2p);
+    double final_fwhm1 = std::clamp(x[2], b_min_fwhm, b_max_fwhm);
+    double final_m = std::clamp(x[3], L_m, U_m);
     
     return {final_a1, final_peak1, final_fwhm1, final_m};
 }
 
 std::vector<double> BolusFitter::run_nonlinear_fit(const std::vector<double>& t, const std::vector<double>& y,
-                                                 const std::vector<double>& params_init, double sd_base, bool& success) const {
+                                                 const std::vector<double>& params_init, double sd_base, bool& success, bool debug_print) const {
     double actual_max_t2p = (max_t2p >= 1e5 && !t.empty()) ? t.back() : max_t2p;
     double actual_max_fwhm = (max_fwhm >= 1e5 && !t.empty()) ? t.back() : max_fwhm;
     
+    if (std::abs(params_init[1] - 0.206693) < 1e-4) {
+        debug_print = true;
+    }
+    if (debug_print) {
+        std::cout << "[DEBUG ROI] params_init: " << params_init[0] << ", " << params_init[1] << ", " << params_init[2] << ", " << params_init[3] << std::endl;
+        std::cout << "  actual_max_t2p = " << actual_max_t2p << ", actual_max_fwhm = " << actual_max_fwhm << std::endl;
+    }
+    
+    bool init_out_of_bounds = params_init[0] < min_amp || params_init[0] > max_amp ||
+                              params_init[1] < min_t2p || params_init[1] > actual_max_t2p ||
+                              params_init[2] < min_fwhm || params_init[2] > actual_max_fwhm;
+                              
     bool pass1_success = false;
-    std::vector<double> popt1 = run_nonlinear_fit_with_bounds(t, y, params_init, sd_base, min_amp, max_amp, min_t2p, actual_max_t2p, min_fwhm, actual_max_fwhm, pass1_success);
+    std::vector<double> popt1 = {NAN, NAN, NAN, NAN};
+    if (!init_out_of_bounds) {
+        popt1 = run_nonlinear_fit_with_bounds(t, y, params_init, sd_base, min_amp, max_amp, min_t2p, actual_max_t2p, min_fwhm, actual_max_fwhm, pass1_success, debug_print);
+    }
+    
+    if (debug_print) {
+        std::cout << "  [DEBUG ROI] popt1: " << popt1[0] << ", " << popt1[1] << ", " << popt1[2] << ", " << popt1[3] << " (success=" << pass1_success << ")" << std::endl;
+    }
     
     auto compute_rss = [&](const std::vector<double>& p) -> double {
         if (p.size() < 4 || std::isnan(p[0]) || std::isnan(p[1]) || std::isnan(p[2]) || std::isnan(p[3])) {
             return 1e30;
         }
-        double a1 = p[0];
-        double peak1 = p[1];
-        double fwhm1 = p[2];
-        double m = p[3];
-        double alpha = ((peak1 * peak1) / (fwhm1 * fwhm1)) * 8.0 * std::log(2.0);
-        double beta = ((fwhm1 * fwhm1) / peak1) / (8.0 * std::log(2.0));
-        
         double rss = 0.0;
         for (size_t i = 0; i < t.size(); ++i) {
-            double ti = t[i];
-            double model_val = m;
-            if (ti > 0) {
-                double base = ti / peak1;
-                model_val = a1 * std::pow(base, alpha) * std::exp(-(ti - peak1) / beta) + m;
-            }
-            double diff = y[i] - model_val;
+            double diff = y[i] - evaluate_gamma_model(t[i], p[0], p[1], p[2], p[3]);
             rss += diff * diff;
         }
         return rss;
@@ -727,7 +728,11 @@ std::vector<double> BolusFitter::run_nonlinear_fit(const std::vector<double>& t,
         double clamp_max_fwhm = 20.0;
         
         bool pass2_success = false;
-        std::vector<double> popt2 = run_nonlinear_fit_with_bounds(t, y, params_init, sd_base, clamp_min_amp, clamp_max_amp, clamp_min_t2p, clamp_max_t2p, clamp_min_fwhm, clamp_max_fwhm, pass2_success);
+        std::vector<double> popt2 = run_nonlinear_fit_with_bounds(t, y, params_init, sd_base, clamp_min_amp, clamp_max_amp, clamp_min_t2p, clamp_max_t2p, clamp_min_fwhm, clamp_max_fwhm, pass2_success, debug_print);
+        
+        if (debug_print) {
+            std::cout << "  [DEBUG ROI] popt2: " << popt2[0] << ", " << popt2[1] << ", " << popt2[2] << ", " << popt2[3] << " (success=" << pass2_success << ")" << std::endl;
+        }
         
         if (pass2_success) {
             double rss1 = compute_rss(popt1);
@@ -1037,19 +1042,13 @@ void BolusVisualizer::save_svg_plot(int roi_id, const std::string& tiff_path,
         double fwhm = rec.f_fwhm;
         double m = rec.f_m;
 
-        double alpha = (t2p * t2p) / (fwhm * fwhm) * 8.0 * std::log(2.0);
-        double beta = ((fwhm * fwhm) / t2p) / (8.0 * std::log(2.0));
-        
         out << "  <path d=\"M";
         bool first = true;
         const int steps = 250;
         for (int i = 0; i <= steps; ++i) {
             double t = t_min + i * ((end - t_min) / steps);
             double dt = t - onset;
-            double val = m + k * t;
-            if (dt > 0) {
-                val = m + k * t + amp * std::pow(dt / t2p, alpha) * std::exp(-(dt - t2p) / beta);
-            }
+            double val = k * t + evaluate_gamma_model(dt, amp, t2p, fwhm, m);
             if (first) {
                 out << " " << X(t) << "," << Y(val);
                 first = false;
@@ -1254,11 +1253,13 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
     int start_idx = auto_res.start_idx;
     int end_idx = auto_res.end_idx;
     
-    if (roi_id == 21) {
-        std::cout << "[C++ ROI 21 DEBUG] k = " << k << ", raw_baseline = " << raw_baseline 
+    bool debug_roi = (roi_id == 10 || roi_id == 21 || roi_id == 27 || roi_id == 43);
+    if (debug_roi) {
+        std::cout << "[C++ ROI " << roi_id << " DEBUG] k = " << k << ", raw_baseline = " << raw_baseline 
                   << ", raw_sd_base = " << raw_sd_base << ", raw_amp = " << raw_amp 
                   << ", raw_cnr = " << raw_cnr << ", is_low_cnr = " << is_low_cnr 
-                  << ", init_cnr = " << init_cnr << std::endl;
+                  << ", init_cnr = " << init_cnr << ", prior_t2p = " << prior_t2p 
+                  << ", prior_fwhm = " << prior_fwhm << std::endl;
         std::cout << "  Initial parameters: Amp = " << auto_res.init_params[0] 
                   << ", T2p = " << auto_res.init_params[1] << ", FWHM = " << auto_res.init_params[2] 
                   << ", M = " << auto_res.init_params[3] << std::endl;
@@ -1292,9 +1293,16 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
                                                     b_min_amp, b_max_amp,
                                                     b_min_t2p, b_max_t2p,
                                                     b_min_fwhm, b_max_fwhm,
-                                                    fit_success);
+                                                    fit_success, debug_roi);
     } else {
-        popt = fitter.run_nonlinear_fit(t_fit, y_fit, auto_res.init_params, auto_res.sd_base, fit_success);
+        popt = fitter.run_nonlinear_fit(t_fit, y_fit, auto_res.init_params, auto_res.sd_base, fit_success, debug_roi);
+    }
+    
+    if (debug_roi) {
+        std::cout << "  [C++ ROI " << roi_id << " DEBUG] fit_success = " << fit_success << std::endl;
+        if (fit_success) {
+            std::cout << "  fitted popt: Amp=" << popt[0] << ", T2p=" << popt[1] << ", FWHM=" << popt[2] << ", M=" << popt[3] << std::endl;
+        }
     }
     
     FitRecord rec;
@@ -1344,15 +1352,8 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
         rec.f_snr = (auto_res.sd_base > 0.0) ? (popt[3] / auto_res.sd_base) : NAN;
         
         std::vector<double> y_fit_model(t_fit.size());
-        double alpha = ((popt[1] * popt[1]) / (popt[2] * popt[2])) * 8.0 * std::log(2.0);
-        double beta = ((popt[2] * popt[2]) / popt[1]) / (8.0 * std::log(2.0));
         for (size_t i = 0; i < t_fit.size(); ++i) {
-            double t_val = t_fit[i];
-            double val = popt[3];
-            if (t_val > 0) {
-                val = popt[3] + popt[0] * std::pow(t_val / popt[1], alpha) * std::exp(-(t_val - popt[1]) / beta);
-            }
-            y_fit_model[i] = val;
+            y_fit_model[i] = evaluate_gamma_model(t_fit[i], popt[0], popt[1], popt[2], popt[3]);
         }
         
         double sum_y = 0.0;
@@ -1503,32 +1504,37 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
     
     int n_rois = 0;
     rois_file >> n_rois;
-    std::vector<ROI> rois(n_rois);
+    std::vector<ROI> rois;
+    rois.reserve(n_rois);
     for (int i = 0; i < n_rois; ++i) {
         int roi_id, n_pts;
         rois_file >> roi_id >> n_pts;
-        rois[i].id = roi_id;
-        rois[i].poly.resize(n_pts);
+        std::vector<std::pair<double, double>> poly(n_pts);
         for (int j = 0; j < n_pts; ++j) {
-            rois_file >> rois[i].poly[j].first >> rois[i].poly[j].second;
+            rois_file >> poly[j].first >> poly[j].second;
         }
+        if (n_pts < 3) {
+            std::cout << "Skipping ROI " << roi_id + 1 << ": Not enough points for a polygon (" << n_pts << ")." << std::endl;
+            continue;
+        }
+        rois.push_back({roi_id, poly});
     }
     rois_file.close();
-    std::cout << "Loaded " << n_rois << " ROIs" << std::endl;
+    std::cout << "Loaded " << rois.size() << " ROIs" << std::endl;
     
     auto start_time = std::chrono::high_resolution_clock::now();
     
     std::vector<std::future<FitRecord>> futures;
-    futures.reserve(n_rois);
+    futures.reserve(rois.size());
     
-    for (int i = 0; i < n_rois; ++i) {
+    for (size_t i = 0; i < rois.size(); ++i) {
         futures.push_back(std::async(std::launch::async, &DatasetProcessor::process_single_roi, this,
                                      rois[i].id + 1, rois[i].poly, std::ref(frames),
                                      (int)width, (int)height, fr, up_f, tiff_path, 0.0, 0.0));
     }
     
     std::vector<FitRecord> results;
-    results.reserve(n_rois);
+    results.reserve(rois.size());
     for (auto& f : futures) {
         results.push_back(f.get());
     }
@@ -1571,6 +1577,12 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
                 improvement = true;
             } else if (refit_rec.qc_flag == "WARN" && results[idx].qc_flag == "FAIL") {
                 improvement = true;
+            } else if (refit_rec.qc_flag == "WARN" && results[idx].qc_flag == "WARN") {
+                bool first_outside = (results[idx].f_t2p < 0.1 || results[idx].f_fwhm < 0.5);
+                bool refit_inside = (refit_rec.f_t2p >= 0.1 && refit_rec.f_fwhm >= 0.5);
+                if (first_outside && refit_inside) {
+                    improvement = true;
+                }
             }
             if (improvement) {
                 results[idx] = refit_rec;

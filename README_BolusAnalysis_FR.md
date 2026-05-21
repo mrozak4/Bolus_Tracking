@@ -6,7 +6,7 @@
 
 ## Aperçu
 
-Cette boîte d'outils effectue l'analyse du suivi de bolus de fluorescence sur des séries de données temporelles en microscopie biphotonique. Elle segmente les régions d'intérêt (ROI) vasculaires à partir des projections d'intensité maximale (MIP), extrait les cinétiques de fluorescence de chaque ROI, et ajuste des fonctions Gamma sur la courbe de passage du bolus pour en dériver les paramètres hémodynamiques.
+Cette boîte d'outils effectue l'analyse du suivi de bolus de fluorescence sur des séries chronologiques de données en microscopie biphotonique. Elle segmente les régions d'intérêt (ROI) vasculaires à partir des projections d'intensité maximale (MIP), extrait les cinétiques de fluorescence de chaque ROI, et effectue l'ajustement de courbe de fonctions Gamma sur le tracé de passage du bolus pour en dériver les paramètres hémodynamiques.
 
 **Scripts drawROI.m et BolusTrack.m originaux :** Paolo Bazzigaluppi (Janvier 2019)  
 **Modifications :** Adrienne Dorr (Avril 2026)
@@ -20,7 +20,7 @@ Cette boîte d'outils effectue l'analyse du suivi de bolus de fluorescence sur d
 | `drawROI.m` | Dessiner et enregistrer les ROI polygonales sur une image MIP |
 | `ApplyRegistrationToMask.m` | Appliquer les transformations affines (translation + rotation) aux fichiers maskObj existants |
 | `GlobalShiftMask.m` | Outil graphique pour appliquer un décalage uniforme en pixels XY à toutes les ROI et enregistrer un nouveau masque |
-| `BolusTrack_InteractiveEdit.m` | Interface graphique de modélisation de bolus avec éditeur de ROI, chargement de métadonnées, débruitage et sauvegarde automatique |
+| `BolusTrack_InteractiveEdit.m` | Interface graphique d'ajustement de bolus avec éditeur de ROI, chargement de métadonnées, débruitage et sauvegarde automatique |
 | `BolusTrack.m` (original) | Interface graphique originale de Paolo (conservée comme sauvegarde) |
 
 ---
@@ -39,7 +39,7 @@ Cette boîte d'outils effectue l'analyse du suivi de bolus de fluorescence sur d
 1. Recaler les deux fichiers TIFF de bolus sur la pile XYZ.
 2. Transformer l'ancien `maskObj` pour correspondre à l'image recalée (`ApplyRegistrationToMask.m`) — sélectionner le `maskObj`, sélectionner le fichier `.mat` de décalage correspondant, vérifier et enregistrer. Gère la transformation affine complète, y compris la rotation.
 3. Si les ROI transformées ne s'alignent pas parfaitement avec le bolus apparié, appliquer une correction XY supplémentaire (`GlobalShiftMask.m`).
-4. Ajuster (`BolusTrack.m`) — importer le `maskObj` transformé/décalé, affiner par vaisseau si nécessaire, extraire les tracés, modéliser et exporter.
+4. Ajuster (`BolusTrack.m`) — importer le `maskObj` transformé/décalé, affiner par vaisseau si nécessaire, extraire les tracés, ajuster les courbes et exporter.
 
 ## Flux de travail C) Test sans recalage d'image
 
@@ -71,7 +71,7 @@ maskObj = drawROI(img, vnum, stype)
 save('MAX_4755_bolus3_maskObj.mat', 'maskObj')
 ```
 
-**Taille des ROI :** Segmentez la totalité de la lumière visible du vaisseau en vous arrêtant à 1 ou 2 pixels du bord apparent. Les ROI plus larges offrent un meilleur rapport signal-sur-bruit (RSB).
+**Taille des ROI :** Segmentez la totalité de la lumière visible du vaisseau en vous arrêtant à 1 ou 2 pixels du bord apparent. Les ROI plus larges offrent un meilleur rapport signal sur bruit (RSB).
 
 ---
 
@@ -126,7 +126,7 @@ BolusTrack
 | Frame Rate | Saisie manuelle de la fréquence d'acquisition |
 | Import ROIs | Charger le `maskObj` |
 | Pop-out View | Éditeur interactif de ROI en taille réelle |
-| Save ROIs | Enregistrer les positions ajustées sous un nouveau `maskObj` avant modélisation |
+| Save ROIs | Enregistrer les positions ajustées sous un nouveau `maskObj` avant l'ajustement |
 | Show ROIs tc | Extraire les tracés bruts, afficher le premier tracé |
 | Denoise (SD) | Définir le seuil des valeurs aberrantes (par défaut 2.0) |
 | Apply Denoise | Appliquer le débruitage au tracé actuel |
@@ -135,9 +135,9 @@ BolusTrack
 
 **Charger les métadonnées :** Utilisez le fichier métadonnées `.txt` ORIGINAL non tronqué de Fluoview. La fréquence d'acquisition ne change pas avec le recadrage temporel de l'image.
 
-**Enregistrer les ROI :** Enregistre les positions actuelles des ROI (après ajustements) sous un nouveau fichier `maskObj.mat`. Utilisez cette option APRÈS avoir finalisé la position des ROI et AVANT de cliquer sur Show ROIs tc. Cela vous évite de perdre votre travail d'ajustement géométrique en cas d'interruption du processus de modélisation.
+**Enregistrer les ROI :** Enregistre les positions actuelles des ROI (après ajustements) sous un nouveau fichier `maskObj.mat`. Utilisez cette option APRÈS avoir finalisé la position des ROI et AVANT de cliquer sur Show ROIs tc. Cela vous évite de perdre votre travail d'ajustement géométrique en cas d'interruption du processus d'ajustement.
 
-**Sauvegarde automatique :** La progression est automatiquement sauvegardée toutes les 5 courbes modélisées dans le fichier `autosave_progress.mat` du répertoire de travail. Après un export réussi, ce fichier est supprimé.
+**Sauvegarde automatique :** La progression est automatiquement sauvegardée toutes les 5 courbes ajustées dans le fichier `autosave_progress.mat` du répertoire de travail. Après un export réussi, ce fichier est supprimé.
 
 **Restaurer une session après une interruption :**
 
@@ -146,21 +146,21 @@ BolusTrack
 3. Charger les métadonnées (ou ajuster la fréquence manuellement).
 4. Importer les ROI.
 5. Cliquer sur `Show ROIs tc` pour extraire les signaux.
-6. Cliquer sur `Resume Session` et sélectionner `autosave_progress.mat` : les modélisations terminées sont rechargées et l'affichage bascule sur le premier tracé non modélisé.
+6. Cliquer sur `Resume Session` et sélectionner `autosave_progress.mat` : les ajustements terminés sont rechargés et l'affichage bascule sur le premier tracé non ajusté.
 
 *Note : le script `gammaFun.m` doit être présent dans le chemin de recherche MATLAB. Utilisez `which gammaFun` pour valider.*
 
 **Débruitage — Approche recommandée :**
 
-Chaque nouveau tracé s'affiche par défaut en mode BRUT. Tentez toujours de modéliser le tracé brut en premier lieu. Le résolveur Gamma utilise une pondération de Cauchy qui diminue naturellement l'impact des points aberrants. N'appliquez le débruitage que si le signal brut empêche de définir convenablement les estimations initiales ou si le résolveur diverge.
+Chaque nouveau tracé s'affiche par défaut en mode BRUT. Tentez toujours d'ajuster le tracé brut en premier lieu. Le solveur Gamma utilise une pondération de Cauchy qui diminue naturellement l'impact des points aberrants. N'appliquez le débruitage que si le signal brut empêche de définir convenablement les estimations initiales ou si le solveur diverge.
 
-1. Inspecter le signal brut. Si le début, le pic et le retour à la base sont visibles, modélisez directement.
+1. Inspecter le signal brut. Si le début, le pic et le retour à la base sont visibles, ajustez directement.
 2. Si le signal est trop bruité, cliquez sur `Apply Denoise` au seuil par défaut de 2.0 SD.
-3. Si le seuil de 2.0 SD est insuffisant, diminuez-le progressivement (jusqu'à 1.5). Évitez de descendre sous 1.5 pour ne pas écrêter la rampe de montée du bolus.
+3. Si le seuil de 2.0 SD is insuffisant, diminuez-le progressivement (jusqu'à 1.5). Évitez de descendre sous 1.5 pour ne pas écrêter la rampe de montée du bolus.
 4. Utilisez `Toggle Raw` pour comparer les signaux.
-5. La version affichée au moment où vous lancez la modélisation correspond à celle qui sera modélisée et enregistrée.
+5. La version affichée au moment où vous lancez l'ajustement correspond à celle qui sera ajustée et enregistrée.
 
-Le logiciel indique si le tracé a été modélisé sur le signal brut ou débruité (ainsi que le seuil de SD utilisé) dans le champ `fitOut(n).fittedOn`.
+Le logiciel indique si le tracé a été ajusté sur le signal brut ou débruité (ainsi que le seuil de SD utilisé) dans le champ `fitOut(n).fittedOn`.
 
 ---
 
@@ -181,6 +181,8 @@ Le logiciel indique si le tracé a été modélisé sur le signal brut ou débru
 
 **Les anciennes ROI ne correspondent pas aux images recalées :** Utilisez `ApplyRegistrationToMask` pour appliquer la transformation affine complète.
 
-**Échec de convergence de la courbe Gamma :** Ajustez les paramètres initiaux. Avancez légèrement le temps de pic estimé ou reculez le début de l'ajustement.
+**Échec de convergence de la courbe Gamma :** Ajustez les paramètres initiaux. Avancez légèrement le temps au pic estimé ou reculez le début de l'ajustement.
+
+**Erreur sur la fonction "gammaFun" :** Le script `gammaFun.m` n'est pas présent dans les chemins de recherche. Ajoutez le dossier avec `addpath('/chemin/vers/dossier')`.le temps de pic estimé ou reculez le début de l'ajustement.
 
 **Erreur sur la fonction "gammaFun" :** Le script `gammaFun.m` n'est pas présent dans les chemins de recherche. Ajoutez le dossier avec `addpath('/chemin/vers/dossier')`.

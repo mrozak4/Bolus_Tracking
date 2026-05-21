@@ -12,7 +12,7 @@ Ce guide décrit comment installer et configurer **Bolus Tracking Studio** sur m
 
 Sur macOS, vous pouvez compiler un paquet d'application natif exécutable (`.app`) avec une icône personnalisée.
 
-### Installateur automatique :
+### Script d'installation automatique :
 Ouvrez votre terminal, accédez au répertoire du projet et exécutez le script d'installation pour macOS :
 ```bash
 bash install_macos.sh

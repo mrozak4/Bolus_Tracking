@@ -88,9 +88,9 @@ docker run --rm -v "$(pwd):/data" bolus_tracking_cpp --folder /data/sample-subje
 | Paramètre | Description | Seuil d'avertissement (`AVERT.`) | Seuil d'échec (`ÉCHEC`) | Bornes absolues du résolveur (Limites strictes) |
 | :--- | :--- | :--- | :--- | :--- |
 | **Amplitude** | Hauteur maximale du pic de la courbe | Proche des bornes du résolveur | — | `[1e-6, 1023.0]` |
-| **Temps de pic ($T_{2p}$)** | Durée entre le début et le pic | `< 0.1 s` ou `> 10.0 s` ou proche borne | — | `[1e-6, durée de la fenêtre]` |
-| **Largeur à mi-hauteur (FWHM)** | Largeur de la courbe à mi-amplitude maximale | `< 0.5 s` ou `> 15.0 s` ou proche borne | — | `[0.5, durée de la fenêtre]` |
-| **RCB (CNR)** | Rapport Contraste-sur-Bruit (Pic / Écart-type ligne de base) | `[3.0, 5.0]` | `< 3.0` | — |
+| **Temps au pic (TAP)** | Durée entre le début et le pic | `< 0.1 s` ou `> 10.0 s` ou proche borne | — | `[1e-6, durée de la fenêtre]` |
+| **Largeur à mi-hauteur (LMH)** | Largeur de la courbe à mi-amplitude maximale | `< 0.5 s` ou `> 15.0 s` ou proche borne | — | `[0.5, durée de la fenêtre]` |
+| **RCB (Rapport contraste-bruit)** | Rapport contraste-bruit (Pic / Écart-type ligne de base) | `[3.0, 5.0]` | `< 3.0` | — |
 
 #### Personnalisation des bornes et des seuils de CQ depuis la ligne de commande
 Vous pouvez configurer dynamiquement les bornes d'optimisation absolues et les seuils d'avertissement/échec lors de l'exécution du pipeline parallèle C++ en utilisant les indicateurs suivants :
@@ -99,26 +99,26 @@ Vous pouvez configurer dynamiquement les bornes d'optimisation absolues et les s
 | :--- | :--- | :--- | :--- |
 | **`--min-amp <val>`** | Amplitude minimale absolue | `1e-6` | Borne inférieure stricte pour l'amplitude du résolveur. |
 | **`--max-amp <val>`** | Amplitude maximale absolue | `1023.0` | Borne supérieure stricte (plage 10 bits du microscope). |
-| **`--min-t2p <val>`** | $T_{2p}$ minimal absolu | `1e-6` | Borne inférieure stricte pour le temps de pic du résolveur. |
-| **`--max-t2p <val>`** | $T_{2p}$ maximal absolu | `Durée du balayage` | Borne supérieure stricte pour le temps de pic du résolveur. |
-| **`--min-fwhm <val>`** | FWHM minimale absolue | `0.5` | Borne inférieure stricte (transit capillaire minimal réaliste). |
-| **`--max-fwhm <val>`** | FWHM maximale absolue | `Durée du balayage` | Borne supérieure stricte pour la FWHM du résolveur. |
-| **`--qc-amp-fail <val>`** | Seuil d'amplitude pour ÉCHEC | `1.0` | Les modélisations avec une amplitude inférieure sont marquées `ÉCHEC`. |
-| **`--qc-t2p-max <val>`** | Seuil d'avertissement pour $T_{2p}$ | `10.0` | Les modélisations avec un $T_{2p}$ supérieur sont marquées `AVERT.`. |
-| **`--qc-t2p-fail <val>`** | Seuil d'échec pour $T_{2p}$ | `50.0` | Les modélisations avec un $T_{2p}$ supérieur sont marquées `ÉCHEC`. |
-| **`--qc-fwhm-max <val>`** | Seuil d'avertissement pour FWHM | `15.0` | Les modélisations avec une FWHM supérieure sont marquées `AVERT.`. |
-| **`--qc-fwhm-fail <val>`** | Seuil d'échec pour FWHM | `100.0` | Les modélisations avec une FWHM supérieure sont marquées `ÉCHEC`. |
-| **`--qc-cnr-min <val>`** | Seuil d'avertissement pour RCB | `5.0` | Les modélisations avec un RCB inférieur sont marquées `AVERT.`. |
-| **`--qc-cnr-fail <val>`** | Seuil d'échec pour RCB | `3.0` | Les modélisations avec un RCB inférieur sont marquées `ÉCHEC`. |
+| **`--min-t2p <val>`** | TAP minimal absolu | `1e-6` | Borne inférieure stricte pour le temps au pic du résolveur. |
+| **`--max-t2p <val>`** | TAP maximal absolu | `Durée du balayage` | Borne supérieure stricte pour le temps au pic du résolveur. |
+| **`--min-fwhm <val>`** | LMH minimale absolue | `0.5` | Borne inférieure stricte (transit capillaire minimal réaliste). |
+| **`--max-fwhm <val>`** | LMH maximale absolue | `Durée du balayage` | Borne supérieure stricte pour la LMH du résolveur. |
+| **`--qc-amp-fail <val>`** | Seuil d'amplitude pour FAIL | `1.0` | Les modélisations avec une amplitude inférieure sont marquées `FAIL`. |
+| **`--qc-t2p-max <val>`** | Seuil d'avertissement pour le TAP | `10.0` | Les modélisations avec un TAP supérieur sont marquées `WARN`. |
+| **`--qc-t2p-fail <val>`** | Seuil d'échec pour le TAP | `50.0` | Les modélisations avec un TAP supérieur sont marquées `FAIL`. |
+| **`--qc-fwhm-max <val>`** | Seuil d'avertissement pour la LMH | `15.0` | Les modélisations avec une LMH supérieure sont marquées `WARN`. |
+| **`--qc-fwhm-fail <val>`** | Seuil d'échec pour la LMH | `100.0` | Les modélisations avec une LMH supérieure sont marquées `FAIL`. |
+| **`--qc-cnr-min <val>`** | Seuil d'avertissement pour le RCB | `5.0` | Les modélisations avec un RCB inférieur sont marquées `WARN`. |
+| **`--qc-cnr-fail <val>`** | Seuil d'échec pour le RCB | `3.0` | Les modélisations avec un RCB inférieur sont marquées `FAIL`. |
 
-Par exemple, pour traiter un jeu de données avec un seuil d'avertissement FWHM personnalisé de `20.0` secondes et un seuil d'avertissement RCB minimal de `6.0` :
+Par exemple, pour traiter un jeu de données avec un seuil d'avertissement de la LMH personnalisé de `20.0` secondes et un seuil d'avertissement du RCB minimal de `6.0` :
 ```bash
 bash run_pipeline_cpp.sh sample-subject-2259 --qc-fwhm-max 20.0 --qc-cnr-min 6.0
 ```
 
-* **`CONFORME`** : Modélisation réussie sans atteindre les bornes, RCB > 5.0, FWHM entre 0.5–15.0 s, et $T_{2p}$ entre 0.1–10.0 s.
-- **`AVERT.`** : Modélisation réussie, mais un ou plusieurs paramètres ont atteint les limites d'avertissement (ex: FWHM > 15 s, RCB entre 3.0 et 5.0, ou paramètre proche d'une borne).
-- **`ÉCHEC`** : Modélisation divergente, retour de valeur non définie (`NaN`), ou RCB < 3.0.
+* **`PASS`** : Modélisation réussie sans atteindre les bornes, RCB > 5.0, LMH entre 0.5–15.0 s, et TAP entre 0.1–10.0 s.
+- **`WARN`** : Modélisation réussie, mais un ou plusieurs paramètres ont atteint les limites d'avertissement (ex: LMH > 15 s, RCB entre 3.0 et 5.0, ou paramètre proche d'une borne).
+- **`FAIL`** : Modélisation divergente, retour de valeur non définie (`NaN`), ou RCB < 3.0.
 
 ---
 
@@ -128,7 +128,7 @@ Comme les applications graphiques requièrent un accès à l'affichage système,
 
 #### Comment compiler et lancer l'interface graphique C++ :
 
-##### Option A : Installateur automatique (macOS uniquement)
+##### Option A : Script d'installation automatique (macOS uniquement)
 Si vous êtes sur macOS, vous pouvez automatiquement compiler, empaqueter et installer l'application native dans votre dossier d'applications avec son icône personnalisée :
 ```bash
 bash install_macos.sh
@@ -245,5 +245,5 @@ Le pipeline scanne le plan de travail à la recherche des dossiers de sujets (ex
 
 ### Données de sortie générées
 Une fois l'exécution terminée, le dossier du sujet contient :
-1. **Un fichier de résultats CSV** (`bolus1_baseline_results_cpp.csv` pour le C++ ou `bolus1_baseline_results.csv` pour Python) : Tableau contenant l'amplitude, le temps de pic, la FWHM, la ligne de base, l'AUC, l'AUCn et les temps de transit calculés pour chaque ROI.
+1. **Un fichier de résultats CSV** (`bolus1_baseline_results_cpp.csv` pour le C++ ou `bolus1_baseline_results.csv` pour Python) : Tableau contenant l'amplitude, le temps au pic (TAP), la LMH, la ligne de base, l'AUC, l'AUCn et les temps de transit calculés pour chaque ROI.
 2. **Un sous-dossier de graphiques** (`plots_cpp/` pour le C++ ou `plots/` pour Python) : Si activé, contient les figures SVG haute résolution des modélisations.
