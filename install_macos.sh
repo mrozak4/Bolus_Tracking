@@ -43,6 +43,10 @@ if [ -f "AppIcon.icns" ]; then
     cp "$REPO_DIR/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
 fi
 
+if [ -d "$REPO_DIR/resources" ]; then
+    cp -R "$REPO_DIR/resources" "$APP_BUNDLE/Contents/Resources/"
+fi
+
 # 5. Create Info.plist
 echo "Step 5: Writing Info.plist metadata configuration..."
 cat <<EOF > "$APP_BUNDLE/Contents/Info.plist"

@@ -27,6 +27,50 @@
 
 #include "bolus_tracking_cpp.hpp"
 
+namespace {
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#include <limits.h>
+#endif
+
+std::string get_resource_path(const std::string& rel_path) {
+    if (std::filesystem::exists(rel_path)) {
+        return rel_path;
+    }
+#if defined(__APPLE__)
+    char path[PATH_MAX];
+    uint32_t size = sizeof(path);
+    if (_NSGetExecutablePath(path, &size) == 0) {
+        std::filesystem::path exe_path(path);
+        std::filesystem::path bundle_res = exe_path.parent_path() / ".." / "Resources" / rel_path;
+        if (std::filesystem::exists(bundle_res)) {
+            return bundle_res.string();
+        }
+    }
+#endif
+    return rel_path;
+}
+
+bool is_valid_ttf(const std::string& path) {
+    if (!std::filesystem::exists(path)) {
+        return false;
+    }
+    std::ifstream file(path, std::ios::binary);
+    if (!file) {
+        return false;
+    }
+    unsigned char magic[4] = {0};
+    if (!file.read(reinterpret_cast<char*>(magic), 4)) {
+        return false;
+    }
+    // Check TrueType/OpenType magic: 0x00 0x01 0x00 0x00, 'OTTO', or 'ttcf'
+    bool is_ttf = (magic[0] == 0x00 && magic[1] == 0x01 && magic[2] == 0x00 && magic[3] == 0x00);
+    bool is_otf = (magic[0] == 'O' && magic[1] == 'T' && magic[2] == 'T' && magic[3] == 'O');
+    bool is_ttc = (magic[0] == 't' && magic[1] == 't' && magic[2] == 'c' && magic[3] == 'f');
+    return is_ttf || is_otf || is_ttc;
+}
+} // namespace
+
 // ============================================================================
 // Localization & Translation Structures
 // ============================================================================
@@ -1124,8 +1168,15 @@ public:
         font_config.OversampleV = 3;
         font_config.PixelSnapH = true;
         
-        m_font_regular = io.Fonts->AddFontFromFileTTF("resources/fonts/Outfit-Medium.ttf", 16.0f, &font_config);
-        m_font_bold = io.Fonts->AddFontFromFileTTF("resources/fonts/Outfit-Bold.ttf", 18.0f, &font_config);
+        std::string font_reg_path = get_resource_path("resources/fonts/Outfit-Medium.ttf");
+        std::string font_bold_path = get_resource_path("resources/fonts/Outfit-Bold.ttf");
+        
+        if (is_valid_ttf(font_reg_path)) {
+            m_font_regular = io.Fonts->AddFontFromFileTTF(font_reg_path.c_str(), 16.0f, &font_config);
+        }
+        if (is_valid_ttf(font_bold_path)) {
+            m_font_bold = io.Fonts->AddFontFromFileTTF(font_bold_path.c_str(), 18.0f, &font_config);
+        }
         
         if (!m_font_regular) {
             m_font_regular = io.Fonts->AddFontDefault();
@@ -1133,6 +1184,7 @@ public:
         if (!m_font_bold) {
             m_font_bold = m_font_regular;
         }
+
 
         // Initialize translations
         update_locale();
@@ -1916,7 +1968,9 @@ private:
             if (!m_csv_path.empty()) {
                 save_results_csv(m_csv_path, m_records);
                 save_gui_state();
-                std::system("afplay -t 8 resources/hallelujah.mp3 &");
+                std::string audio_path = get_resource_path("resources/hallelujah.mp3");
+                std::string cmd = "afplay -t 8 \"" + audio_path + "\" &";
+                std::system(cmd.c_str());
                 ImGui::OpenPopup(m_tr.modal_save_success.c_str());
             }
         }
