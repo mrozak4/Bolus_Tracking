@@ -387,7 +387,7 @@ class TestBolusFitterOOP:
         y = np.array([])
         from bolus_tracking import BolusFitter
         fitter = BolusFitter()
-        popt, pcov = fitter.fit(t, y, [1.0, 2.0, 1.0, 10.0])
+        popt, pcov, _ = fitter.fit(t, y, [1.0, 2.0, 1.0, 10.0])
         assert np.all(np.isnan(popt))
         assert np.all(np.isnan(pcov))
 
@@ -404,7 +404,7 @@ class TestBolusFitterOOP:
             [80.0, 2.5, 1.5, 15.0],
             [120.0, 3.5, 2.5, 25.0]
         )
-        popt, _ = fitter.fit(t, y, [90.0, 2.8, 1.8, 18.0], bounds_override=bounds_override)
+        popt, _, _ = fitter.fit(t, y, [90.0, 2.8, 1.8, 18.0], bounds_override=bounds_override)
         assert not np.any(np.isnan(popt))
         assert 80.0 <= popt[0] <= 120.0
         assert 2.5 <= popt[1] <= 3.5

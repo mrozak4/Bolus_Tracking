@@ -286,7 +286,7 @@ class DatasetProcessor:
                 [actual_max_amp, actual_max_t2p, actual_max_fwhm, m_init + m_bound]
             )
             
-        popt, pcov = self.fitter.fit(t_fit, y_us[start_idx:end_idx], fit_init_params, sd_base, bounds_override=bounds_override, single_pass=(prior_t2p is not None and prior_fwhm is not None))
+        popt, pcov, fit_info = self.fitter.fit(t_fit, y_us[start_idx:end_idx], fit_init_params, sd_base, bounds_override=bounds_override, single_pass=(prior_t2p is not None and prior_fwhm is not None))
         
         subj_match = re.search(r'(?:subject[_-]?)(\d+)', tiff_path, re.IGNORECASE)
         if not subj_match:
@@ -323,7 +323,8 @@ class DatasetProcessor:
                 self.fitter.min_amp, self.fitter.max_amp,
                 bounds_override[0][1], bounds_override[1][1],
                 bounds_override[0][2], bounds_override[1][2],
-                fit_valid
+                fit_valid,
+                pass2_run=fit_info.get('pass2_run', False)
             )
             
             # Evaluate model

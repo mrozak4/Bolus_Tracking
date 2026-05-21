@@ -115,14 +115,19 @@ class BolusFitter:
         return False
 
     @staticmethod
-    def determine_qc_flag(f_amp, f_t2p, f_fwhm, f_m, f_cnr, min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm, fit_success):
+    def determine_qc_flag(f_amp, f_t2p, f_fwhm, f_m, f_cnr, min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm, fit_success, pass2_run=False):
         if not fit_success or np.isnan([f_amp, f_t2p, f_fwhm, f_m, f_cnr]).any():
             return "FAIL"
         if f_cnr < 3.0:
             return "FAIL"
-        near_bounds = (BolusFitter.is_near_bounds(f_amp, min_amp, max_amp) or
-                       BolusFitter.is_near_bounds(f_t2p, min_t2p, max_t2p) or
-                       BolusFitter.is_near_bounds(f_fwhm, min_fwhm, max_fwhm))
+        if pass2_run:
+            near_bounds = (BolusFitter.is_near_bounds(f_amp, 1.0, max_amp) or
+                           BolusFitter.is_near_bounds(f_t2p, 0.01, 12.0) or
+                           BolusFitter.is_near_bounds(f_fwhm, 0.1, 20.0))
+        else:
+            near_bounds = (BolusFitter.is_near_bounds(f_amp, min_amp, max_amp) or
+                           BolusFitter.is_near_bounds(f_t2p, min_t2p, max_t2p) or
+                           BolusFitter.is_near_bounds(f_fwhm, min_fwhm, max_fwhm))
         inside_pass_ranges = (0.5 <= f_fwhm <= 15.0) and (0.1 <= f_t2p <= 10.0)
         
         if not near_bounds and f_cnr > 5.0 and inside_pass_ranges:
@@ -404,7 +409,7 @@ class BolusFitter:
         popt1, pcov1 = fit_once(min_amp_val, max_amp_val, min_t2p_val, max_t2p_val, min_fwhm_val, max_fwhm_val)
         
         if single_pass:
-            return popt1, pcov1
+            return popt1, pcov1, {'pass2_run': False}
             
         near_bounds = (np.isnan(popt1).any() or
                        BolusFitter.is_near_bounds(popt1[0], min_amp_val, max_amp_val) or
@@ -427,9 +432,9 @@ class BolusFitter:
                 rss2 = compute_rss(popt2)
                 use_pass2 = np.isnan(popt1).any() or near_bounds or (popt1[2] > 20.0 or popt1[1] > 15.0) or (rss2 < rss1)
                 if use_pass2:
-                    return popt2, pcov2
+                    return popt2, pcov2, {'pass2_run': True}
                     
-        return popt1, pcov1
+        return popt1, pcov1, {'pass2_run': False}
 
 
 # ---------------------------------------------------------------------------
@@ -455,4 +460,5 @@ def auto_estimate_params(tr, t_us, fr, up_f=20, low_cnr=False):
 def fit_bolus(t, y, params_init, sd_base=1.0, bounds_override=None):
     """Procedural wrapper for BolusFitter.fit."""
     fitter = BolusFitter()
-    return fitter.fit(t, y, params_init, sd_base, bounds_override)
+    popt, pcov, _ = fitter.fit(t, y, params_init, sd_base, bounds_override)
+    return popt, pcov

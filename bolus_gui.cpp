@@ -1685,7 +1685,8 @@ void BolusApp::run_fit_on_record(int idx, bool is_auto) {
         
         // Run fit solver
         bool fit_success = false;
-        std::vector<double> popt = m_fitter.run_nonlinear_fit(t_fit, y_fit, init_params, c.sd_base, fit_success);
+        bool pass2_run = false;
+        std::vector<double> popt = m_fitter.run_nonlinear_fit(t_fit, y_fit, init_params, c.sd_base, fit_success, pass2_run);
         
         // Update CsvRecord
         rec.click_start = crop_min;
@@ -1782,7 +1783,7 @@ void BolusApp::run_fit_on_record(int idx, bool is_auto) {
                 rec.qc_flag = BolusFitter::determine_qc_flag(
                     popt[0], popt[1], popt[2], popt[3], rec.f_cnr,
                     m_fitter.min_amp, m_fitter.max_amp, m_fitter.min_t2p, actual_max_t2p,
-                    m_fitter.min_fwhm, actual_max_fwhm, fit_success
+                    m_fitter.min_fwhm, actual_max_fwhm, fit_success, pass2_run
                 );
                 
                 if (std::isnan(rec.auc) || std::isnan(rec.aucn) || std::isnan(rec.ttlb) || 

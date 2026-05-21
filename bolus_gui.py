@@ -451,7 +451,7 @@ class BolusTrackingGUI:
             y_fit = self.y_us[start_idx:end_idx]
             
             # Run two-pass fit
-            popt, pcov = BolusFitter().fit(t_fit, y_fit, init_params, self.sd_base)
+            popt, pcov, _ = BolusFitter().fit(t_fit, y_fit, init_params, self.sd_base)
             self.fit_params = popt
             
             # Update plot
@@ -647,7 +647,7 @@ class BolusTrackingGUI:
                 ttm = float(abs(f_t2p - ont))
                 
                 # Standard errors
-                popt, pcov = BolusFitter().fit(t_fit, self.y_us[start_idx:end_idx], [amp_init, t2p_init, fwhm_init, base_init], self.sd_base)
+                popt, pcov, _ = BolusFitter().fit(t_fit, self.y_us[start_idx:end_idx], [amp_init, t2p_init, fwhm_init, base_init], self.sd_base)
                 se_t2p = 0.0
                 if pcov is not None and not np.isinf(pcov).any():
                     se = np.sqrt(np.diag(pcov))

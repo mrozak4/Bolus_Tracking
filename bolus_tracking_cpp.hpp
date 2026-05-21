@@ -157,7 +157,7 @@ public:
 
     AutoEstimateResults auto_estimate_params(const std::vector<double>& tr, const std::vector<double>& t_us, double fr, int up_f = 20, bool low_cnr = false) const;
     std::vector<double> run_nonlinear_fit(const std::vector<double>& t, const std::vector<double>& y,
-                                         const std::vector<double>& params_init, double sd_base, bool& success, bool debug_print = false) const;
+                                         const std::vector<double>& params_init, double sd_base, bool& success, bool& pass2_run, bool debug_print = false) const;
     std::vector<double> run_nonlinear_fit_with_bounds(const std::vector<double>& t, const std::vector<double>& y,
                                                      const std::vector<double>& params_init, double sd_base,
                                                      double b_min_amp, double b_max_amp,
@@ -169,7 +169,7 @@ public:
     static bool is_near_bounds(double val, double low, double high);
     static std::string determine_qc_flag(double f_amp, double f_t2p, double f_fwhm, double f_m, double f_cnr,
                                          double min_amp, double max_amp, double min_t2p, double max_t2p,
-                                         double min_fwhm, double max_fwhm, bool fit_success);
+                                         double min_fwhm, double max_fwhm, bool fit_success, bool pass2_run = false);
     static std::string suggest_vessel_type(double ont, double t2p, double fwhm, double amp, const std::string& qc_flag);
 };
 

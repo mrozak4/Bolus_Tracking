@@ -616,7 +616,7 @@ std::vector<double> BolusFitter::run_nonlinear_fit_with_bounds(const std::vector
     GammaFunctor functor{t, y, m_init, m_bound, false, 1.0, b_min_amp, b_max_amp, b_min_t2p, b_max_t2p, b_min_fwhm, b_max_fwhm};
     Eigen::NumericalDiff<GammaFunctor> numDiff(functor);
     Eigen::LevenbergMarquardt<Eigen::NumericalDiff<GammaFunctor>, double> lm(numDiff);
-    lm.parameters.maxfev = 2000;
+    lm.parameters.maxfev = 10000;
     lm.parameters.xtol = 1e-10;
     lm.parameters.ftol = 1e-10;
     
@@ -627,9 +627,6 @@ std::vector<double> BolusFitter::run_nonlinear_fit_with_bounds(const std::vector
     double fwhm1 = std::clamp(x[2], b_min_fwhm, b_max_fwhm);
     double m = std::clamp(x[3], L_m, U_m);
     
-    if (std::abs(params_init[1] - 0.206693) < 1e-4) {
-        debug_print = true;
-    }
     if (debug_print) {
         std::cout << "    [DEBUG ROI bounds] linear fit: " << a1 << ", " << peak1 << ", " << fwhm1 << ", " << m << " (info=" << info << ")" << std::endl;
     }
@@ -650,7 +647,7 @@ std::vector<double> BolusFitter::run_nonlinear_fit_with_bounds(const std::vector
     GammaFunctor functor2{t, y, m_init, m_bound, true, dynamic_f_scale, b_min_amp, b_max_amp, b_min_t2p, b_max_t2p, b_min_fwhm, b_max_fwhm};
     Eigen::NumericalDiff<GammaFunctor> numDiff2(functor2);
     Eigen::LevenbergMarquardt<Eigen::NumericalDiff<GammaFunctor>, double> lm2(numDiff2);
-    lm2.parameters.maxfev = 2000;
+    lm2.parameters.maxfev = 10000;
     lm2.parameters.xtol = 1e-10;
     lm2.parameters.ftol = 1e-10;
     
@@ -662,7 +659,7 @@ std::vector<double> BolusFitter::run_nonlinear_fit_with_bounds(const std::vector
         double m2 = std::clamp(x[3], L_m, U_m);
         std::cout << "    [DEBUG ROI bounds] cauchy fit: " << a2 << ", " << peak2 << ", " << fwhm2 << ", " << m2 << " (info=" << info << ")" << std::endl;
     }
-    if (info >= 1 && info <= 4) {
+    if (info >= 1 && info <= 5) {
         success = true;
     }
     
@@ -675,7 +672,8 @@ std::vector<double> BolusFitter::run_nonlinear_fit_with_bounds(const std::vector
 }
 
 std::vector<double> BolusFitter::run_nonlinear_fit(const std::vector<double>& t, const std::vector<double>& y,
-                                                 const std::vector<double>& params_init, double sd_base, bool& success, bool debug_print) const {
+                                                 const std::vector<double>& params_init, double sd_base, bool& success, bool& pass2_run, bool debug_print) const {
+    pass2_run = false;
     double actual_max_t2p = (max_t2p >= 1e5 && !t.empty()) ? t.back() : max_t2p;
     double actual_max_fwhm = (max_fwhm >= 1e5 && !t.empty()) ? t.back() : max_fwhm;
     
@@ -740,6 +738,7 @@ std::vector<double> BolusFitter::run_nonlinear_fit(const std::vector<double>& t,
             bool use_pass2 = !pass1_success || near_bounds || (popt1[2] > 20.0 || popt1[1] > 15.0) || (rss2 < rss1);
             if (use_pass2) {
                 success = true;
+                pass2_run = true;
                 return popt2;
             }
         }
@@ -762,16 +761,23 @@ bool BolusFitter::is_near_bounds(double val, double low, double high) {
 
 std::string BolusFitter::determine_qc_flag(double f_amp, double f_t2p, double f_fwhm, double f_m, double f_cnr,
                                            double min_amp, double max_amp, double min_t2p, double max_t2p,
-                                           double min_fwhm, double max_fwhm, bool fit_success) {
+                                           double min_fwhm, double max_fwhm, bool fit_success, bool pass2_run) {
     if (!fit_success || std::isnan(f_amp) || std::isnan(f_t2p) || std::isnan(f_fwhm) || std::isnan(f_m) || std::isnan(f_cnr)) {
         return "FAIL";
     }
     if (f_cnr < 3.0) {
         return "FAIL";
     }
-    bool near_bounds = is_near_bounds(f_amp, min_amp, max_amp) ||
-                       is_near_bounds(f_t2p, min_t2p, max_t2p) ||
-                       is_near_bounds(f_fwhm, min_fwhm, max_fwhm);
+    bool near_bounds = false;
+    if (pass2_run) {
+        near_bounds = is_near_bounds(f_amp, 1.0, max_amp) ||
+                      is_near_bounds(f_t2p, 0.01, 12.0) ||
+                      is_near_bounds(f_fwhm, 0.1, 20.0);
+    } else {
+        near_bounds = is_near_bounds(f_amp, min_amp, max_amp) ||
+                      is_near_bounds(f_t2p, min_t2p, max_t2p) ||
+                      is_near_bounds(f_fwhm, min_fwhm, max_fwhm);
+    }
                        
     bool inside_pass_ranges = (f_fwhm >= 0.5 && f_fwhm <= 15.0) &&
                               (f_t2p >= 0.1 && f_t2p <= 10.0);
@@ -1253,7 +1259,7 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
     int start_idx = auto_res.start_idx;
     int end_idx = auto_res.end_idx;
     
-    bool debug_roi = (roi_id == 10 || roi_id == 21 || roi_id == 27 || roi_id == 43);
+    bool debug_roi = (roi_id == 10 || roi_id == 21 || roi_id == 27 || roi_id == 43 || roi_id == 44);
     if (debug_roi) {
         std::cout << "[C++ ROI " << roi_id << " DEBUG] k = " << k << ", raw_baseline = " << raw_baseline 
                   << ", raw_sd_base = " << raw_sd_base << ", raw_amp = " << raw_amp 
@@ -1275,6 +1281,7 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
     }
     
     bool fit_success = false;
+    bool pass2_run = false;
     std::vector<double> popt;
     
     if (prior_t2p > 0.0 && prior_fwhm > 0.0) {
@@ -1295,11 +1302,11 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
                                                     b_min_fwhm, b_max_fwhm,
                                                     fit_success, debug_roi);
     } else {
-        popt = fitter.run_nonlinear_fit(t_fit, y_fit, auto_res.init_params, auto_res.sd_base, fit_success, debug_roi);
+        popt = fitter.run_nonlinear_fit(t_fit, y_fit, auto_res.init_params, auto_res.sd_base, fit_success, pass2_run, debug_roi);
     }
     
     if (debug_roi) {
-        std::cout << "  [C++ ROI " << roi_id << " DEBUG] fit_success = " << fit_success << std::endl;
+        std::cout << "  [C++ ROI " << roi_id << " DEBUG] fit_success = " << fit_success << ", pass2_run = " << pass2_run << std::endl;
         if (fit_success) {
             std::cout << "  fitted popt: Amp=" << popt[0] << ", T2p=" << popt[1] << ", FWHM=" << popt[2] << ", M=" << popt[3] << std::endl;
         }
@@ -1336,7 +1343,7 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
         double f_cnr = (auto_res.sd_base > 0.0) ? (popt[0] / auto_res.sd_base) : 0.0;
         qc_flag = BolusFitter::determine_qc_flag(popt[0], popt[1], popt[2], popt[3], f_cnr,
                                                  fitter.min_amp, fitter.max_amp, final_min_t2p, final_max_t2p,
-                                                 final_min_fwhm, final_max_fwhm, fit_success);
+                                                 final_min_fwhm, final_max_fwhm, fit_success, pass2_run);
     } else {
         qc_flag = "FAIL";
     }

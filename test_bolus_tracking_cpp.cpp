@@ -192,7 +192,8 @@ void test_bolus_fitter() {
     }
     
     bool fit_success = false;
-    std::vector<double> popt = fitter.run_nonlinear_fit(t_fit, y_fit, res.init_params, res.sd_base, fit_success);
+    bool pass2_run = false;
+    std::vector<double> popt = fitter.run_nonlinear_fit(t_fit, y_fit, res.init_params, res.sd_base, fit_success, pass2_run);
     
     std::cout << "  Start idx: " << res.start_idx << " (time: " << fit_onset << ")" << std::endl;
     std::cout << "  End idx: " << res.end_idx << " (time: " << t_us[res.end_idx] << ")" << std::endl;
