@@ -18,13 +18,16 @@ This script will:
 1. Compile the high-performance C++ GUI application.
 2. Build the macOS application bundle structure `BolusTrackingStudio.app`.
 3. Create a beautiful app icon from `app_icon.png`.
-4. Copy the bundle to your `/Applications` directory.
+4. Copy the bundle to your Applications directory (`/Applications` or fallback to user-local `~/Applications` if not writable) for automatic indexing in **Launchpad**.
 
 ### Launching the Application:
-* **Option A**: Open your `/Applications/` folder in Finder and double-click **Bolus Tracking Studio** (represented by the custom capillary and mathematical curve icon).
-* **Option B**: Run it from the terminal:
+* **Option A (Launchpad)**: Press `F4` or click the Launchpad icon on your Dock, search for **Bolus Tracking Studio**, and click the application icon.
+* **Option B (Finder)**: Open your Applications folder and double-click **Bolus Tracking Studio** (represented by the custom capillary and mathematical curve icon).
+* **Option C (Terminal)**: Run it from the terminal:
   ```bash
   open /Applications/BolusTrackingStudio.app
+  # or user-local fallback path:
+  open ~/Applications/BolusTrackingStudio.app
   ```
 
 ---

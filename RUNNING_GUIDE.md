@@ -159,7 +159,7 @@ If you are on macOS, you can automatically build, package, and install a native 
 ```bash
 bash install_macos.sh
 ```
-This script compiles the GUI, builds `BolusTrackingStudio.app` in the repository folder, and installs it into `/Applications/` so you can launch it directly from Finder or Spotlight.
+This script compiles the GUI, builds `BolusTrackingStudio.app` in the repository folder, and installs it into `/Applications/` (or `~/Applications/` if not writable) so you can launch it directly from **Launchpad**, Finder, or Spotlight.
 
 ##### Option B: Manual Compilation (macOS, Linux, Windows)
 1. Make sure you have CMake, a C++17 compiler, and LibTIFF installed on your system.

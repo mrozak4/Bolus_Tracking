@@ -76,10 +76,10 @@ bash run_pipeline.sh
 ### Launch C++ GUI
 
 #### On macOS (Clickable App Bundle)
-Build, package, and launch the GUI as a native macOS app:
+Build, package, and install the GUI as a native macOS app to Launchpad:
 ```bash
 bash install_macos.sh
-open /Applications/BolusTrackingStudio.app
+open /Applications/BolusTrackingStudio.app  # Or open ~/Applications/BolusTrackingStudio.app
 ```
 
 #### On Linux, Windows, or Manual macOS Setup
