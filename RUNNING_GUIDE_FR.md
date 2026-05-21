@@ -124,7 +124,7 @@ bash run_pipeline_cpp.sh sample-subject-2259 --qc-fwhm-max 20.0 --qc-cnr-min 6.0
 
 ## 3. Exécuter l'interface graphique interactive C++ : Dear ImGui & ImPlot Studio
 
-Comme les applications graphiques requièrent un accès à l'affichage système, elles doivent être exécutées localement sur votre système d'exploitation hôte. L'interface graphique C++ est un tableau de bord visuel haute performance basé sur le moteur de modélisation C++. Elle utilise Dear ImGui et ImPlot pour afficher les signaux, réviser et trier les cas problématiques, ajuster les paramètres de modélisation et rogner dynamiquement les plages de données.
+Comme les applications graphiques requièrent un accès à l'affichage système, elles doivent être exécutées localement sur votre système d'exploitation hôte. L'interface graphique C++ est un tableau de bord visuel haute performance basé sur le moteur de modélisation C++. Elle utilise Dear ImGui et ImPlot pour afficher les signaux, réviser et trier les cas problématiques, ajuster les paramètres de modélisation et rogner dynamiquement les plages de données. La mise en page utilise une structure réactive qui ajuste automatiquement la hauteur du graphique et utilise des tableaux alignés pour la barre latérale et les en-têtes, garantissant que tous les paramètres cinétiques, étiquettes et boutons de navigation (`< Précédent` / `Suivant >`) restent entièrement visibles et jamais tronqués, quelle que soit la taille de la fenêtre.
 
 #### Comment compiler et lancer l'interface graphique C++ :
 

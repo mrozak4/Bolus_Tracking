@@ -2099,55 +2099,65 @@ void BolusApp::draw_sidebar() {
     ImGui::Separator();
     
     ImGui::BeginChild("ListScrollPane", ImVec2(0, 0), false);
-    for (int q = 0; q < static_cast<int>(m_triage_queue.size()); ++q) {
-        int idx = m_triage_queue[q];
-        const auto& rec = m_records[idx];
+    if (ImGui::BeginTable("SidebarListTable", 3, ImGuiTableFlags_RowBg)) {
+        ImGui::TableSetupColumn("ROI", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+        ImGui::TableSetupColumn("Source", ImGuiTableColumnFlags_WidthStretch);
         
-        char label[64];
-        if (rec.fit_source != "auto") {
-            snprintf(label, sizeof(label), "ROI %d *", rec.roi_id);
-        } else {
-            snprintf(label, sizeof(label), "ROI %d", rec.roi_id);
+        for (int q = 0; q < static_cast<int>(m_triage_queue.size()); ++q) {
+            int idx = m_triage_queue[q];
+            const auto& rec = m_records[idx];
+            
+            char label[64];
+            if (rec.fit_source != "auto") {
+                snprintf(label, sizeof(label), "ROI %d *", rec.roi_id);
+            } else {
+                snprintf(label, sizeof(label), "ROI %d", rec.roi_id);
+            }
+            
+            bool is_selected = (m_selected_roi_idx == idx);
+            
+            // Format state color tag
+            ImVec4 status_color = ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+            if (rec.qc_flag == "PASS") status_color = ImVec4(0.55f, 0.62f, 0.45f, 1.0f);
+            else if (rec.qc_flag == "WARN") status_color = ImVec4(0.92f, 0.72f, 0.30f, 1.0f);
+            else if (rec.qc_flag == "FAIL") status_color = ImVec4(0.80f, 0.32f, 0.22f, 1.0f);
+            else if (rec.qc_flag == "REVIEW") status_color = ImVec4(0.37f, 0.54f, 0.54f, 1.0f);
+            
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            
+            ImGui::PushStyleColor(ImGuiCol_Text, status_color);
+            if (ImGui::Selectable(label, is_selected, ImGuiSelectableFlags_SpanAllColumns)) {
+                select_record(idx);
+            }
+            ImGui::PopStyleColor();
+            
+            ImGui::TableNextColumn();
+            std::string disp_flag;
+            if (rec.qc_flag == "PASS") disp_flag = m_tr.qc_pass;
+            else if (rec.qc_flag == "WARN") disp_flag = m_tr.qc_warn;
+            else if (rec.qc_flag == "FAIL") disp_flag = m_tr.qc_fail;
+            else if (rec.qc_flag == "REVIEW") disp_flag = m_tr.qc_review;
+            else disp_flag = rec.qc_flag;
+            
+            ImGui::TextColored(status_color, "[%s]", disp_flag.c_str());
+            
+            ImGui::TableNextColumn();
+            std::string disp_source;
+            if (rec.fit_source == "auto") disp_source = m_tr.source_auto;
+            else if (rec.fit_source == "manual") disp_source = m_tr.source_manual;
+            else if (rec.fit_source == "override") disp_source = m_tr.source_override;
+            else disp_source = rec.fit_source;
+            
+            if (rec.fit_source != "auto") {
+                // Highlight manually updated fits in terracotta
+                ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", disp_source.c_str());
+            } else {
+                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "%s", disp_source.c_str());
+            }
         }
-        
-        bool is_selected = (m_selected_roi_idx == idx);
-        
-        // Format state color tag
-        ImVec4 status_color = ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
-        if (rec.qc_flag == "PASS") status_color = ImVec4(0.55f, 0.62f, 0.45f, 1.0f);
-        else if (rec.qc_flag == "WARN") status_color = ImVec4(0.92f, 0.72f, 0.30f, 1.0f);
-        else if (rec.qc_flag == "FAIL") status_color = ImVec4(0.80f, 0.32f, 0.22f, 1.0f);
-        else if (rec.qc_flag == "REVIEW") status_color = ImVec4(0.37f, 0.54f, 0.54f, 1.0f);
-        
-        ImGui::PushStyleColor(ImGuiCol_Text, status_color);
-        if (ImGui::Selectable(label, is_selected)) {
-            select_record(idx);
-        }
-        ImGui::PopStyleColor();
-        
-        ImGui::SameLine(170);
-        std::string disp_flag;
-        if (rec.qc_flag == "PASS") disp_flag = m_tr.qc_pass;
-        else if (rec.qc_flag == "WARN") disp_flag = m_tr.qc_warn;
-        else if (rec.qc_flag == "FAIL") disp_flag = m_tr.qc_fail;
-        else if (rec.qc_flag == "REVIEW") disp_flag = m_tr.qc_review;
-        else disp_flag = rec.qc_flag;
-        
-        ImGui::TextColored(status_color, "[%s]", disp_flag.c_str());
-        
-        ImGui::SameLine(280);
-        std::string disp_source;
-        if (rec.fit_source == "auto") disp_source = m_tr.source_auto;
-        else if (rec.fit_source == "manual") disp_source = m_tr.source_manual;
-        else if (rec.fit_source == "override") disp_source = m_tr.source_override;
-        else disp_source = rec.fit_source;
-        
-        if (rec.fit_source != "auto") {
-            // Highlight manually updated fits in terracotta
-            ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", disp_source.c_str());
-        } else {
-            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "%s", disp_source.c_str());
-        }
+        ImGui::EndTable();
     }
     ImGui::EndChild();
 }
@@ -2185,9 +2195,8 @@ void BolusApp::draw_main_area() {
     else disp_source = rec.fit_source;
     
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::GetStyle().Colors[ImGuiCol_FrameBg]);
-    ImGui::BeginChild("PlotHeaderPane", ImVec2(0, 42), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    ImGui::BeginChild("PlotHeaderPane", ImVec2(0, 48), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::PopStyleColor();
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.0f);
     
     float avail_w = ImGui::GetContentRegionAvail().x;
     float nav_btn_w = m_lang == LANG_FR ? 100.0f : 90.0f;
@@ -2196,38 +2205,40 @@ void BolusApp::draw_main_area() {
     snprintf(queue_text, sizeof(queue_text), "%d / %d", m_queue_pos + 1, (int)m_triage_queue.size());
     float text_w = ImGui::CalcTextSize(queue_text).x;
     float total_buttons_w = nav_btn_w * 2.0f + text_w + spacing * 2.0f;
-    float right_margin = ImGui::GetStyle().WindowPadding.x + 4.0f;
     
-    float text_width_limit = avail_w - total_buttons_w - right_margin - 24.0f;
-    
-    ImGui::Indent(8.0f);
-    if (text_width_limit > 100.0f) {
-        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + text_width_limit);
+    if (ImGui::BeginTable("PlotHeaderTable", 2, ImGuiTableFlags_None)) {
+        ImGui::TableSetupColumn("HeaderText", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("HeaderNav", ImGuiTableColumnFlags_WidthFixed, total_buttons_w + 10.0f);
+        
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.0f);
+        ImGui::Indent(4.0f);
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - 10.0f);
         ImGui::Text(m_tr.text_plot_status_header.c_str(), rec.roi_id, rec.roi_size, disp_flag.c_str(), disp_source.c_str());
         ImGui::PopTextWrapPos();
-    } else {
-        ImGui::Text("ROI #%d", rec.roi_id);
-    }
-    ImGui::Unindent(8.0f);
-    
-    ImGui::SameLine();
-    ImGui::SetCursorPosX(avail_w - total_buttons_w - right_margin);
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6, 2));
-    if (ImGui::Button(m_lang == LANG_FR ? "< Précédent" : "< Previous", ImVec2(nav_btn_w, 22))) {
-        if (m_queue_pos > 0) {
-            select_record(m_triage_queue[m_queue_pos - 1]);
+        ImGui::Unindent(4.0f);
+        
+        ImGui::TableNextColumn();
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6, 2));
+        if (ImGui::Button(m_lang == LANG_FR ? "< Précédent" : "< Previous", ImVec2(nav_btn_w, 22))) {
+            if (m_queue_pos > 0) {
+                select_record(m_triage_queue[m_queue_pos - 1]);
+            }
         }
-    }
-    ImGui::SameLine();
-    ImGui::Text("%s", queue_text);
-    ImGui::SameLine();
-    if (ImGui::Button(m_lang == LANG_FR ? "Suivant >" : "Next >", ImVec2(nav_btn_w, 22))) {
-        if (m_queue_pos >= 0 && m_queue_pos + 1 < static_cast<int>(m_triage_queue.size())) {
-            select_record(m_triage_queue[m_queue_pos + 1]);
+        ImGui::SameLine();
+        ImGui::Text("%s", queue_text);
+        ImGui::SameLine();
+        if (ImGui::Button(m_lang == LANG_FR ? "Suivant >" : "Next >", ImVec2(nav_btn_w, 22))) {
+            if (m_queue_pos >= 0 && m_queue_pos + 1 < static_cast<int>(m_triage_queue.size())) {
+                select_record(m_triage_queue[m_queue_pos + 1]);
+            }
         }
+        ImGui::PopStyleVar();
+        
+        ImGui::EndTable();
     }
-    ImGui::PopStyleVar();
-    
     ImGui::EndChild();
         
         // Calculate Y limits with a 10% buffer based on visible traces in the crop range
@@ -2302,11 +2313,11 @@ void BolusApp::draw_main_area() {
         ImVec2 plot_pos(0.0f, 0.0f);
         ImVec2 plot_size(0.0f, 0.0f);
         
-        // Calculate dynamic plot height based on available window height
+        // Calculate dynamic plot height based on available window height to fit everything else
         float avail_h = ImGui::GetContentRegionAvail().y;
-        float plot_h = avail_h - 220.0f; // Reserved for ParamsPane and RangeSlider
-        if (plot_h < 380.0f) plot_h = 380.0f;
-        if (plot_h > 580.0f) plot_h = 580.0f;
+        float plot_h = avail_h - 460.0f; // Reserved for ParamsPane and RangeSlider/Header
+        if (plot_h < 250.0f) plot_h = 250.0f;
+        if (plot_h > 650.0f) plot_h = 650.0f;
 
         if (ImPlot::BeginPlot(m_tr.plot_title.c_str(), ImVec2(-1, plot_h))) {
             ImPlot::SetupAxes(m_tr.plot_x_axis.c_str(), m_tr.plot_y_axis.c_str());

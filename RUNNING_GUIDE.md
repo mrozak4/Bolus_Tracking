@@ -148,7 +148,7 @@ If a batch run yields `WARN` or `FAIL` flags, you can easily inspect and correct
 
 ## 3. Running the C++ Interactive GUI: Dear ImGui & ImPlot Studio
 
-Since GUI applications require display access, they are run locally on your host operating system. The C++ GUI is a high-performance visual dashboard built on top of the ultra-fast C++ fitting engine. It uses Dear ImGui and ImPlot to display traces, triage problem fits, adjust fitting parameters, and crop data ranges interactively.
+Since GUI applications require display access, they are run locally on your host operating system. The C++ GUI is a high-performance visual dashboard built on top of the ultra-fast C++ fitting engine. It uses Dear ImGui and ImPlot to display traces, triage problem fits, adjust fitting parameters, and crop data ranges interactively. The layout features a dynamic responsive design that auto-scales the plot height and utilizes aligned grid tables for the sidebar and headers, ensuring all parameters, labels, and navigation buttons (`< Previous` / `Next >`) remain fully visible and never cut off on different screen sizes.
 
 #### How to Build and Launch the C++ GUI:
 
