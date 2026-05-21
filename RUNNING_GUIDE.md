@@ -23,11 +23,11 @@ cd Bolus_Tracking
 
 ---
 
-## 2. Recommended Workflow: Running Everything with Docker
+## 2. Recommended Workflow: Running the C++ Pipeline with Docker
 
 > [!IMPORTANT]
-> **Docker is the highly recommended and preferred way to run both the Python and C++ pipelines.**
-> Using Docker guarantees that all library versions are identical, prevents dependency conflicts, and requires zero installation of Python or C++ compilers on your system.
+> **Docker is the highly recommended and preferred way to run the C++ pipeline.**
+> Using Docker guarantees that all library versions are identical, prevents dependency conflicts, and requires zero installation of C++ compilers or packages on your system.
 
 ### Prerequisites (One-Time Setup)
 Make sure you have Docker installed and running on your system:
@@ -41,7 +41,7 @@ Make sure you have Docker installed and running on your system:
 
 ---
 
-### A. Running the C++ Parallel Pipeline with Docker
+### Running the C++ Parallel Pipeline with Docker
 The C++ pipeline is a standalone computational engine designed for maximum speed. It runs completely standalone inside its own Docker container with zero Python overhead.
 
 To process a target folder (e.g. `sample-subject-2259`) using the C++ pipeline with Docker:
@@ -76,35 +76,43 @@ docker build -t bolus_tracking_cpp -f Dockerfile.cpp .
 docker run --rm -v "$(pwd):/data" bolus_tracking_cpp --folder /data/sample-subject-2259
 ```
 
+#### Handling Warnings and Failures (Triage & GUI)
+
+When the automated C++ pipeline runs, it checks each fit against key physiological parameter limits and marks the ROI status in the results CSV:
+
+##### Fit Quality Parameters & Triage Limits:
+| Parameter | Description | Warning Threshold (`WARN`) | Failure Threshold (`FAIL`) | Absolute Solver Bounds (Hard Limit) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Amplitude** | Peak height of the bolus curve | — | `< 1.0` | `[1e-6, 1023.0]` |
+| **Time to Peak ($T_{2p}$)** | Duration from onset to peak | `> 10.0 s` | `> 50.0 s` | `[1e-6, inf)` |
+| **FWHM** | Full width of bolus at half max amplitude | `> 15.0 s` | `> 100.0 s` | `[0.5, inf)` |
+| **CNR** | Contrast-to-Noise Ratio (Peak / SD of baseline) | `< 5.0` | `< 3.0` | — |
+
+* **`PASS`**: The fit completed successfully, and all parameters fell within the healthy warning limits.
+* **`WARN`**: The fit succeeded, but one or more parameters crossed the warning limits (e.g., abnormally long FWHM or low contrast).
+* **`FAIL`**: The fit diverged, converged to an absolute solver boundary (indicating a non-physical mathematical solution), or failed critical QC constraints.
+
+##### Triaging & Correcting Fits:
+If a batch run yields `WARN` or `FAIL` flags, you can easily inspect and correct them using the native C++ GUI app (see **[INSTALL.md](INSTALL.md)** for installation instructions).
+
+**Step-by-step Triage Workflow:**
+1. **Focus on Problem Cases:** Launch the C++ GUI app, load your results CSV, and check **"Show WARN/FAIL only"** at the top of the sidebar queue. This filters out all successful `PASS` cases.
+2. **Inspect the Raw Signal:** Click on any flagged ROI. Inspect the trace to identify if the issue is due to pre-bolus baseline noise, a recirculation tail, or incorrect initial marker detection.
+3. **Define a Crop Window (On-the-Fly Cropping):** Adjust the blue and magenta vertical brackets on the plot boundaries to crop out noise or secondary recirculation tails. Double-clicking the plot resets the zoom, and the **Undo Crop** button resets the active crop window.
+4. **Manually Drag the Fitting Markers:** Drag the three vertical lines (**Green** for onset, **Yellow** for peak, **Red** for clearance/end) to visually align with the first-pass bolus.
+5. **Run the Constrained Re-fit:** Click **Re-fit Manual**. The Levenberg-Marquardt optimizer runs exclusively within your crop window using your markers as initial parameters. The ROI status in the queue will update dynamically.
+6. **Save Changes:** Click **Save CSV** in the sidebar to write the updated parameters back to your results file.
+
 ---
 
-### B. Running the Python Pipeline with Docker
-The master control script `run_pipeline.sh` automatically detects if Docker is installed and running, and will run the Python batch processor inside the container.
-
-To process a target folder (e.g. `sample-subject-2259`) using the Python pipeline with Docker:
-```bash
-bash run_pipeline.sh sample-subject-2259
-```
-
-#### Manual command:
-If you want to run the Docker command manually:
-```bash
-# 1. Build the Python image
-docker build -t bolus_tracking:latest .
-
-# 2. Run the processing (maps current directory to /data in the container)
-docker run --rm -v "$(pwd):/data" bolus_tracking:latest --folder /data/sample-subject-2259
-```
+> [!NOTE]
+> **Python Reference Pipeline**: If you want to run the original Python-based batch processing pipeline or launch the Tkinter/Matplotlib GUI, please see the dedicated **[README_Python_Pipeline.md](README_Python_Pipeline.md)**.
 
 ---
 
-## 3. Running the Interactive GUIs (C++ and Python)
+## 3. Running the C++ Interactive GUI: Dear ImGui & ImPlot Studio
 
-Since GUI applications require display access, they are run locally on your host operating system.
-
-### A. The C++ GUI: Dear ImGui & ImPlot Studio (Recommended)
-
-The C++ GUI is a high-performance visual dashboard built on top of the ultra-fast C++ fitting engine. It uses Dear ImGui and ImPlot to display traces, triage problem fits, adjust fitting parameters, and crop data ranges interactively.
+Since GUI applications require display access, they are run locally on your host operating system. The C++ GUI is a high-performance visual dashboard built on top of the ultra-fast C++ fitting engine. It uses Dear ImGui and ImPlot to display traces, triage problem fits, adjust fitting parameters, and crop data ranges interactively.
 
 #### How to Build and Launch the C++ GUI:
 
@@ -187,34 +195,6 @@ If a subject folder has capillary fits flagged as `WARN` or `FAIL`, use the C++ 
 
 ---
 
-### B. The Python GUI: Tkinter & Matplotlib Studio
-
-The Python GUI provides a premium, interactive interface to visually browse datasets, select ROIs, click on plots to adjust markers, run fits, and save results.
-
-#### How to Launch the Python GUI:
-1. Create a Python virtual environment and install dependencies:
-   ```bash
-   # macOS / Linux
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   python bolus_gui.py
-   
-   # Windows (PowerShell)
-   python -m venv .venv
-   .venv\Scripts\Activate.ps1
-   pip install -r requirements.txt
-   python bolus_gui.py
-   ```
-2. **GUI Step-by-Step Instructions**:
-   - **Load Subject Folder**: Click **📁 Open Subject Folder** and select the subject folder.
-   - **Select Dataset**: Choose the dataset triplet from the dropdown.
-   - **Select Capillary ROI**: Navigate between the different capillary regions of interest.
-   - **Interactive Marker Placement**: Click **Adjust Markers** and click anywhere on the plot to adjust onset/peak/end points visually. The fit will update instantly!
-   - **Save & Export**: Click **💾 Save & Export Results** to write parameters to the CSV and save a high-resolution screenshot.
-
----
-
 ## 4. Alternative Workflow: Running Locally without Docker
 
 If you cannot use Docker, you can run the pipelines locally on your machine:
@@ -252,22 +232,7 @@ cd ..
 > ```bash
 > ./build/bolus_tracking_cpp --folder sample-subject-2259 --plot --min-t2p 2.0 --max-t2p 8.0
 > ```
-> This is also supported in the Python script (`batch_process.py`) and the standard runner scripts (`run_pipeline.sh` / `run_pipeline_cpp.sh`).
-
-### Python Pipeline (Local)
-```bash
-# macOS / Linux
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python batch_process.py --folder sample-subject-2259
-
-# Windows (PowerShell)
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python batch_process.py --folder sample-subject-2259
-```
+> This is also supported in the C++ runner script (`run_pipeline_cpp.sh`).
 
 ---
 
@@ -301,5 +266,5 @@ The pipeline automatically scans directories in the workspace for subject folder
 
 ### Generated Outputs
 After running the pipeline, each subject folder will contain:
-1. **A Results CSV file** (e.g., `bolus1_baseline_results.csv` or `bolus1_baseline_results_cpp.csv`): A table containing fitted parameters (Amplitude, Time to Peak, FWHM, Baseline, AUC, transit times) for every ROI.
-2. **A Plots folder** (Python only, e.g., `plots/`): High-resolution visual fits for each ROI.
+1. **A Results CSV file** (e.g., `bolus1_baseline_results_cpp.csv` for C++ or `bolus1_baseline_results.csv` for Python): A table containing fitted parameters (Amplitude, Time to Peak, FWHM, Baseline, AUC, AUCn, transit times) for every ROI.
+2. **A Plots folder** (`plots_cpp/` for C++ or `plots/` for Python): If plotting is enabled, contains high-resolution visual fits for each ROI.

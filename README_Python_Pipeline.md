@@ -60,3 +60,48 @@ If you are running the python script manually (without the `.sh` script), you ca
 The script will output a CSV file (e.g., `3554_bolus1_baseline_123-300_shifted_results.csv`) containing the automatically estimated and fitted parameters for every ROI mask in the stack:
 - `InitAmp`, `InitT2p`, `InitFWHM`, `InitM` (Auto-estimated starting points)
 - `F_Amp`, `F_T2p`, `F_FWHM`, `F_M` (Final fitted Gamma parameters mathematically identical to MATLAB's `nlinfit`)
+
+---
+
+## Interactive Python GUI (Tkinter & Matplotlib Studio)
+
+The Python GUI provides an interactive interface to visually browse datasets, select ROIs, click on plots to adjust markers, run fits, and save results.
+
+### How to Launch the Python GUI:
+1. Create a Python virtual environment and install dependencies:
+   ```bash
+   # macOS / Linux
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   python bolus_gui.py
+   
+   # Windows (PowerShell)
+   python -m venv .venv
+   .venv\Scripts\Activate.ps1
+   pip install -r requirements.txt
+   python bolus_gui.py
+   ```
+2. **GUI Step-by-Step Instructions**:
+   - **Load Subject Folder**: Click **📁 Open Subject Folder** and select the subject folder.
+   - **Select Dataset**: Choose the dataset triplet from the dropdown.
+   - **Select Capillary ROI**: Navigate between the different capillary regions of interest.
+   - **Interactive Marker Placement**: Click **Adjust Markers** and click anywhere on the plot to adjust onset/peak/end points visually. The fit will update instantly!
+   - **Save & Export**: Click **💾 Save & Export Results** to write parameters to the CSV and save a high-resolution screenshot.
+
+---
+
+## Python Parameter Constraints Configuration
+
+When running the batch script `batch_process.py`, you can pass custom bounds to constrain the fitting parameters to physiologically reasonable values:
+- `--min-amp` (default: `1e-6`)
+- `--max-amp` (default: `1023.0` - matching the 10-bit microscope digitizer limit)
+- `--min-t2p` (default: `1e-6`)
+- `--max-t2p` (default: dynamically capped to the duration of the fit window)
+- `--min-fwhm` (default: `0.5` seconds - matching physiological transit speed limits)
+- `--max-fwhm` (default: dynamically capped to the duration of the fit window)
+
+For example, to constrain the time-to-peak ($T_{2p}$) between 2.0 and 8.0 seconds:
+```bash
+python batch_process.py --folder sample-subject-2259 --min-t2p 2.0 --max-t2p 8.0
+```
