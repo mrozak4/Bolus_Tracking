@@ -770,6 +770,8 @@ void BolusApp::update_locale() {
         m_tr.filter_pass = "PASS Only";
         m_tr.filter_review = "REVIEW Only";
         m_tr.label_auto_fit = "Original Auto Fit";
+        m_tr.section_denoise = "DENOISING OPTIONS";
+        m_tr.label_denoise_strength = "Denoising Strength";
     } else {
         m_tr.title_app = "SUIVI DE BOLUS - TRIAGE MANUEL";
         m_tr.section_markers = "FENÊTRE DE MODÉLISATION ET MARQUEURS INTERACTIFS";
@@ -861,9 +863,11 @@ void BolusApp::update_locale() {
         m_tr.filter_pass = "CONFORME uniquement";
         m_tr.filter_review = "À RÉVISER uniquement";
         m_tr.label_auto_fit = "Ajustement auto initial";
+        m_tr.section_denoise = "OPTIONS DE DÉBRUITAGE";
+        m_tr.label_denoise_strength = "Force du débruitage";
     }
 }
-BolusApp::BolusApp() : m_fitter(1e-6, 1023.0, 1e-6, 1e6, 0.5, 1e6) {}
+BolusApp::BolusApp() : m_fitter(1e-6, 1023.0, 1e-6, 1e6, 0.5, 1e6), m_denoise_strength_factor(1.0f) {}
 
 BolusApp::~BolusApp() {
     ImPlot::DestroyContext();
@@ -1126,8 +1130,22 @@ bool BolusApp::load_dataset(const std::string& csv_path) {
         }
 
         // Backup the pristine loaded CSV and initial GUI state (before loading user modifications)
+        std::vector<CsvRecord> original_loaded_records = m_records;
+        std::vector<RoiState> original_loaded_states = m_gui_roi_states;
+
+        // Temporarily clear selection index while pre-calculating pristine auto-fits
+        int backup_selected_roi_idx = m_selected_roi_idx;
+        m_selected_roi_idx = -1;
+        for (size_t i = 0; i < m_records.size(); ++i) {
+            run_fit_on_record(i, true);
+        }
         m_records_backup = m_records;
         m_gui_roi_states_backup = m_gui_roi_states;
+
+        // Restore originally loaded CSV values
+        m_records = original_loaded_records;
+        m_gui_roi_states = original_loaded_states;
+        m_selected_roi_idx = backup_selected_roi_idx;
 
         // Try loading gui state
         load_gui_state();
@@ -1136,10 +1154,14 @@ bool BolusApp::load_dataset(const std::string& csv_path) {
         
         // Select either the loaded last active index, or default to triage queue start
         if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records.size())) {
-            select_record(m_selected_roi_idx);
+            int target_idx = m_selected_roi_idx;
+            m_selected_roi_idx = -1; // Bypass saving current modified state
+            select_record(target_idx);
         } else if (!m_triage_queue.empty()) {
+            m_selected_roi_idx = -1; // Bypass saving current modified state
             select_record(m_triage_queue[0]);
         } else {
+            m_selected_roi_idx = -1; // Bypass saving current modified state
             select_record(0);
         }
         
@@ -1170,6 +1192,7 @@ void BolusApp::save_gui_state() {
         out << "LastSelectedRoiIndex=" << m_selected_roi_idx << "\n";
         out << "FilterFlaggedOnly=" << (m_qc_filter_type == 1 ? 1 : 0) << "\n";
         out << "QcFilterType=" << m_qc_filter_type << "\n";
+        out << "DenoiseStrengthFactor=" << m_denoise_strength_factor << "\n";
         out << "# ROI,crop_min,crop_max,onset,peak,end,baseline,qc_flag,fit_source\n";
         for (const auto& s : m_gui_roi_states) {
             out << s.roi_id << ","
@@ -1191,6 +1214,7 @@ void BolusApp::load_gui_state() {
     std::ifstream in(state_path);
     if (!in.is_open()) return;
     
+    int loaded_selected_roi_idx = -1;
     std::string line;
     while (std::getline(in, line)) {
         if (line.empty() || line[0] == '#') continue;
@@ -1200,7 +1224,7 @@ void BolusApp::load_gui_state() {
             std::string key = line.substr(0, eq_pos);
             std::string val = line.substr(eq_pos + 1);
             if (key == "LastSelectedRoiIndex") {
-                try { m_selected_roi_idx = std::stoi(val); } catch (...) {}
+                try { loaded_selected_roi_idx = std::stoi(val); } catch (...) {}
             } else if (key == "FilterFlaggedOnly") {
                 try {
                     int val_int = std::stoi(val);
@@ -1212,6 +1236,8 @@ void BolusApp::load_gui_state() {
                 } catch (...) {}
             } else if (key == "QcFilterType") {
                 try { m_qc_filter_type = std::stoi(val); } catch (...) {}
+            } else if (key == "DenoiseStrengthFactor") {
+                try { m_denoise_strength_factor = std::stof(val); } catch (...) {}
             }
             continue;
         }
@@ -1253,10 +1279,24 @@ void BolusApp::load_gui_state() {
         } catch (...) {}
     }
     std::cout << "Loaded GUI workflow progress from: " << state_path << std::endl;
-    // Keep fit plot visual cache synchronized for all loaded states
+    // Re-apply loaded denoising strength factor to all traces and fit curves
+    precompute_all_traces();
+
+    // Temporarily clear selection index so run_fit_on_record operates purely on loaded state arrays cleanly
+    m_selected_roi_idx = -1;
     for (size_t i = 0; i < m_gui_roi_states.size(); ++i) {
-        precompute_fit_plot(i);
+        if (m_gui_roi_states[i].fit_source == "manual") {
+            run_fit_on_record(i, false);
+        } else if (m_gui_roi_states[i].fit_source == "override") {
+            m_records[i].qc_flag = "PASS";
+            m_records[i].fit_source = "override";
+            m_gui_roi_states[i].qc_flag = "PASS";
+            precompute_fit_plot(i);
+        } else {
+            precompute_fit_plot(i);
+        }
     }
+    m_selected_roi_idx = loaded_selected_roi_idx;
 }
 
     /**
@@ -1344,6 +1384,12 @@ void BolusApp::precompute_all_traces() {
             } else if (raw_cnr >= 8.0) {
                 denoise_thresh = 2.5;
                 denoise_half_win = 5;
+            }
+            
+            // Adjust threshold and half-window size based on GUI denoising strength multiplier
+            if (m_denoise_strength_factor > 0.01f) {
+                denoise_thresh = denoise_thresh / static_cast<double>(m_denoise_strength_factor);
+                denoise_half_win = std::max(1, static_cast<int>(std::round(denoise_half_win * m_denoise_strength_factor)));
             }
             
             // 4. Denoise and Spline
@@ -1546,11 +1592,57 @@ void BolusApp::select_record(int idx) {
      */
 void BolusApp::run_fit_on_current_roi() {
         if (m_selected_roi_idx < 0) return;
+        run_fit_on_record(m_selected_roi_idx, false);
+}
+
+void BolusApp::run_fit_on_record(int idx, bool is_auto) {
+        if (idx < 0 || idx >= static_cast<int>(m_records.size())) return;
         
-        auto& rec = m_records[m_selected_roi_idx];
-        auto& c = m_cache[m_selected_roi_idx];
+        auto& rec = m_records[idx];
+        auto& c = m_cache[idx];
+        auto& s = m_gui_roi_states[idx];
         
-        // 1. Map draggable marker times to the upsampled trace vector
+        double crop_min = 0.0;
+        double crop_max = c.t_raw.empty() ? 120.0 : c.t_raw.back();
+        double onset = 0.0;
+        double peak = 0.0;
+        double end = 0.0;
+        double baseline = 0.0;
+        
+        if (is_auto) {
+            if (!c.y_us.empty()) {
+                AutoEstimateResults auto_res = m_fitter.auto_estimate_params(c.y_us, c.t_us, m_fr, m_upsample_factor);
+                crop_min = auto_res.click_start;
+                onset = auto_res.click_onset;
+                peak = auto_res.click_peak;
+                end = auto_res.click_end;
+                baseline = auto_res.init_params[3];
+            } else {
+                crop_min = 0.0;
+                onset = crop_max * 0.35;
+                peak = onset + 4.0;
+                end = peak + 6.0;
+                baseline = 0.0;
+            }
+        } else {
+            if (idx == m_selected_roi_idx) {
+                crop_min = m_crop_min;
+                crop_max = m_crop_max;
+                onset = m_onset_marker;
+                peak = m_peak_marker;
+                end = m_end_marker;
+                baseline = m_baseline_marker;
+            } else {
+                crop_min = s.crop_min;
+                crop_max = s.crop_max;
+                onset = s.onset;
+                peak = s.peak;
+                end = s.end;
+                baseline = s.baseline;
+            }
+        }
+        
+        // Map visual marker times to the upsampled trace vector
         auto find_nearest_idx = [](const std::vector<double>& vec, double val) -> int {
             auto it = std::lower_bound(vec.begin(), vec.end(), val);
             if (it == vec.end()) return vec.size() - 1;
@@ -1560,16 +1652,16 @@ void BolusApp::run_fit_on_current_roi() {
             return (d1 < d2) ? std::distance(vec.begin(), it) : std::distance(vec.begin(), it - 1);
         };
         
-        int start_idx = find_nearest_idx(c.t_us, m_onset_marker);
-        int end_idx = find_nearest_idx(c.t_us, m_end_marker);
-        int peak_idx = find_nearest_idx(c.t_us, m_peak_marker);
+        int start_idx = find_nearest_idx(c.t_us, onset);
+        int end_idx = find_nearest_idx(c.t_us, end);
+        int peak_idx = find_nearest_idx(c.t_us, peak);
         
         if (end_idx <= start_idx + 5) {
             std::cerr << "Fit Window is too short!" << std::endl;
             return;
         }
         
-        // 2. Prepare sub-vectors relative to the onset
+        // Prepare sub-vectors relative to the onset
         std::vector<double> t_fit(end_idx - start_idx);
         std::vector<double> y_fit(end_idx - start_idx);
         for (int i = start_idx; i < end_idx; ++i) {
@@ -1577,8 +1669,8 @@ void BolusApp::run_fit_on_current_roi() {
             y_fit[i - start_idx] = c.y_us[i];
         }
         
-        // 3. Formulate manual guesses
-        double guess_amp = c.y_us[peak_idx] - m_baseline_marker;
+        // Formulate guesses
+        double guess_amp = c.y_us[peak_idx] - baseline;
         if (guess_amp < 1e-4) guess_amp = 10.0;
         
         double guess_t2p = c.t_us[peak_idx] - c.t_us[start_idx];
@@ -1587,26 +1679,26 @@ void BolusApp::run_fit_on_current_roi() {
         double guess_fwhm = (c.t_us[end_idx] - c.t_us[start_idx]) / 2.0;
         if (guess_fwhm < 0.1) guess_fwhm = 5.0;
         
-        std::vector<double> init_params = {guess_amp, guess_t2p, guess_fwhm, m_baseline_marker};
+        std::vector<double> init_params = {guess_amp, guess_t2p, guess_fwhm, baseline};
         
-        // 4. Run fit solver
+        // Run fit solver
         bool fit_success = false;
         std::vector<double> popt = m_fitter.run_nonlinear_fit(t_fit, y_fit, init_params, c.sd_base, fit_success);
         
-        // 5. Update CsvRecord
-        rec.click_start = m_crop_min;
-        rec.click_onset = m_onset_marker;
-        rec.click_peak = m_peak_marker;
-        rec.click_end = m_end_marker;
+        // Update CsvRecord
+        rec.click_start = crop_min;
+        rec.click_onset = onset;
+        rec.click_peak = peak;
+        rec.click_end = end;
         
         rec.init_amp = guess_amp;
         rec.init_t2p = guess_t2p;
         rec.init_fwhm = guess_fwhm;
-        rec.init_m = m_baseline_marker;
+        rec.init_m = baseline;
         rec.init_cnr = guess_amp / c.sd_base;
-        rec.init_snr = m_baseline_marker / c.sd_base;
+        rec.init_snr = baseline / c.sd_base;
         
-        rec.fit_source = "manual";
+        rec.fit_source = is_auto ? "auto" : "manual";
         
         if (fit_success) {
             // Parity validation check
@@ -1717,23 +1809,29 @@ void BolusApp::run_fit_on_current_roi() {
         }
         
         // Sync to m_gui_roi_states
-        if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_gui_roi_states.size())) {
-            auto& s = m_gui_roi_states[m_selected_roi_idx];
-            s.crop_min = m_crop_min;
-            s.crop_max = m_crop_max;
-            s.onset = m_onset_marker;
-            s.peak = m_peak_marker;
-            s.end = m_end_marker;
-            s.baseline = m_baseline_marker;
-            s.qc_flag = rec.qc_flag;
-            s.fit_source = rec.fit_source;
+        s.crop_min = crop_min;
+        s.crop_max = crop_max;
+        s.onset = onset;
+        s.peak = peak;
+        s.end = end;
+        s.baseline = baseline;
+        s.qc_flag = rec.qc_flag;
+        s.fit_source = rec.fit_source;
+        
+        // If this is the active GUI record, sync GUI variables as well
+        if (idx == m_selected_roi_idx) {
+            m_crop_min = crop_min;
+            m_crop_max = crop_max;
+            m_onset_marker = onset;
+            m_peak_marker = peak;
+            m_end_marker = end;
+            m_baseline_marker = baseline;
         }
-
-        // Update curves and triage state
-        precompute_fit_plot(m_selected_roi_idx);
+        
+        precompute_fit_plot(idx);
         build_triage_queue();
         save_active_roi_svg();
-    }
+}
 
 void BolusApp::save_active_roi_svg() {
         if (m_selected_roi_idx < 0 || m_selected_roi_idx >= static_cast<int>(m_records.size())) return;
@@ -1793,7 +1891,7 @@ void BolusApp::draw_gui() {
         // Main Panels (Left: Sidebar, Right: Plot & Parameter Details)
         ImGui::Separator();
         
-        float sidebar_w = 310.0f;
+        float sidebar_w = 380.0f;
         ImGui::BeginChild("SidebarPane", ImVec2(sidebar_w, 0), true);
         draw_sidebar();
         ImGui::EndChild();
@@ -1862,7 +1960,9 @@ void BolusApp::draw_top_bar() {
         if (!m_csv_path.empty()) {
             load_gui_state();
             if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records.size())) {
-                select_record(m_selected_roi_idx);
+                int target_idx = m_selected_roi_idx;
+                m_selected_roi_idx = -1; // Bypass saving current modified state
+                select_record(target_idx);
             }
             ImGui::OpenPopup(m_tr.modal_load_state_success.c_str());
         }
@@ -2009,7 +2109,7 @@ void BolusApp::draw_sidebar() {
         }
         ImGui::PopStyleColor();
         
-        ImGui::SameLine(115);
+        ImGui::SameLine(170);
         std::string disp_flag;
         if (rec.qc_flag == "PASS") disp_flag = m_tr.qc_pass;
         else if (rec.qc_flag == "WARN") disp_flag = m_tr.qc_warn;
@@ -2019,7 +2119,7 @@ void BolusApp::draw_sidebar() {
         
         ImGui::TextColored(status_color, "[%s]", disp_flag.c_str());
         
-        ImGui::SameLine(215);
+        ImGui::SameLine(280);
         std::string disp_source;
         if (rec.fit_source == "auto") disp_source = m_tr.source_auto;
         else if (rec.fit_source == "manual") disp_source = m_tr.source_manual;
@@ -2337,6 +2437,20 @@ void BolusApp::draw_main_area() {
             m_crop_max = std::min(c.t_raw.back(), m_end_marker + 10.0);
         }
         
+        ImGui::Dummy(ImVec2(0.0f, 6.0f));
+        ImGui::PushFont(m_font_bold);
+        ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", m_tr.section_denoise.c_str());
+        ImGui::PopFont();
+        
+        ImGui::PushItemWidth(180.0f);
+        if (ImGui::SliderFloat(m_tr.label_denoise_strength.c_str(), &m_denoise_strength_factor, 0.5f, 3.0f, "%.2fx")) {
+            precompute_all_traces();
+            if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records.size())) {
+                select_record(m_selected_roi_idx);
+            }
+        }
+        ImGui::PopItemWidth();
+        
         ImGui::Columns(1);
         ImGui::Separator();
         
@@ -2399,6 +2513,7 @@ void BolusApp::clear_subject_data() {
     m_queue_pos = -1;
     m_rois.clear();
     m_tiff = TiffData();
+    m_denoise_strength_factor = 1.0f;
 }
 
 // ============================================================================

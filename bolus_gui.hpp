@@ -98,6 +98,10 @@ struct Translation {
     std::string tag_base;
     std::string btn_clear_data;
     
+    // Denoising translations
+    std::string section_denoise;
+    std::string label_denoise_strength;
+    
     // Status/Source translations (replaces inline ternaries)
     std::string qc_pass;
     std::string qc_warn;
@@ -271,11 +275,13 @@ private:
     BolusFitter m_fitter;
     QCSettings m_qc_settings;
     double m_drift_win = 15.0;
+    float m_denoise_strength_factor = 1.0f;
 
     void update_locale();
     void build_triage_queue();
     void select_record(int idx);
     void run_fit_on_current_roi();
+    void run_fit_on_record(int idx, bool is_auto);
     void precompute_all_traces();
     void precompute_fit_plot(size_t cache_idx);
     void save_active_roi_svg();
