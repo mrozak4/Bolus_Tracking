@@ -28,6 +28,90 @@
 #include "bolus_tracking_cpp.hpp"
 
 // ============================================================================
+// Localization & Translation Structures
+// ============================================================================
+
+enum Language {
+    LANG_EN,
+    LANG_FR
+};
+
+struct Translation {
+    std::string title_app;
+    std::string section_markers;
+    std::string section_crop;
+    std::string section_params;
+    std::string sidebar_title;
+    std::string checkbox_flagged;
+    std::string btn_save_csv;
+    std::string btn_reset_all;
+    std::string btn_load_state;
+    std::string btn_save_state;
+    std::string btn_refit;
+    std::string btn_override;
+    std::string btn_revert;
+    std::string btn_reset_crop;
+    std::string btn_crop_bounds;
+    std::string label_onset;
+    std::string label_peak;
+    std::string label_end;
+    std::string label_baseline;
+    std::string text_slider_desc;
+    std::string btn_ok;
+    std::string btn_cancel;
+    std::string modal_reset_title;
+    std::string modal_reset_desc;
+    std::string btn_reset_confirm;
+    std::string modal_save_success;
+    std::string modal_save_state_success;
+    std::string modal_load_state_success;
+    std::string text_active_roi;
+    std::string text_qc_flag;
+    std::string text_fit_source;
+    std::string text_dataset_loaded;
+    std::string text_roi_count;
+    std::string text_flagged_count;
+    std::string text_manual_count;
+    std::string col_variable;
+    std::string col_amplitude;
+    std::string col_t2p;
+    std::string col_fwhm;
+    std::string col_baseline;
+    std::string col_cnr;
+    std::string col_onset;
+    std::string plot_title;
+    std::string plot_y_axis;
+    std::string plot_x_axis;
+    std::string plot_raw;
+    std::string plot_denoised;
+    std::string plot_fit;
+    std::string current_folder;
+    std::string path_selector;
+    std::string btn_select_folder;
+    std::string btn_open_file;
+    std::string btn_close_dialog;
+    std::string dialog_title;
+    std::string text_total_rois;
+    std::string text_active_queue;
+    std::string text_triage_queue;
+    std::string btn_next_problem;
+    std::string btn_prev_problem;
+    std::string text_no_data;
+    std::string text_plot_status_header;
+    std::string title_manual_override;
+    std::string text_manual_override_desc;
+    std::string btn_revert_loaded;
+    std::string text_load_subject_data;
+    std::string text_save_state_msg;
+    std::string text_load_state_msg;
+    std::string text_save_csv_msg;
+    std::string tag_onset;
+    std::string tag_peak;
+    std::string tag_end;
+    std::string tag_base;
+};
+
+// ============================================================================
 // Data Structures & CSV Parser
 // ============================================================================
 
@@ -478,16 +562,19 @@ public:
         } catch (...) {}
     }
 
+    Translation* tr = nullptr;
+
     void draw(const char* title) {
         if (!open) return;
-        ImGui::OpenPopup(title);
+        const char* actual_title = tr ? tr->dialog_title.c_str() : title;
+        ImGui::OpenPopup(actual_title);
         ImGui::SetNextWindowSize(ImVec2(600, 450), ImGuiCond_Appearing);
-        if (ImGui::BeginPopupModal(title, &open, 0)) {
-            ImGui::Text("Current Folder: %s", current_path.string().c_str());
+        if (ImGui::BeginPopupModal(actual_title, &open, 0)) {
+            ImGui::Text(tr ? (tr->current_folder + ": %s").c_str() : "Current Folder: %s", current_path.string().c_str());
             
             char path_buf[1024];
             strncpy(path_buf, current_path.string().c_str(), sizeof(path_buf));
-            if (ImGui::InputText("Path Selector", path_buf, sizeof(path_buf), ImGuiInputTextFlags_EnterReturnsTrue)) {
+            if (ImGui::InputText(tr ? tr->path_selector.c_str() : "Path Selector", path_buf, sizeof(path_buf), ImGuiInputTextFlags_EnterReturnsTrue)) {
                 std::filesystem::path p(path_buf);
                 if (std::filesystem::exists(p) && std::filesystem::is_directory(p)) {
                     current_path = p;
@@ -519,20 +606,20 @@ public:
             }
             ImGui::EndChild();
             
-            if (ImGui::Button("Select Current Folder", ImVec2(180, 0))) {
+            if (ImGui::Button(tr ? tr->btn_select_folder.c_str() : "Select Current Folder", ImVec2(180, 0))) {
                 selected_file = "";
                 open = false;
                 ImGui::CloseCurrentPopup();
             }
             ImGui::SameLine();
             if (!selected_file.empty()) {
-                if (ImGui::Button("Open Selected File", ImVec2(180, 0))) {
+                if (ImGui::Button(tr ? tr->btn_open_file.c_str() : "Open Selected File", ImVec2(180, 0))) {
                     open = false;
                     ImGui::CloseCurrentPopup();
                 }
             }
             ImGui::SameLine();
-            if (ImGui::Button("Close Dialog", ImVec2(120, 0))) {
+            if (ImGui::Button(tr ? tr->btn_close_dialog.c_str() : "Close Dialog", ImVec2(120, 0))) {
                 open = false;
                 ImGui::CloseCurrentPopup();
             }
@@ -722,6 +809,162 @@ private:
     GLFWwindow* m_window = nullptr;
     FileBrowser m_browser;
     
+    // Translation and fonts
+    Language m_lang = LANG_EN;
+    Translation m_tr;
+    ImFont* m_font_regular = nullptr;
+    ImFont* m_font_bold = nullptr;
+    
+    void update_locale() {
+        if (m_lang == LANG_EN) {
+            m_tr.title_app = "BOLUS TRACKING MANUAL TRIAGE APP";
+            m_tr.section_markers = "FITTING WINDOW & INTERACTIVE MARKERS";
+            m_tr.section_crop = "VISUALIZATION CROP CONTROLS";
+            m_tr.section_params = "CURRENT HEMODYNAMIC PARAMETERS";
+            m_tr.sidebar_title = "Triage Sidebar";
+            m_tr.checkbox_flagged = "Show only problem cases (FAIL/WARN)";
+            m_tr.btn_save_csv = "Save Final CSV";
+            m_tr.btn_reset_all = "Reset All";
+            m_tr.btn_load_state = "Load State";
+            m_tr.btn_save_state = "Save State";
+            m_tr.btn_refit = "Re-Fit Manual Window (LM)";
+            m_tr.btn_override = "Override PASS";
+            m_tr.btn_revert = "Revert to Automatic Assignments";
+            m_tr.btn_reset_crop = "Reset Visual Crop";
+            m_tr.btn_crop_bounds = "Crop to Draggable Bounds";
+            m_tr.label_onset = "Onset Marker (s)";
+            m_tr.label_peak = "Peak Marker (s)";
+            m_tr.label_end = "End Marker (s)";
+            m_tr.label_baseline = "Baseline Value";
+            m_tr.text_slider_desc = "Use the range slider below the plot to adjust the crop region.";
+            m_tr.btn_ok = "OK";
+            m_tr.btn_cancel = "Cancel";
+            m_tr.modal_reset_title = "Reset All Changes?";
+            m_tr.modal_reset_desc = "WARNING: This will discard ALL manual adjustments, overrides,\nand triage edits you have made in this session.\n\nAre you sure you want to proceed?";
+            m_tr.btn_reset_confirm = "Yes, Reset All";
+            m_tr.modal_save_success = "Save Success";
+            m_tr.modal_save_state_success = "Save State Success";
+            m_tr.modal_load_state_success = "Load State Success";
+            m_tr.text_active_roi = "Active ROI:";
+            m_tr.text_qc_flag = "QC Flag:";
+            m_tr.text_fit_source = "Fit Source:";
+            m_tr.text_dataset_loaded = "Dataset Loaded:";
+            m_tr.text_roi_count = "ROI Count:";
+            m_tr.text_flagged_count = "Flagged (FAIL/WARN):";
+            m_tr.text_manual_count = "Manually Updated:";
+            m_tr.col_variable = "Variable";
+            m_tr.col_amplitude = "Amplitude";
+            m_tr.col_t2p = "Time-to-Peak (T2p)";
+            m_tr.col_fwhm = "FWHM";
+            m_tr.col_baseline = "Baseline";
+            m_tr.col_cnr = "CNR";
+            m_tr.col_onset = "Onset (OnT)";
+            m_tr.plot_title = "Trace Fitting Plot";
+            m_tr.plot_x_axis = "Time (s)";
+            m_tr.plot_y_axis = "Signal (SU)";
+            m_tr.plot_raw = "Raw (Detrended)";
+            m_tr.plot_denoised = "Denoised";
+            m_tr.plot_fit = "Gamma Fit";
+            m_tr.current_folder = "Current Folder";
+            m_tr.path_selector = "Path Selector";
+            m_tr.btn_select_folder = "Select Current Folder";
+            m_tr.btn_open_file = "Open Selected File";
+            m_tr.btn_close_dialog = "Close Dialog";
+            m_tr.dialog_title = "Open Folder or File";
+            m_tr.text_total_rois = "Total Dataset ROIs: %d";
+            m_tr.text_active_queue = "Active Filter Queue: %d";
+            m_tr.text_triage_queue = "Triage Queue: %d / %d";
+            m_tr.btn_next_problem = "Next Problem >>";
+            m_tr.btn_prev_problem = "<< Previous Problem";
+            m_tr.text_no_data = "No subject folder or CSV file loaded yet. Use the top button to open a subject data file.";
+            m_tr.text_plot_status_header = "Signal Time Series (SU) - ROI #%d (Size: %d px) | Status: %s (Source: %s)";
+            m_tr.title_manual_override = "MANUAL OVERRIDES & FIT WINDOW ADJUSTMENTS";
+            m_tr.text_manual_override_desc = "Drag the Onset/Peak/End line markers directly on the plot, then click 'Re-Fit' below to manually optimize parameters.";
+            m_tr.btn_revert_loaded = "Revert to Loaded Values";
+            m_tr.text_load_subject_data = "Load Subject Data";
+            m_tr.text_save_state_msg = "Analysis state paused & saved successfully to:\n%s.gui_state";
+            m_tr.text_load_state_msg = "Analysis state resumed successfully from:\n%s.gui_state";
+            m_tr.text_save_csv_msg = "Results written successfully to:\n%s";
+            m_tr.tag_onset = "Onset: %.1fs";
+            m_tr.tag_peak = "Peak: %.1fs";
+            m_tr.tag_end = "End: %.1fs";
+            m_tr.tag_base = "Base: %.1f";
+        } else {
+            m_tr.title_app = "APPLICATION DE SUIVI DE BOLUS - TRIAGE";
+            m_tr.section_markers = "FENÊTRE D'AJUSTEMENT & MARQUEURS INTERACTIFS";
+            m_tr.section_crop = "CONTRÔLES DE ROGNAGE VISUEL";
+            m_tr.section_params = "PARAMÈTRES HÉMODYNAMIQUES ACTUELS";
+            m_tr.sidebar_title = "Barre latérale de triage";
+            m_tr.checkbox_flagged = "Afficher uniquement les cas à problème (ÉCHEC/AVERT)";
+            m_tr.btn_save_csv = "Enregistrer le CSV final";
+            m_tr.btn_reset_all = "Réinitialiser tout";
+            m_tr.btn_load_state = "Charger l'état";
+            m_tr.btn_save_state = "Enregistrer l'état";
+            m_tr.btn_refit = "Réajuster la fenêtre (LM)";
+            m_tr.btn_override = "Forcer PASS";
+            m_tr.btn_revert = "Rétablir les valeurs automatiques";
+            m_tr.btn_reset_crop = "Réinitialiser le rognage";
+            m_tr.btn_crop_bounds = "Rogner aux limites des marqueurs";
+            m_tr.label_onset = "Marqueur de début (s)";
+            m_tr.label_peak = "Marqueur de pic (s)";
+            m_tr.label_end = "Marqueur de fin (s)";
+            m_tr.label_baseline = "Valeur de référence";
+            m_tr.text_slider_desc = "Utilisez le curseur double sous le graphique pour le rognage visuel.";
+            m_tr.btn_ok = "OK";
+            m_tr.btn_cancel = "Annuler";
+            m_tr.modal_reset_title = "Réinitialiser toutes les modifications ?";
+            m_tr.modal_reset_desc = "AVERTISSEMENT: Cela annulera TOUTES les modifications manuelles,\nles forçages et les modifications de triage effectués dans cette session.\n\nÊtes-vous sûr de vouloir continuer ?";
+            m_tr.btn_reset_confirm = "Oui, tout réinitialiser";
+            m_tr.modal_save_success = "Enregistrement réussi";
+            m_tr.modal_save_state_success = "Enregistrement de l'état réussi";
+            m_tr.modal_load_state_success = "Chargement de l'état réussi";
+            m_tr.text_active_roi = "ROI active:";
+            m_tr.text_qc_flag = "Drapeau CQ:";
+            m_tr.text_fit_source = "Source d'ajustement:";
+            m_tr.text_dataset_loaded = "Jeu de données chargé:";
+            m_tr.text_roi_count = "Nombre de ROI:";
+            m_tr.text_flagged_count = "Signalé (ÉCHEC/AVERT):";
+            m_tr.text_manual_count = "Modifié manuellement:";
+            m_tr.col_variable = "Variable";
+            m_tr.col_amplitude = "Amplitude";
+            m_tr.col_t2p = "Temps de pic (T2p)";
+            m_tr.col_fwhm = "FWHM";
+            m_tr.col_baseline = "Référence";
+            m_tr.col_cnr = "CNR";
+            m_tr.col_onset = "Début (OnT)";
+            m_tr.plot_title = "Graphique d'ajustement du tracé";
+            m_tr.plot_x_axis = "Temps (s)";
+            m_tr.plot_y_axis = "Signal (SU)";
+            m_tr.plot_raw = "Brut (Sans tendance)";
+            m_tr.plot_denoised = "Débruité";
+            m_tr.plot_fit = "Ajustement Gamma";
+            m_tr.current_folder = "Dossier actuel";
+            m_tr.path_selector = "Sélecteur de chemin";
+            m_tr.btn_select_folder = "Sélectionner le dossier actuel";
+            m_tr.btn_open_file = "Ouvrir le fichier sélectionné";
+            m_tr.btn_close_dialog = "Fermer le dialogue";
+            m_tr.dialog_title = "Ouvrir un dossier ou un fichier";
+            m_tr.text_total_rois = "Total des ROIs: %d";
+            m_tr.text_active_queue = "File de filtrage active: %d";
+            m_tr.text_triage_queue = "File de triage: %d / %d";
+            m_tr.btn_next_problem = "Cas suivant >>";
+            m_tr.btn_prev_problem = "<< Cas précédent";
+            m_tr.text_no_data = "Aucun dossier de sujet ou fichier CSV chargé. Utilisez le bouton en haut pour charger les données d'un sujet.";
+            m_tr.text_plot_status_header = "Série temporelle (SU) - ROI #%d (Taille: %d px) | Statut: %s (Source: %s)";
+            m_tr.title_manual_override = "MODIFICATIONS MANUELLES ET AJUSTEMENTS DE LA FENÊTRE";
+            m_tr.text_manual_override_desc = "Faites glisser les marqueurs Onset/Peak/End directement sur le graphique, puis cliquez sur 'Réajuster' ci-dessous.";
+            m_tr.btn_revert_loaded = "Rétablir les valeurs chargées";
+            m_tr.text_load_subject_data = "Charger les données";
+            m_tr.text_save_state_msg = "État de l'analyse suspendu et enregistré avec succès dans:\n%s.gui_state";
+            m_tr.text_load_state_msg = "État de l'analyse repris avec succès depuis:\n%s.gui_state";
+            m_tr.text_save_csv_msg = "Résultats écrits avec succès dans:\n%s";
+            m_tr.tag_onset = "Début: %.1fs";
+            m_tr.tag_peak = "Pic: %.1fs";
+            m_tr.tag_end = "Fin: %.1fs";
+            m_tr.tag_base = "Réf: %.1f";
+        }
+    }
+    
     // Dataset Paths
     std::string m_csv_path = "";
     std::string m_tiff_path = "";
@@ -789,10 +1032,11 @@ public:
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 #endif
         
-        m_window = glfwCreateWindow(1360, 780, "Bolus Tracking GUI - Triage App", NULL, NULL);
+        m_window = glfwCreateWindow(1600, 950, "Bolus Tracking GUI - Triage App", NULL, NULL);
         if (!m_window) return false;
         
         glfwMakeContextCurrent(m_window);
+        glfwMaximizeWindow(m_window);
         glfwSwapInterval(1);
         
         IMGUI_CHECKVERSION();
@@ -874,6 +1118,26 @@ public:
         colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
         colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.12f, 0.12f, 0.11f, 0.60f);
         
+        // Load custom high-quality MCM Outfit fonts
+        ImFontConfig font_config;
+        font_config.OversampleH = 3;
+        font_config.OversampleV = 3;
+        font_config.PixelSnapH = true;
+        
+        m_font_regular = io.Fonts->AddFontFromFileTTF("resources/fonts/Outfit-Medium.ttf", 16.0f, &font_config);
+        m_font_bold = io.Fonts->AddFontFromFileTTF("resources/fonts/Outfit-Bold.ttf", 18.0f, &font_config);
+        
+        if (!m_font_regular) {
+            m_font_regular = io.Fonts->AddFontDefault();
+        }
+        if (!m_font_bold) {
+            m_font_bold = m_font_regular;
+        }
+
+        // Initialize translations
+        update_locale();
+        m_browser.tr = &m_tr;
+
         ImGui_ImplGlfw_InitForOpenGL(m_window, true);
         ImGui_ImplOpenGL3_Init(glsl_version);
         
@@ -998,12 +1262,12 @@ public:
             s.fit_source = rec.fit_source;
         }
 
-        // Try loading gui state
-        load_gui_state();
-        
-        // Backup the loaded CSV and GUI state for reverting
+        // Backup the pristine loaded CSV and initial GUI state (before loading user modifications)
         m_records_backup = m_records;
         m_gui_roi_states_backup = m_gui_roi_states;
+
+        // Try loading gui state
+        load_gui_state();
         
         build_triage_queue();
         
@@ -1559,6 +1823,7 @@ private:
      * @brief Render the graphical panels.
      */
     void draw_gui() {
+        ImGui::PushFont(m_font_regular);
         ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(viewport->WorkPos);
         ImGui::SetNextWindowSize(viewport->WorkSize);
@@ -1585,17 +1850,34 @@ private:
         
         // Draw file browser modal
         m_browser.draw("Open Folder or File");
+        ImGui::PopFont();
     }
 
     void draw_top_bar() {
-        ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "BOLUS TRACKING MANUAL TRIAGE APP");
+        ImGui::PushFont(m_font_bold);
+        ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", m_tr.title_app.c_str());
+        ImGui::PopFont();
         ImGui::SameLine();
-        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 670.0f);
-        if (ImGui::Button("Load Subject Data", ImVec2(140, 24))) {
+        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 790.0f);
+        
+        if (m_lang == LANG_EN) {
+            if (ImGui::Button("FR (Quebec)", ImVec2(105, 24))) {
+                m_lang = LANG_FR;
+                update_locale();
+            }
+        } else {
+            if (ImGui::Button("EN (English)", ImVec2(105, 24))) {
+                m_lang = LANG_EN;
+                update_locale();
+            }
+        }
+        ImGui::SameLine();
+        
+        if (ImGui::Button(m_tr.text_load_subject_data.c_str(), ImVec2(145, 24))) {
             m_browser.open = true;
         }
         ImGui::SameLine();
-        if (ImGui::Button("Save State", ImVec2(100, 24))) {
+        if (ImGui::Button(m_tr.btn_save_state.c_str(), ImVec2(100, 24))) {
             if (!m_csv_path.empty()) {
                 // Sync current workspace parameters to the GUI state array before saving
                 if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records.size())) {
@@ -1610,74 +1892,80 @@ private:
                     s.fit_source = m_records[m_selected_roi_idx].fit_source;
                 }
                 save_gui_state();
-                ImGui::OpenPopup("Save State Success");
+                ImGui::OpenPopup(m_tr.modal_save_state_success.c_str());
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("Load State", ImVec2(100, 24))) {
+        if (ImGui::Button(m_tr.btn_load_state.c_str(), ImVec2(100, 24))) {
             if (!m_csv_path.empty()) {
                 load_gui_state();
                 if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records.size())) {
                     select_record(m_selected_roi_idx);
                 }
-                ImGui::OpenPopup("Load State Success");
+                ImGui::OpenPopup(m_tr.modal_load_state_success.c_str());
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("Reset All", ImVec2(100, 24))) {
+        if (ImGui::Button(m_tr.btn_reset_all.c_str(), ImVec2(100, 24))) {
             if (!m_csv_path.empty()) {
-                ImGui::OpenPopup("Reset All Changes?");
+                ImGui::OpenPopup(m_tr.modal_reset_title.c_str());
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("Save Final CSV", ImVec2(120, 24))) {
+        if (ImGui::Button(m_tr.btn_save_csv.c_str(), ImVec2(120, 24))) {
             if (!m_csv_path.empty()) {
                 save_results_csv(m_csv_path, m_records);
                 save_gui_state();
-                ImGui::OpenPopup("Save Success");
+                std::system("afplay -t 8 resources/hallelujah.mp3 &");
+                ImGui::OpenPopup(m_tr.modal_save_success.c_str());
             }
         }
         
-        if (ImGui::BeginPopupModal("Save Success", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-            ImGui::Text("Results written successfully to:\n%s", m_csv_path.c_str());
+        if (ImGui::BeginPopupModal(m_tr.modal_save_success.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text(m_tr.text_save_csv_msg.c_str(), m_csv_path.c_str());
             ImGui::Separator();
-            if (ImGui::Button("OK", ImVec2(120, 0))) {
+            if (ImGui::Button(m_tr.btn_ok.c_str(), ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
         }
-        if (ImGui::BeginPopupModal("Save State Success", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-            ImGui::Text("Analysis state paused & saved successfully to:\n%s.gui_state", m_csv_path.c_str());
+        if (ImGui::BeginPopupModal(m_tr.modal_save_state_success.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text(m_tr.text_save_state_msg.c_str(), m_csv_path.c_str());
             ImGui::Separator();
-            if (ImGui::Button("OK", ImVec2(120, 0))) {
+            if (ImGui::Button(m_tr.btn_ok.c_str(), ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
         }
-        if (ImGui::BeginPopupModal("Load State Success", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-            ImGui::Text("Analysis state resumed successfully from:\n%s.gui_state", m_csv_path.c_str());
+        if (ImGui::BeginPopupModal(m_tr.modal_load_state_success.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text(m_tr.text_load_state_msg.c_str(), m_csv_path.c_str());
             ImGui::Separator();
-            if (ImGui::Button("OK", ImVec2(120, 0))) {
+            if (ImGui::Button(m_tr.btn_ok.c_str(), ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
         }
-        if (ImGui::BeginPopupModal("Reset All Changes?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-            ImGui::Text("WARNING: This will discard ALL manual adjustments, overrides,\nand triage edits you have made in this session.\n\nAre you sure you want to proceed?");
+        if (ImGui::BeginPopupModal(m_tr.modal_reset_title.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("%s", m_tr.modal_reset_desc.c_str());
             ImGui::Separator();
-            if (ImGui::Button("Yes, Reset All", ImVec2(120, 0))) {
+            if (ImGui::Button(m_tr.btn_reset_confirm.c_str(), ImVec2(120, 0))) {
+                int active_idx = m_selected_roi_idx;
+                m_selected_roi_idx = -1; // Bypass saving current modified state
                 m_records = m_records_backup;
                 m_gui_roi_states = m_gui_roi_states_backup;
-                if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records.size())) {
-                    select_record(m_selected_roi_idx);
-                    precompute_fit_plot(m_selected_roi_idx);
+                if (active_idx >= 0 && active_idx < static_cast<int>(m_records.size())) {
+                    select_record(active_idx);
+                    precompute_fit_plot(active_idx);
+                } else {
+                    m_selected_roi_idx = -1;
                 }
                 build_triage_queue();
+                save_gui_state();
                 save_active_roi_svg();
                 ImGui::CloseCurrentPopup();
             }
             ImGui::SameLine();
-            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            if (ImGui::Button(m_tr.btn_cancel.c_str(), ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
@@ -1685,23 +1973,25 @@ private:
     }
 
     void draw_sidebar() {
-        ImGui::Text("Triage Sidebar");
+        ImGui::PushFont(m_font_bold);
+        ImGui::Text("%s", m_tr.sidebar_title.c_str());
+        ImGui::PopFont();
         ImGui::Separator();
         
-        if (ImGui::Checkbox("Show only problem cases (FAIL/WARN)", &m_filter_flagged_only)) {
+        if (ImGui::Checkbox(m_tr.checkbox_flagged.c_str(), &m_filter_flagged_only)) {
             build_triage_queue();
             if (!m_triage_queue.empty()) {
                 select_record(m_triage_queue[0]);
             }
         }
         
-        ImGui::Text("Total Dataset ROIs: %d", (int)m_records.size());
-        ImGui::Text("Active Filter Queue: %d", (int)m_triage_queue.size());
+        ImGui::Text(m_tr.text_total_rois.c_str(), (int)m_records.size());
+        ImGui::Text(m_tr.text_active_queue.c_str(), (int)m_triage_queue.size());
         int manual_count = 0;
         for (const auto& r : m_records) {
             if (r.fit_source != "auto") manual_count++;
         }
-        ImGui::Text("Manually Updated: %d", manual_count);
+        ImGui::Text(m_tr.text_manual_count.c_str(), manual_count);
         ImGui::Separator();
         
         ImGui::BeginChild("ListScrollPane", ImVec2(0, 0), false);
@@ -1732,14 +2022,26 @@ private:
             ImGui::PopStyleColor();
             
             ImGui::SameLine(180);
-            ImGui::TextColored(status_color, "[%s]", rec.qc_flag.c_str());
+            std::string disp_flag = rec.qc_flag;
+            if (m_lang == LANG_FR) {
+                if (disp_flag == "PASS") disp_flag = "SUCCÈS";
+                else if (disp_flag == "WARN") disp_flag = "AVERT";
+                else if (disp_flag == "FAIL") disp_flag = "ÉCHEC";
+            }
+            ImGui::TextColored(status_color, "[%s]", disp_flag.c_str());
             
             ImGui::SameLine(260);
+            std::string disp_source = rec.fit_source;
+            if (m_lang == LANG_FR) {
+                if (disp_source == "auto") disp_source = "auto";
+                else if (disp_source == "manual") disp_source = "manuel";
+                else if (disp_source == "override") disp_source = "forcé";
+            }
             if (rec.fit_source != "auto") {
                 // Highlight manually updated fits in terracotta
-                ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", rec.fit_source.c_str());
+                ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", disp_source.c_str());
             } else {
-                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "%s", rec.fit_source.c_str());
+                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "%s", disp_source.c_str());
             }
         }
         ImGui::EndChild();
@@ -1747,7 +2049,7 @@ private:
 
     void draw_main_area() {
         if (m_selected_roi_idx < 0) {
-            ImGui::Text("No subject folder or CSV file loaded yet. Use the top button to open a file.");
+            ImGui::Text("%s", m_tr.text_no_data.c_str());
             
             // Check if file browser selected a file
             if (!m_browser.selected_file.empty()) {
@@ -1764,7 +2066,19 @@ private:
         const auto& c = m_cache[m_selected_roi_idx];
         
         // Render plot
-        ImGui::Text("Signal Time Series (SU) - ROI #%d (Size: %d px) | Status: %s (Source: %s)", rec.roi_id, rec.roi_size, rec.qc_flag.c_str(), rec.fit_source.c_str());
+        std::string disp_flag = rec.qc_flag;
+        if (m_lang == LANG_FR) {
+            if (disp_flag == "PASS") disp_flag = "SUCCÈS";
+            else if (disp_flag == "WARN") disp_flag = "AVERT";
+            else if (disp_flag == "FAIL") disp_flag = "ÉCHEC";
+        }
+        std::string disp_source = rec.fit_source;
+        if (m_lang == LANG_FR) {
+            if (disp_source == "auto") disp_source = "automatique";
+            else if (disp_source == "manual") disp_source = "manuel";
+            else if (disp_source == "override") disp_source = "forcé";
+        }
+        ImGui::Text(m_tr.text_plot_status_header.c_str(), rec.roi_id, rec.roi_size, disp_flag.c_str(), disp_source.c_str());
         
         // Calculate Y limits with a 10% buffer based on visible traces in the crop range
         double visible_y_min = std::numeric_limits<double>::max();
@@ -1829,8 +2143,8 @@ private:
         ImVec2 plot_pos(0.0f, 0.0f);
         ImVec2 plot_size(0.0f, 0.0f);
         
-        if (ImPlot::BeginPlot("Trace Fitting Plot", ImVec2(-1, 380))) {
-            ImPlot::SetupAxes("Time (s)", "Signal (SU)");
+        if (ImPlot::BeginPlot(m_tr.plot_title.c_str(), ImVec2(-1, 380))) {
+            ImPlot::SetupAxes(m_tr.plot_x_axis.c_str(), m_tr.plot_y_axis.c_str());
             
             // Limit the current axis limits to show cropped visual window on the fly
             ImPlot::SetupAxisLimits(ImAxis_X1, m_crop_min, m_crop_max, ImGuiCond_Always);
@@ -1843,17 +2157,17 @@ private:
             // Draw visual curves
             ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, 1.5f);
             ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(0.85f, 0.78f, 0.62f, 0.70f)); // Warm gold/brass
-            ImPlot::PlotLine("Raw (Detrended)", c.t_raw.data(), c.y_raw_detrended.data(), c.t_raw.size());
+            ImPlot::PlotLine(m_tr.plot_raw.c_str(), c.t_raw.data(), c.y_raw_detrended.data(), c.t_raw.size());
             ImPlot::PopStyleColor();
             
             ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(0.37f, 0.64f, 0.64f, 1.0f)); // Muted Sage/Teal
-            ImPlot::PlotLine("Denoised", c.t_raw.data(), c.y_denoised.data(), c.t_raw.size());
+            ImPlot::PlotLine(m_tr.plot_denoised.c_str(), c.t_raw.data(), c.y_denoised.data(), c.t_raw.size());
             ImPlot::PopStyleColor();
             
             if (!c.y_fit_plot.empty()) {
                 ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(0.88f, 0.45f, 0.18f, 1.0f)); // Terracotta orange
                 ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, 2.5f);
-                ImPlot::PlotLine("Gamma Fit", c.t_fit_plot.data(), c.y_fit_plot.data(), c.t_fit_plot.size());
+                ImPlot::PlotLine(m_tr.plot_fit.c_str(), c.t_fit_plot.data(), c.y_fit_plot.data(), c.t_fit_plot.size());
                 ImPlot::PopStyleVar();
                 ImPlot::PopStyleColor();
             }
@@ -1875,10 +2189,10 @@ private:
             m_end_marker = std::clamp(m_end_marker, m_peak_marker + min_gap, max_t);
             
             // Annotate Draggable Lines with formatted numeric values
-            ImPlot::TagX(m_onset_marker, ImVec4(0.55f, 0.62f, 0.45f, 1.0f), "Onset: %.1fs", m_onset_marker);
-            ImPlot::TagX(m_peak_marker, ImVec4(0.92f, 0.72f, 0.30f, 1.0f), "Peak: %.1fs", m_peak_marker);
-            ImPlot::TagX(m_end_marker, ImVec4(0.80f, 0.32f, 0.22f, 1.0f), "End: %.1fs", m_end_marker);
-            ImPlot::TagY(m_baseline_marker, ImVec4(0.68f, 0.48f, 0.68f, 1.0f), "Base: %.1f", m_baseline_marker);
+            ImPlot::TagX(m_onset_marker, ImVec4(0.55f, 0.62f, 0.45f, 1.0f), m_tr.tag_onset.c_str(), m_onset_marker);
+            ImPlot::TagX(m_peak_marker, ImVec4(0.92f, 0.72f, 0.30f, 1.0f), m_tr.tag_peak.c_str(), m_peak_marker);
+            ImPlot::TagX(m_end_marker, ImVec4(0.80f, 0.32f, 0.22f, 1.0f), m_tr.tag_end.c_str(), m_end_marker);
+            ImPlot::TagY(m_baseline_marker, ImVec4(0.68f, 0.48f, 0.68f, 1.0f), m_tr.tag_base.c_str(), m_baseline_marker);
             
             ImPlot::EndPlot();
         }
@@ -1903,15 +2217,15 @@ private:
         ImGui::BeginChild("ParamsPane", ImVec2(0, 0), true);
         
         // Navigation Buttons
-        if (ImGui::Button("<< Previous Problem", ImVec2(180, 0))) {
+        if (ImGui::Button(m_tr.btn_prev_problem.c_str(), ImVec2(180, 0))) {
             if (m_queue_pos > 0) {
                 select_record(m_triage_queue[m_queue_pos - 1]);
             }
         }
         ImGui::SameLine();
-        ImGui::Text("Triage Queue: %d / %d", m_queue_pos + 1, (int)m_triage_queue.size());
+        ImGui::Text(m_tr.text_triage_queue.c_str(), m_queue_pos + 1, (int)m_triage_queue.size());
         ImGui::SameLine();
-        if (ImGui::Button("Next Problem >>", ImVec2(180, 0))) {
+        if (ImGui::Button(m_tr.btn_next_problem.c_str(), ImVec2(180, 0))) {
             if (m_queue_pos >= 0 && m_queue_pos + 1 < static_cast<int>(m_triage_queue.size())) {
                 select_record(m_triage_queue[m_queue_pos + 1]);
             }
@@ -1923,37 +2237,39 @@ private:
         ImGui::Columns(2, "ControlsGrid", false);
         ImGui::SetColumnWidth(0, 480.0f);
         
-        ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "FITTING WINDOW & INTERACTIVE MARKERS");
+        ImGui::PushFont(m_font_bold);
+        ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", m_tr.section_markers.c_str());
+        ImGui::PopFont();
         double min_t = 0.0;
         double max_t = c.t_raw.back();
         double base_min = 0.0;
         double base_max = 1000.0;
         ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.55f, 0.62f, 0.45f, 0.8f));
         ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.65f, 0.72f, 0.55f, 1.0f));
-        ImGui::SliderScalar("Onset Marker (s)", ImGuiDataType_Double, &m_onset_marker, &min_t, &max_t, "%.1f");
+        ImGui::SliderScalar(m_tr.label_onset.c_str(), ImGuiDataType_Double, &m_onset_marker, &min_t, &max_t, "%.1f");
         ImGui::PopStyleColor(2);
 
         ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.92f, 0.72f, 0.30f, 0.8f));
         ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.00f, 0.82f, 0.40f, 1.0f));
-        ImGui::SliderScalar("Peak Marker (s)", ImGuiDataType_Double, &m_peak_marker, &m_onset_marker, &max_t, "%.1f");
+        ImGui::SliderScalar(m_tr.label_peak.c_str(), ImGuiDataType_Double, &m_peak_marker, &m_onset_marker, &max_t, "%.1f");
         ImGui::PopStyleColor(2);
 
         ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.80f, 0.32f, 0.22f, 0.8f));
         ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.90f, 0.42f, 0.32f, 1.0f));
-        ImGui::SliderScalar("End Marker (s)", ImGuiDataType_Double, &m_end_marker, &m_peak_marker, &max_t, "%.1f");
+        ImGui::SliderScalar(m_tr.label_end.c_str(), ImGuiDataType_Double, &m_end_marker, &m_peak_marker, &max_t, "%.1f");
         ImGui::PopStyleColor(2);
 
         ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.68f, 0.48f, 0.68f, 0.8f));
         ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.78f, 0.58f, 0.78f, 1.0f));
-        ImGui::SliderScalar("Baseline Value", ImGuiDataType_Double, &m_baseline_marker, &base_min, &base_max, "%.1f");
+        ImGui::SliderScalar(m_tr.label_baseline.c_str(), ImGuiDataType_Double, &m_baseline_marker, &base_min, &base_max, "%.1f");
         ImGui::PopStyleColor(2);
         
         ImGui::Dummy(ImVec2(0.0f, 8.0f));
-        if (ImGui::Button("Re-Fit Manual Window (LM)", ImVec2(240, 36))) {
+        if (ImGui::Button(m_tr.btn_refit.c_str(), ImVec2(240, 36))) {
             run_fit_on_current_roi();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Override PASS", ImVec2(140, 36))) {
+        if (ImGui::Button(m_tr.btn_override.c_str(), ImVec2(140, 36))) {
             m_records[m_selected_roi_idx].qc_flag = "PASS";
             m_records[m_selected_roi_idx].fit_source = "override";
             if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_gui_roi_states.size())) {
@@ -1965,7 +2281,7 @@ private:
         }
         
         ImGui::Dummy(ImVec2(0.0f, 4.0f));
-        if (ImGui::Button("Revert to Automatic Assignments", ImVec2(240, 30))) {
+        if (ImGui::Button(m_tr.btn_revert.c_str(), ImVec2(240, 30))) {
             if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records_backup.size())) {
                 int idx = m_selected_roi_idx;
                 m_records[idx] = m_records_backup[idx];
@@ -1980,15 +2296,17 @@ private:
         
         ImGui::NextColumn();
         
-        ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "VISUALIZATION CROP CONTROLS");
-        ImGui::Text("Use the range slider below the plot to adjust the crop region.");
+        ImGui::PushFont(m_font_bold);
+        ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", m_tr.section_crop.c_str());
+        ImGui::PopFont();
+        ImGui::Text("%s", m_tr.text_slider_desc.c_str());
         ImGui::Dummy(ImVec2(0.0f, 4.0f));
-        if (ImGui::Button("Reset Visual Crop", ImVec2(180, 30))) {
+        if (ImGui::Button(m_tr.btn_reset_crop.c_str(), ImVec2(180, 30))) {
             m_crop_min = 0.0;
             m_crop_max = c.t_raw.back();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Crop to Draggable Bounds", ImVec2(240, 30))) {
+        if (ImGui::Button(m_tr.btn_crop_bounds.c_str(), ImVec2(240, 30))) {
             m_crop_min = std::max(0.0, m_onset_marker - 5.0);
             m_crop_max = std::min(c.t_raw.back(), m_end_marker + 10.0);
         }
@@ -1997,15 +2315,17 @@ private:
         ImGui::Separator();
         
         // Active fit parameters table comparison
-        ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "CURRENT HEMODYNAMIC PARAMETERS");
+        ImGui::PushFont(m_font_bold);
+        ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", m_tr.section_params.c_str());
+        ImGui::PopFont();
         if (ImGui::BeginTable("ParamsTable", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-            ImGui::TableSetupColumn("Variable");
-            ImGui::TableSetupColumn("Amplitude");
-            ImGui::TableSetupColumn("Time-to-Peak (T2p)");
-            ImGui::TableSetupColumn("FWHM");
-            ImGui::TableSetupColumn("Baseline");
-            ImGui::TableSetupColumn("CNR");
-            ImGui::TableSetupColumn("Onset (OnT)");
+            ImGui::TableSetupColumn(m_tr.col_variable.c_str());
+            ImGui::TableSetupColumn(m_tr.col_amplitude.c_str());
+            ImGui::TableSetupColumn(m_tr.col_t2p.c_str());
+            ImGui::TableSetupColumn(m_tr.col_fwhm.c_str());
+            ImGui::TableSetupColumn(m_tr.col_baseline.c_str());
+            ImGui::TableSetupColumn(m_tr.col_cnr.c_str());
+            ImGui::TableSetupColumn(m_tr.col_onset.c_str());
             ImGui::TableHeadersRow();
             
             auto display_val = [](double val) {
@@ -2015,7 +2335,7 @@ private:
             
             // Fitted row
             ImGui::TableNextRow();
-            ImGui::TableNextColumn(); ImGui::Text("Fitted");
+            ImGui::TableNextColumn(); ImGui::Text(m_lang == LANG_FR ? "Ajusté" : "Fitted");
             ImGui::TableNextColumn(); display_val(rec.f_amp);
             ImGui::TableNextColumn(); display_val(rec.f_t2p);
             ImGui::TableNextColumn(); display_val(rec.f_fwhm);
@@ -2025,7 +2345,7 @@ private:
             
             // Pre-guess row
             ImGui::TableNextRow();
-            ImGui::TableNextColumn(); ImGui::Text("Estimated (Init)");
+            ImGui::TableNextColumn(); ImGui::Text(m_lang == LANG_FR ? "Estimé (Init)" : "Estimated (Init)");
             ImGui::TableNextColumn(); display_val(rec.init_amp);
             ImGui::TableNextColumn(); display_val(rec.init_t2p);
             ImGui::TableNextColumn(); display_val(rec.init_fwhm);
