@@ -867,6 +867,14 @@ public:
         
         precompute_all_traces();
         
+        if (m_records.size() != m_cache.size()) {
+            std::cerr << "Warning: Mismatch between CSV record count (" << m_records.size()
+                      << ") and ROI cache count (" << m_cache.size() << "). Aligning to minimum." << std::endl;
+            size_t min_sz = std::min(m_records.size(), m_cache.size());
+            m_records.resize(min_sz);
+            m_cache.resize(min_sz);
+        }
+        
         // Reconstruct missing interactive markers if NaN
         for (size_t i = 0; i < m_records.size(); ++i) {
             auto& rec = m_records[i];
@@ -1585,6 +1593,27 @@ private:
         double y_limit_min = visible_y_min - 0.15 * y_range;
         double y_limit_max = visible_y_max + 0.15 * y_range;
         
+        // Sanitization to prevent crashes in ImPlot assertions (e.g. on NaNs, Inf, or empty ranges)
+        if (std::isnan(m_crop_min) || std::isinf(m_crop_min)) m_crop_min = 0.0;
+        if (std::isnan(m_crop_max) || std::isinf(m_crop_max)) m_crop_max = c.t_raw.empty() ? 120.0 : c.t_raw.back();
+        if (std::isnan(m_crop_max) || std::isinf(m_crop_max)) m_crop_max = 120.0;
+        if (m_crop_min >= m_crop_max) m_crop_max = m_crop_min + 1.0;
+
+        if (std::isnan(y_limit_min) || std::isinf(y_limit_min)) y_limit_min = 0.0;
+        if (std::isnan(y_limit_max) || std::isinf(y_limit_max)) y_limit_max = 100.0;
+        if (y_limit_min >= y_limit_max) y_limit_max = y_limit_min + 1.0;
+
+        // Draggable markers sanitization
+        if (std::isnan(m_onset_marker) || std::isinf(m_onset_marker)) m_onset_marker = m_crop_min + 0.35 * (m_crop_max - m_crop_min);
+        if (std::isnan(m_peak_marker) || std::isinf(m_peak_marker)) m_peak_marker = m_onset_marker + 4.0;
+        if (std::isnan(m_end_marker) || std::isinf(m_end_marker)) m_end_marker = m_peak_marker + 6.0;
+        if (std::isnan(m_baseline_marker) || std::isinf(m_baseline_marker)) m_baseline_marker = (y_limit_min + y_limit_max) / 2.0;
+
+        // Ensure order constraints even on NaNs/Infs
+        m_onset_marker = std::clamp(m_onset_marker, m_crop_min, m_crop_max);
+        m_peak_marker = std::clamp(m_peak_marker, m_onset_marker + 0.01, m_crop_max);
+        m_end_marker = std::clamp(m_end_marker, m_peak_marker + 0.01, m_crop_max);
+
         // Draggable Baseline visual crop limits setup
         ImPlot::SetNextAxesLimits(m_crop_min, m_crop_max, y_limit_min, y_limit_max, ImGuiCond_Always);
         
@@ -1625,6 +1654,7 @@ private:
             
             // Enforce ordering and bounds constraints on markers immediately
             double max_t = c.t_raw.empty() ? 120.0 : c.t_raw.back();
+            if (std::isnan(max_t) || std::isinf(max_t)) max_t = 120.0;
             const double min_gap = 0.1; // 100 ms minimum gap
             m_onset_marker = std::clamp(m_onset_marker, 0.0, max_t - 2.0 * min_gap);
             m_peak_marker = std::clamp(m_peak_marker, m_onset_marker + min_gap, max_t - min_gap);
