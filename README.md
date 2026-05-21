@@ -74,10 +74,19 @@ bash run_pipeline.sh
 ```
 
 ### Launch C++ GUI
-Build the binaries locally and run the GUI:
+
+#### On macOS (Clickable App Bundle)
+Build, package, and launch the GUI as a native macOS app:
+```bash
+bash install_macos.sh
+open /Applications/BolusTrackingStudio.app
+```
+
+#### On Linux, Windows, or Manual macOS Setup
+Build and run the executable locally:
 ```bash
 mkdir -p build && cd build
-cmake ..
+cmake -DBUILD_GUI=ON ..
 make -j4
 ./bolus_tracking_gui
 ```

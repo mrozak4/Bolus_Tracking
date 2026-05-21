@@ -107,11 +107,20 @@ Since GUI applications require display access, they are run locally on your host
 The C++ GUI is a high-performance visual dashboard built on top of the ultra-fast C++ fitting engine. It uses Dear ImGui and ImPlot to display traces, triage problem fits, adjust fitting parameters, and crop data ranges interactively.
 
 #### How to Build and Launch the C++ GUI:
+
+##### Option A: Automatic Installer (macOS Only)
+If you are on macOS, you can automatically build, package, and install a native clickable app bundle with a custom icon in one command:
+```bash
+bash install_macos.sh
+```
+This script compiles the GUI, builds `BolusTrackingStudio.app` in the repository folder, and installs it into `/Applications/` so you can launch it directly from Finder or Spotlight.
+
+##### Option B: Manual Compilation (macOS, Linux, Windows)
 1. Make sure you have CMake, a C++17 compiler, and LibTIFF installed on your system.
-2. Build the project locally:
+2. Compile the binaries locally:
    ```bash
    mkdir -p build && cd build
-   cmake ..
+   cmake -DBUILD_GUI=ON ..
    make -j4
    ```
 3. Run the GUI:
