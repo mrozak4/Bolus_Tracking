@@ -14,6 +14,13 @@ MIN_T2P_FLAG=""
 MAX_T2P_FLAG=""
 MIN_FWHM_FLAG=""
 MAX_FWHM_FLAG=""
+QC_AMP_FAIL_FLAG=""
+QC_T2P_MAX_FLAG=""
+QC_T2P_FAIL_FLAG=""
+QC_FWHM_MAX_FLAG=""
+QC_FWHM_FAIL_FLAG=""
+QC_CNR_MIN_FLAG=""
+QC_CNR_FAIL_FLAG=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -47,6 +54,34 @@ while [[ $# -gt 0 ]]; do
             ;;
         --max-fwhm)
             MAX_FWHM_FLAG="--max-fwhm $2"
+            shift 2
+            ;;
+        --qc-amp-fail)
+            QC_AMP_FAIL_FLAG="--qc-amp-fail $2"
+            shift 2
+            ;;
+        --qc-t2p-max)
+            QC_T2P_MAX_FLAG="--qc-t2p-max $2"
+            shift 2
+            ;;
+        --qc-t2p-fail)
+            QC_T2P_FAIL_FLAG="--qc-t2p-fail $2"
+            shift 2
+            ;;
+        --qc-fwhm-max)
+            QC_FWHM_MAX_FLAG="--qc-fwhm-max $2"
+            shift 2
+            ;;
+        --qc-fwhm-fail)
+            QC_FWHM_FAIL_FLAG="--qc-fwhm-fail $2"
+            shift 2
+            ;;
+        --qc-cnr-min)
+            QC_CNR_MIN_FLAG="--qc-cnr-min $2"
+            shift 2
+            ;;
+        --qc-cnr-fail)
+            QC_CNR_FAIL_FLAG="--qc-cnr-fail $2"
             shift 2
             ;;
         *)
@@ -137,7 +172,9 @@ if [ "$DOCKER_RUNNING" = true ]; then
     
     echo "Running C++ Batch Processing..."
     docker run --rm -v "$TARGET_ABS_FOLDER:/data" bolus_tracking_cpp --folder /data $PLOT_FLAG $DRIFT_FLAG \
-        $MIN_AMP_FLAG $MAX_AMP_FLAG $MIN_T2P_FLAG $MAX_T2P_FLAG $MIN_FWHM_FLAG $MAX_FWHM_FLAG
+        $MIN_AMP_FLAG $MAX_AMP_FLAG $MIN_T2P_FLAG $MAX_T2P_FLAG $MIN_FWHM_FLAG $MAX_FWHM_FLAG \
+        $QC_AMP_FAIL_FLAG $QC_T2P_MAX_FLAG $QC_T2P_FAIL_FLAG $QC_FWHM_MAX_FLAG $QC_FWHM_FAIL_FLAG \
+        $QC_CNR_MIN_FLAG $QC_CNR_FAIL_FLAG
 else
     echo "-> Step 2: Running C++ Parallel Pipeline locally..."
     
@@ -158,7 +195,9 @@ else
     # B. Run C++ Batch Processing directly
     echo "Sub-step B: Running C++ Parallel Batch Processing..."
     ./build/bolus_tracking_cpp --folder "$TARGET_ABS_FOLDER" $PLOT_FLAG $DRIFT_FLAG \
-        $MIN_AMP_FLAG $MAX_AMP_FLAG $MIN_T2P_FLAG $MAX_T2P_FLAG $MIN_FWHM_FLAG $MAX_FWHM_FLAG
+        $MIN_AMP_FLAG $MAX_AMP_FLAG $MIN_T2P_FLAG $MAX_T2P_FLAG $MIN_FWHM_FLAG $MAX_FWHM_FLAG \
+        $QC_AMP_FAIL_FLAG $QC_T2P_MAX_FLAG $QC_T2P_FAIL_FLAG $QC_FWHM_MAX_FLAG $QC_FWHM_FAIL_FLAG \
+        $QC_CNR_MIN_FLAG $QC_CNR_FAIL_FLAG
 fi
 
 echo "=================================================="

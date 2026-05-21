@@ -93,6 +93,30 @@ When the automated C++ pipeline runs, it checks each fit against key physiologic
 | **FWHM** | Full width of bolus at half max amplitude | `> 15.0 s` | `> 100.0 s` | `[0.5, inf)` |
 | **CNR** | Contrast-to-Noise Ratio (Peak / SD of baseline) | `< 5.0` | `< 3.0` | — |
 
+##### Customizing Fit Bounds and QC Thresholds from Command Line
+You can configure both the absolute optimization bounds and the warning/failure triage thresholds dynamically when running the C++ parallel pipeline using the following command-line flags:
+
+| CLI Option | Parameter Targeted | Default Value | Description |
+| :--- | :--- | :--- | :--- |
+| **`--min-amp <val>`** | Absolute Minimum Amplitude | `1e-6` | Hard lower bound for fitting solver amplitude. |
+| **`--max-amp <val>`** | Absolute Maximum Amplitude | `1023.0` | Hard upper bound (10-bit dynamic range of digitizer). |
+| **`--min-t2p <val>`** | Absolute Minimum $T_{2p}$ | `1e-6` | Hard lower bound for fitting solver time to peak. |
+| **`--max-t2p <val>`** | Absolute Maximum $T_{2p}$ | `Scan duration` | Hard upper bound for fitting solver time to peak. |
+| **`--min-fwhm <val>`** | Absolute Minimum FWHM | `0.5` | Hard lower bound (fastest plausible capillary transit). |
+| **`--max-fwhm <val>`** | Absolute Maximum FWHM | `Scan duration` | Hard upper bound for fitting solver FWHM. |
+| **`--qc-amp-fail <val>`** | Amplitude Failure Limit | `1.0` | Fits with amplitude below this are flagged `FAIL`. |
+| **`--qc-t2p-max <val>`** | $T_{2p}$ Warning Limit | `10.0` | Fits with $T_{2p}$ above this are flagged `WARN`. |
+| **`--qc-t2p-fail <val>`** | $T_{2p}$ Failure Limit | `50.0` | Fits with $T_{2p}$ above this are flagged `FAIL`. |
+| **`--qc-fwhm-max <val>`** | FWHM Warning Limit | `15.0` | Fits with FWHM above this are flagged `WARN`. |
+| **`--qc-fwhm-fail <val>`** | FWHM Failure Limit | `100.0` | Fits with FWHM above this are flagged `FAIL`. |
+| **`--qc-cnr-min <val>`** | CNR Warning Limit | `5.0` | Fits with CNR below this are flagged `WARN`. |
+| **`--qc-cnr-fail <val>`** | CNR Failure Limit | `3.0` | Fits with CNR below this are flagged `FAIL`. |
+
+For example, to process a dataset with a custom FWHM warning threshold of `20.0` seconds and a minimum CNR warning threshold of `6.0`:
+```bash
+bash run_pipeline_cpp.sh sample-subject-2259 --qc-fwhm-max 20.0 --qc-cnr-min 6.0
+```
+
 * **`PASS`**: The fit completed successfully, and all parameters fell within the healthy warning limits.
 * **`WARN`**: The fit succeeded, but one or more parameters crossed the warning limits (e.g., abnormally long FWHM or low contrast).
 * **`FAIL`**: The fit diverged, converged to an absolute solver boundary (indicating a non-physical mathematical solution), or failed critical QC constraints.
