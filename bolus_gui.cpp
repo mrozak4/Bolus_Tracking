@@ -651,13 +651,13 @@ static bool RangeSlider(const char* id_str, double* v_min, double* v_max, double
     
     // Render slider background
     ImU32 bg_color = ImGui::GetColorU32(ImGuiCol_FrameBg);
-    ImU32 active_track_color = ImGui::GetColorU32(ImGuiCol_SliderGrabActive);
+    ImU32 active_track_color = ImGui::GetColorU32(ImVec4(0.38f, 0.46f, 0.42f, 0.60f)); // Sage green active track
     ImU32 border_color = ImGui::GetColorU32(ImGuiCol_Border);
     
     // Choose a high-contrast handle color that stands out from the blue/dark track
-    ImU32 handle_color = ImGui::GetColorU32(ImVec4(0.90f, 0.90f, 0.92f, 1.0f)); // Premium bright white-silver
+    ImU32 handle_color = ImGui::GetColorU32(ImVec4(0.85f, 0.82f, 0.75f, 1.0f)); // Warm sand/beige
     if (is_active && (dragging_handle == 1 || dragging_handle == 2)) {
-        handle_color = ImGui::GetColorU32(ImVec4(1.0f, 0.65f, 0.0f, 1.0f)); // Bright orange highlight
+        handle_color = ImGui::GetColorU32(ImVec4(0.88f, 0.45f, 0.18f, 1.0f)); // Burnt terracotta orange active
     } else {
         ImVec2 mouse_pos = ImGui::GetIO().MousePos;
         float mx = mouse_pos.x;
@@ -802,16 +802,77 @@ public:
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
         
-        // Sleek Premium Theme
+        // Sleek Premium Mid-Century Modern Theme
         ImGui::StyleColorsDark();
         auto& style = ImGui::GetStyle();
-        style.WindowRounding = 6.0f;
-        style.FrameRounding = 4.0f;
-        style.GrabRounding = 4.0f;
-        style.PopupRounding = 4.0f;
-        style.WindowBorderSize = 0.0f;
-        style.FrameBorderSize = 0.0f;
-        style.ItemSpacing = ImVec2(10.0f, 8.0f);
+        style.WindowRounding = 10.0f;
+        style.FrameRounding = 8.0f;
+        style.GrabRounding = 6.0f;
+        style.PopupRounding = 8.0f;
+        style.ScrollbarRounding = 8.0f;
+        style.TabRounding = 6.0f;
+        
+        style.WindowBorderSize = 1.0f;
+        style.FrameBorderSize = 1.0f;
+        style.PopupBorderSize = 1.0f;
+        style.ItemSpacing = ImVec2(12.0f, 10.0f);
+        style.FramePadding = ImVec2(8.0f, 6.0f);
+        style.WindowPadding = ImVec2(16.0f, 16.0f);
+        
+        ImVec4* colors = style.Colors;
+        colors[ImGuiCol_Text]                   = ImVec4(0.95f, 0.94f, 0.90f, 1.00f); // Warm cream text
+        colors[ImGuiCol_TextDisabled]           = ImVec4(0.60f, 0.58f, 0.55f, 1.00f);
+        colors[ImGuiCol_WindowBg]               = ImVec4(0.18f, 0.18f, 0.17f, 1.00f); // Warm charcoal base
+        colors[ImGuiCol_ChildBg]                = ImVec4(0.22f, 0.22f, 0.20f, 0.95f); // Panel backdrop (dark wood tone-ish)
+        colors[ImGuiCol_PopupBg]                = ImVec4(0.20f, 0.20f, 0.19f, 0.98f);
+        colors[ImGuiCol_Border]                 = ImVec4(0.35f, 0.32f, 0.28f, 0.50f); // Muted warm brown/bronze border
+        colors[ImGuiCol_BorderShadow]           = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        colors[ImGuiCol_FrameBg]                = ImVec4(0.26f, 0.25f, 0.23f, 1.00f); // Sandbox input fields
+        colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.32f, 0.30f, 0.28f, 1.00f);
+        colors[ImGuiCol_FrameBgActive]          = ImVec4(0.38f, 0.35f, 0.32f, 1.00f);
+        colors[ImGuiCol_TitleBg]                = ImVec4(0.28f, 0.25f, 0.22f, 1.00f); // Mustard-accented header space
+        colors[ImGuiCol_TitleBgActive]          = ImVec4(0.32f, 0.28f, 0.24f, 1.00f);
+        colors[ImGuiCol_TitleBgCollapsed]       = ImVec4(0.20f, 0.18f, 0.16f, 1.00f);
+        colors[ImGuiCol_MenuBarBg]              = ImVec4(0.22f, 0.22f, 0.20f, 1.00f);
+        colors[ImGuiCol_ScrollbarBg]            = ImVec4(0.18f, 0.18f, 0.17f, 1.00f);
+        colors[ImGuiCol_ScrollbarGrab]          = ImVec4(0.40f, 0.38f, 0.34f, 1.00f);
+        colors[ImGuiCol_ScrollbarGrabHovered]   = ImVec4(0.50f, 0.46f, 0.42f, 1.00f);
+        colors[ImGuiCol_ScrollbarGrabActive]    = ImVec4(0.60f, 0.55f, 0.50f, 1.00f);
+        colors[ImGuiCol_CheckMark]              = ImVec4(0.88f, 0.55f, 0.25f, 1.00f); // Burnt orange checks
+        colors[ImGuiCol_SliderGrab]             = ImVec4(0.50f, 0.58f, 0.45f, 1.00f); // Sage green grab
+        colors[ImGuiCol_SliderGrabActive]      = ImVec4(0.88f, 0.55f, 0.25f, 1.00f); // Burnt orange highlight
+        colors[ImGuiCol_Button]                 = ImVec4(0.38f, 0.42f, 0.35f, 1.00f); // Muted avocado / sage button
+        colors[ImGuiCol_ButtonHovered]          = ImVec4(0.46f, 0.52f, 0.42f, 1.00f);
+        colors[ImGuiCol_ButtonActive]           = ImVec4(0.88f, 0.55f, 0.25f, 1.00f); // Burnt orange active clicks
+        colors[ImGuiCol_Header]                 = ImVec4(0.35f, 0.38f, 0.32f, 1.00f); // Header lists
+        colors[ImGuiCol_HeaderHovered]          = ImVec4(0.42f, 0.46f, 0.38f, 1.00f);
+        colors[ImGuiCol_HeaderActive]           = ImVec4(0.50f, 0.55f, 0.45f, 1.00f);
+        colors[ImGuiCol_Separator]              = ImVec4(0.35f, 0.32f, 0.28f, 0.50f);
+        colors[ImGuiCol_SeparatorHovered]       = ImVec4(0.88f, 0.55f, 0.25f, 0.78f);
+        colors[ImGuiCol_SeparatorActive]        = ImVec4(0.88f, 0.55f, 0.25f, 1.00f);
+        colors[ImGuiCol_ResizeGrip]             = ImVec4(0.38f, 0.42f, 0.35f, 0.20f);
+        colors[ImGuiCol_ResizeGripHovered]      = ImVec4(0.38f, 0.42f, 0.35f, 0.67f);
+        colors[ImGuiCol_ResizeGripActive]       = ImVec4(0.88f, 0.55f, 0.25f, 0.95f);
+        colors[ImGuiCol_Tab]                    = ImVec4(0.28f, 0.30f, 0.26f, 0.86f);
+        colors[ImGuiCol_TabHovered]             = ImVec4(0.38f, 0.42f, 0.35f, 0.80f);
+        colors[ImGuiCol_TabActive]              = ImVec4(0.38f, 0.42f, 0.35f, 1.00f);
+        colors[ImGuiCol_TabUnfocused]           = ImVec4(0.20f, 0.22f, 0.18f, 0.97f);
+        colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(0.28f, 0.30f, 0.26f, 1.00f);
+        colors[ImGuiCol_PlotLines]              = ImVec4(0.85f, 0.80f, 0.70f, 1.00f);
+        colors[ImGuiCol_PlotLinesHovered]       = ImVec4(0.88f, 0.55f, 0.25f, 1.00f);
+        colors[ImGuiCol_PlotHistogram]          = ImVec4(0.88f, 0.55f, 0.25f, 1.00f);
+        colors[ImGuiCol_PlotHistogramHovered]   = ImVec4(0.95f, 0.65f, 0.35f, 1.00f);
+        colors[ImGuiCol_TableHeaderBg]          = ImVec4(0.26f, 0.26f, 0.24f, 1.00f);
+        colors[ImGuiCol_TableBorderStrong]      = ImVec4(0.35f, 0.35f, 0.32f, 1.00f);
+        colors[ImGuiCol_TableBorderLight]       = ImVec4(0.28f, 0.28f, 0.26f, 1.00f);
+        colors[ImGuiCol_TableRowBg]             = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        colors[ImGuiCol_TableRowBgAlt]          = ImVec4(1.00f, 1.00f, 1.00f, 0.03f);
+        colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.88f, 0.55f, 0.25f, 0.35f);
+        colors[ImGuiCol_DragDropTarget]         = ImVec4(0.88f, 0.55f, 0.25f, 0.90f);
+        colors[ImGuiCol_NavHighlight]           = ImVec4(0.88f, 0.55f, 0.25f, 1.00f);
+        colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
+        colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
+        colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.12f, 0.12f, 0.11f, 0.60f);
         
         ImGui_ImplGlfw_InitForOpenGL(m_window, true);
         ImGui_ImplOpenGL3_Init(glsl_version);
@@ -1527,9 +1588,9 @@ private:
     }
 
     void draw_top_bar() {
-        ImGui::TextColored(ImVec4(0.2f, 0.6f, 1.0f, 1.0f), "BOLUS TRACKING MANUAL TRIAGE APP");
+        ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "BOLUS TRACKING MANUAL TRIAGE APP");
         ImGui::SameLine();
-        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 550.0f);
+        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 670.0f);
         if (ImGui::Button("Load Subject Data", ImVec2(140, 24))) {
             m_browser.open = true;
         }
@@ -1563,7 +1624,13 @@ private:
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("Save Final CSV", ImVec2(140, 24))) {
+        if (ImGui::Button("Reset All", ImVec2(100, 24))) {
+            if (!m_csv_path.empty()) {
+                ImGui::OpenPopup("Reset All Changes?");
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Save Final CSV", ImVec2(120, 24))) {
             if (!m_csv_path.empty()) {
                 save_results_csv(m_csv_path, m_records);
                 save_gui_state();
@@ -1591,6 +1658,26 @@ private:
             ImGui::Text("Analysis state resumed successfully from:\n%s.gui_state", m_csv_path.c_str());
             ImGui::Separator();
             if (ImGui::Button("OK", ImVec2(120, 0))) {
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+        if (ImGui::BeginPopupModal("Reset All Changes?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("WARNING: This will discard ALL manual adjustments, overrides,\nand triage edits you have made in this session.\n\nAre you sure you want to proceed?");
+            ImGui::Separator();
+            if (ImGui::Button("Yes, Reset All", ImVec2(120, 0))) {
+                m_records = m_records_backup;
+                m_gui_roi_states = m_gui_roi_states_backup;
+                if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records.size())) {
+                    select_record(m_selected_roi_idx);
+                    precompute_fit_plot(m_selected_roi_idx);
+                }
+                build_triage_queue();
+                save_active_roi_svg();
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
@@ -1633,10 +1720,10 @@ private:
             
             // Format state color tag
             ImVec4 status_color = ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
-            if (rec.qc_flag == "PASS") status_color = ImVec4(0.2f, 0.8f, 0.2f, 1.0f);
-            else if (rec.qc_flag == "WARN") status_color = ImVec4(1.0f, 0.7f, 0.0f, 1.0f);
-            else if (rec.qc_flag == "FAIL") status_color = ImVec4(1.0f, 0.2f, 0.2f, 1.0f);
-            else if (rec.qc_flag == "REVIEW") status_color = ImVec4(0.2f, 0.6f, 1.0f, 1.0f);
+            if (rec.qc_flag == "PASS") status_color = ImVec4(0.55f, 0.62f, 0.45f, 1.0f);
+            else if (rec.qc_flag == "WARN") status_color = ImVec4(0.92f, 0.72f, 0.30f, 1.0f);
+            else if (rec.qc_flag == "FAIL") status_color = ImVec4(0.80f, 0.32f, 0.22f, 1.0f);
+            else if (rec.qc_flag == "REVIEW") status_color = ImVec4(0.37f, 0.54f, 0.54f, 1.0f);
             
             ImGui::PushStyleColor(ImGuiCol_Text, status_color);
             if (ImGui::Selectable(label, is_selected)) {
@@ -1646,10 +1733,11 @@ private:
             
             ImGui::SameLine(180);
             ImGui::TextColored(status_color, "[%s]", rec.qc_flag.c_str());
+            
             ImGui::SameLine(260);
             if (rec.fit_source != "auto") {
-                // Highlight manually updated fits in blue/cyan
-                ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "%s", rec.fit_source.c_str());
+                // Highlight manually updated fits in terracotta
+                ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", rec.fit_source.c_str());
             } else {
                 ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "%s", rec.fit_source.c_str());
             }
@@ -1754,11 +1842,16 @@ private:
             
             // Draw visual curves
             ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, 1.5f);
+            ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(0.85f, 0.78f, 0.62f, 0.70f)); // Warm gold/brass
             ImPlot::PlotLine("Raw (Detrended)", c.t_raw.data(), c.y_raw_detrended.data(), c.t_raw.size());
+            ImPlot::PopStyleColor();
+            
+            ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(0.37f, 0.64f, 0.64f, 1.0f)); // Muted Sage/Teal
             ImPlot::PlotLine("Denoised", c.t_raw.data(), c.y_denoised.data(), c.t_raw.size());
+            ImPlot::PopStyleColor();
             
             if (!c.y_fit_plot.empty()) {
-                ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
+                ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(0.88f, 0.45f, 0.18f, 1.0f)); // Terracotta orange
                 ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, 2.5f);
                 ImPlot::PlotLine("Gamma Fit", c.t_fit_plot.data(), c.y_fit_plot.data(), c.t_fit_plot.size());
                 ImPlot::PopStyleVar();
@@ -1767,11 +1860,11 @@ private:
             ImPlot::PopStyleVar();
             
             // Draggable Lines
-            ImPlot::DragLineX(101, &m_onset_marker, ImVec4(0.2f, 0.8f, 0.2f, 1.0f), 2.0f); // Green Onset
-            ImPlot::DragLineX(102, &m_peak_marker, ImVec4(1.0f, 0.7f, 0.0f, 1.0f), 2.0f);  // Yellow Peak
-            ImPlot::DragLineX(103, &m_end_marker, ImVec4(1.0f, 0.2f, 0.2f, 1.0f), 2.0f);   // Red End
+            ImPlot::DragLineX(101, &m_onset_marker, ImVec4(0.55f, 0.62f, 0.45f, 1.0f), 2.0f); // Green Onset
+            ImPlot::DragLineX(102, &m_peak_marker, ImVec4(0.92f, 0.72f, 0.30f, 1.0f), 2.0f);  // Yellow Peak
+            ImPlot::DragLineX(103, &m_end_marker, ImVec4(0.80f, 0.32f, 0.22f, 1.0f), 2.0f);   // Red End
             
-            ImPlot::DragLineY(104, &m_baseline_marker, ImVec4(0.8f, 0.4f, 0.8f, 1.0f), 2.0f); // Purple Baseline
+            ImPlot::DragLineY(104, &m_baseline_marker, ImVec4(0.68f, 0.48f, 0.68f, 1.0f), 2.0f); // Purple Baseline
             
             // Enforce ordering and bounds constraints on markers immediately
             double max_t = c.t_raw.empty() ? 120.0 : c.t_raw.back();
@@ -1782,10 +1875,10 @@ private:
             m_end_marker = std::clamp(m_end_marker, m_peak_marker + min_gap, max_t);
             
             // Annotate Draggable Lines with formatted numeric values
-            ImPlot::TagX(m_onset_marker, ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "Onset: %.1fs", m_onset_marker);
-            ImPlot::TagX(m_peak_marker, ImVec4(1.0f, 0.7f, 0.0f, 1.0f), "Peak: %.1fs", m_peak_marker);
-            ImPlot::TagX(m_end_marker, ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "End: %.1fs", m_end_marker);
-            ImPlot::TagY(m_baseline_marker, ImVec4(0.8f, 0.4f, 0.8f, 1.0f), "Base: %.1f", m_baseline_marker);
+            ImPlot::TagX(m_onset_marker, ImVec4(0.55f, 0.62f, 0.45f, 1.0f), "Onset: %.1fs", m_onset_marker);
+            ImPlot::TagX(m_peak_marker, ImVec4(0.92f, 0.72f, 0.30f, 1.0f), "Peak: %.1fs", m_peak_marker);
+            ImPlot::TagX(m_end_marker, ImVec4(0.80f, 0.32f, 0.22f, 1.0f), "End: %.1fs", m_end_marker);
+            ImPlot::TagY(m_baseline_marker, ImVec4(0.68f, 0.48f, 0.68f, 1.0f), "Base: %.1f", m_baseline_marker);
             
             ImPlot::EndPlot();
         }
@@ -1830,28 +1923,28 @@ private:
         ImGui::Columns(2, "ControlsGrid", false);
         ImGui::SetColumnWidth(0, 480.0f);
         
-        ImGui::TextColored(ImVec4(0.2f, 0.6f, 1.0f, 1.0f), "FITTING WINDOW & INTERACTIVE MARKERS");
+        ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "FITTING WINDOW & INTERACTIVE MARKERS");
         double min_t = 0.0;
         double max_t = c.t_raw.back();
         double base_min = 0.0;
         double base_max = 1000.0;
-        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.2f, 0.8f, 0.2f, 0.8f));
-        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.3f, 0.9f, 0.3f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.55f, 0.62f, 0.45f, 0.8f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.65f, 0.72f, 0.55f, 1.0f));
         ImGui::SliderScalar("Onset Marker (s)", ImGuiDataType_Double, &m_onset_marker, &min_t, &max_t, "%.1f");
         ImGui::PopStyleColor(2);
 
-        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(1.0f, 0.7f, 0.0f, 0.8f));
-        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.0f, 0.8f, 0.2f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.92f, 0.72f, 0.30f, 0.8f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.00f, 0.82f, 0.40f, 1.0f));
         ImGui::SliderScalar("Peak Marker (s)", ImGuiDataType_Double, &m_peak_marker, &m_onset_marker, &max_t, "%.1f");
         ImGui::PopStyleColor(2);
 
-        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(1.0f, 0.2f, 0.2f, 0.8f));
-        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.80f, 0.32f, 0.22f, 0.8f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.90f, 0.42f, 0.32f, 1.0f));
         ImGui::SliderScalar("End Marker (s)", ImGuiDataType_Double, &m_end_marker, &m_peak_marker, &max_t, "%.1f");
         ImGui::PopStyleColor(2);
 
-        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.8f, 0.4f, 0.8f, 0.8f));
-        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.9f, 0.5f, 0.9f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.68f, 0.48f, 0.68f, 0.8f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.78f, 0.58f, 0.78f, 1.0f));
         ImGui::SliderScalar("Baseline Value", ImGuiDataType_Double, &m_baseline_marker, &base_min, &base_max, "%.1f");
         ImGui::PopStyleColor(2);
         
@@ -1887,7 +1980,7 @@ private:
         
         ImGui::NextColumn();
         
-        ImGui::TextColored(ImVec4(0.2f, 0.6f, 1.0f, 1.0f), "VISUALIZATION CROP CONTROLS");
+        ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "VISUALIZATION CROP CONTROLS");
         ImGui::Text("Use the range slider below the plot to adjust the crop region.");
         ImGui::Dummy(ImVec2(0.0f, 4.0f));
         if (ImGui::Button("Reset Visual Crop", ImVec2(180, 30))) {
@@ -1904,7 +1997,7 @@ private:
         ImGui::Separator();
         
         // Active fit parameters table comparison
-        ImGui::TextColored(ImVec4(0.2f, 0.6f, 1.0f, 1.0f), "CURRENT HEMODYNAMIC PARAMETERS");
+        ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "CURRENT HEMODYNAMIC PARAMETERS");
         if (ImGui::BeginTable("ParamsTable", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
             ImGui::TableSetupColumn("Variable");
             ImGui::TableSetupColumn("Amplitude");
