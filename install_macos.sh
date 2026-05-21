@@ -70,15 +70,32 @@ cat <<EOF > "$APP_BUNDLE/Contents/Info.plist"
 </plist>
 EOF
 
-# 6. Touch the bundle to notify Finder of the update
+# Touch the bundle to notify Finder of the update
 touch "$APP_BUNDLE"
 
+# 6. Install to Applications folder for Launchpad integration
+echo "Step 6: Installing to Applications folder for Launchpad integration..."
+INSTALL_DEST="/Applications"
+if [ -w "$INSTALL_DEST" ]; then
+    echo "Installing to system-wide $INSTALL_DEST..."
+    rm -rf "$INSTALL_DEST/$APP_NAME.app"
+    cp -R "$APP_BUNDLE" "$INSTALL_DEST/"
+    touch "$INSTALL_DEST/$APP_NAME.app"
+    echo "Successfully installed to $INSTALL_DEST!"
+else
+    USER_APP_DIR="$HOME/Applications"
+    echo "System-wide $INSTALL_DEST is not writable. Installing to user-local $USER_APP_DIR..."
+    mkdir -p "$USER_APP_DIR"
+    rm -rf "$USER_APP_DIR/$APP_NAME.app"
+    cp -R "$APP_BUNDLE" "$USER_APP_DIR/"
+    touch "$USER_APP_DIR/$APP_NAME.app"
+    echo "Successfully installed to $USER_APP_DIR!"
+    INSTALL_DEST="$USER_APP_DIR"
+fi
+
 echo "============================================="
-echo "   Build completed successfully!             "
+echo "   Build & Installation completed successfully!"
 echo "============================================="
-echo "You can launch the GUI by double-clicking:"
-echo "   $APP_BUNDLE"
-echo ""
-echo "Or, if you want to copy it to your Applications folder, run:"
-echo "   cp -R \"$APP_BUNDLE\" /Applications/"
+echo "You can launch the GUI via Launchpad (search for '$APP_NAME') or:"
+echo "   $INSTALL_DEST/$APP_NAME.app"
 echo "============================================="
