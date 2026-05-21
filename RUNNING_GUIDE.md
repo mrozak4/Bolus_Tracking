@@ -98,11 +98,46 @@ docker run --rm -v "$(pwd):/data" bolus_tracking:latest --folder /data/sample-su
 
 ---
 
-## 3. Running the Python Interactive GUI
+## 3. Running the Interactive GUIs (C++ and Python)
 
-Since GUI applications require display access, the GUI (`bolus_gui.py`) is run locally on your host operating system.
+Since GUI applications require display access, they are run locally on your host operating system.
 
-### How to Launch the GUI
+### A. The C++ GUI: Dear ImGui & ImPlot Studio (Recommended)
+
+The C++ GUI is a high-performance visual dashboard built on top of the ultra-fast C++ fitting engine. It uses Dear ImGui and ImPlot to display traces, triage problem fits, adjust fitting parameters, and crop data ranges interactively.
+
+#### How to Build and Launch the C++ GUI:
+1. Make sure you have CMake, a C++17 compiler, and LibTIFF installed on your system.
+2. Build the project locally:
+   ```bash
+   mkdir -p build && cd build
+   cmake ..
+   make -j4
+   ```
+3. Run the GUI:
+   ```bash
+   ./bolus_tracking_gui
+   ```
+   *(You can optionally pass a CSV file path directly on launch to load it immediately: `./bolus_tracking_gui /path/to/results_cpp.csv`)*
+
+#### Key GUI Workflows:
+* **Triage Queue Sidebar**: Quickly review all ROIs. Check "Show WARN/FAIL only" to hide already successful fits and focus exclusively on problem cases.
+* **Interactive Marker Adjustments**: Drag the three vertical lines on the plot:
+  * **Onset (Green)**
+  * **Peak (Yellow)**
+  * **End (Red)**
+* **On-the-Fly Fitting Cropping**: Adjust the blue/magenta brackets at the bottom or sides of the plot to define a cropped fitting sub-window (e.g., to exclude baseline noise or late recirculation).
+* **Resetting / Visual Zoom**: Double-click the plot to reset the axis limits, or click the **Undo Crop** button to restore the full signal range.
+* **Manual Re-fitting**: Click **Re-fit Manual** to execute a constrained fit using your manually dragged markers as the initial parameters and your visual crop bounds as the active fit window. All exported parameters remain mapped relative to the *uncropped* absolute time scale.
+* **Batch Auto-Fitting**: Load a folder, click **Run Auto Fit Batch** to process the folder automatically, and watch the results list update in real time.
+
+---
+
+### B. The Python GUI: Tkinter & Matplotlib Studio
+
+The Python GUI provides a premium, interactive interface to visually browse datasets, select ROIs, click on plots to adjust markers, run fits, and save results.
+
+#### How to Launch the Python GUI:
 1. Create a Python virtual environment and install dependencies:
    ```bash
    # macOS / Linux
@@ -185,14 +220,17 @@ python batch_process.py --folder sample-subject-2259
 ## 5. Technical Overview of the Files
 
 Here is what each file does:
-* `bolus_gui.py`: The Python-based interactive GUI for loading, viewing, adjusting, and exporting individual ROI bolus fits.
+* `bolus_gui.cpp`: The C++ interactive GUI built on Dear ImGui and ImPlot.
+* `bolus_gui.py`: The Python-based interactive GUI built on Tkinter and Matplotlib.
 * `run_pipeline.sh`: The master control script that prepares the Python virtual environment and kicks off the processing.
 * `batch_process.py`: The high-level script that scans for datasets, reads TIFF image stacks, extracts the mean signal from each ROI, fits the Gamma curve, and saves results/plots.
 * `bolus_tracking.py`: The core computational engine containing all denoising, thresholding, onset/peak/end detection, and mathematical optimization logic.
 * `run_pipeline_cpp.sh`: The pure Bash script to compile and launch the C++ parallel processing pipeline.
-* `bolus_tracking_cpp.cpp`: The standalone C++ source code containing natural cubic spline upsampling, Levenberg-Marquardt robust curve fitting (Eigen), and parallel multi-threading.
+* `bolus_tracking_cpp.cpp`: The core C++ source code containing natural cubic spline upsampling, Levenberg-Marquardt robust curve fitting (Eigen), and parallel multi-threading.
+* `bolus_tracking_cpp.hpp`: Header file containing the OOP structure of the C++ pipeline.
+* `test_bolus_tracking_cpp.cpp`: The C++ testing suite.
 * `CMakeLists.txt` & `Dockerfile.cpp`: Compilation and Docker configurations for the C++ implementation.
-* `test_bolus_parity.py`: A test suite to verify that Python/C++ results match legacy MATLAB results.
+* `test_bolus_parity.py` & `test_bolus_tracking.py`: Python unit tests and parity test suite.
 * `BolusTrack_InteractiveEdit.m`: The MATLAB graphical user interface (GUI) for manually visualizing and adjusting fits.
 * `gammaFun.m`: The MATLAB definition of the Gamma variate function.
 * `Dockerfile`: Instructs Docker how to build the runtime container image for the Python pipeline.

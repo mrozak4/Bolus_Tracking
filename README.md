@@ -34,11 +34,14 @@ We provide detailed documentation for each part of the codebase. Please refer to
 
 ## 3. Codebase File Structure
 
-### C++-Based Parallel Tools (Recommended)
+### C++-Based Parallel & GUI Tools (Recommended)
 * **`run_pipeline_cpp.sh`**: Command-line wrapper script that compiles and executes the parallel C++ pipeline inside Docker or locally.
-* **`bolus_tracking_cpp.cpp`**: Standalone C++ source code implementing spline upsampling, Levenberg-Marquardt robust curve fitting (via Eigen), and multi-threaded processing.
+* **`bolus_tracking_cpp.cpp`**: Core C++ source code implementing spline upsampling, Levenberg-Marquardt robust curve fitting (via Eigen), and multi-threaded processing.
+* **`bolus_tracking_cpp.hpp`**: C++ header file containing the object-oriented structure of the code.
+* **`bolus_gui.cpp`**: Cross-platform interactive C++ GUI built with Dear ImGui and ImPlot to manually inspect and correct fits.
+* **`test_bolus_tracking_cpp.cpp`**: C++ test suite verifying all math routines, fit models, and edge cases.
 * **`CMakeLists.txt`**: C++ build configuration file.
-* **`Dockerfile.cpp`**: Docker setup configuration for containerizing the C++ implementation.
+* **`Dockerfile.cpp`**: Docker configuration for compiling, testing, and containerizing the C++ pipeline.
 
 ### Python-Based Reference & GUI Tools
 * **`bolus_gui.py`**: A premium, interactive Python interface to visually browse datasets, select ROIs, click on plots to adjust markers, run fits, and save results.
@@ -69,12 +72,22 @@ This processes all subject datasets in parallel. To run the reference Python pip
 bash run_pipeline.sh
 ```
 
+### Launch C++ GUI
+Build the binaries locally and run the GUI:
+```bash
+mkdir -p build && cd build
+cmake ..
+make -j4
+./bolus_tracking_gui
+```
+This launches the high-performance Dear ImGui dashboard. You can select folders, triage ROIs by status (PASS/WARN/FAIL), drag vertical markers to adjust onset, peak, and end points, crop the fitting window on the fly, and export parameters.
+
 ### Launch Python GUI
 Run:
 ```bash
 .venv/bin/python bolus_gui.py
 ```
-This opens the window to select datasets, navigate capillary ROIs, adjust onset/peak/end points by clicking on the graph, and export the results.
+This opens the Tkinter window to select datasets, navigate capillary ROIs, adjust onset/peak/end points by clicking on the graph, and export the results.
 
 ---
 

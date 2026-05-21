@@ -38,12 +38,12 @@ Both pipelines show excellent agreement on physical fits. Below are the key find
 
 ## 3. Recommendation
 
-### We Recommend the **C++ Implementation** for Production & Batch Analysis
-For daily research, cohort studies, and large-scale batch processing, the **C++ pipeline** is highly recommended:
-* **Time Efficiency**: Reduces hours of computation to minutes when running large batches.
-* **Scalability**: Seamlessly scales to many-core servers.
-* **Single Executable**: Can be compiled and run without needing a Python runtime environment.
+### We Recommend the **C++ Implementation** for Production, Batch Analysis, and Reviews (GUI)
+For daily research, cohort studies, and manual review triage, the **C++ ecosystem** is highly recommended:
+* **Time Efficiency**: Parallel fitting reduces cohort-scale computational loads from hours to seconds.
+* **Integrated C++ GUI**: The modern C++ Dear ImGui application (`bolus_tracking_gui`) allows operators to review, filter (PASS/WARN/FAIL), manually re-fit (draggable onset, peak, end markers), crop/zoom fitting ranges on-the-fly, and save directly in one single platform—without context-switching.
+* **Single Executable / High Portability**: Can be built and run on Windows, Linux, and macOS without Python dependency conflicts or library configuration struggles.
 
-### We Recommend the **Python Implementation** for Prototyping & GUIs
-* **Interactive Tooling**: Use Python when running the interactive UI (`bolus_gui.py`) for manual fit adjustments.
-* **Rapid Prototyping**: If you want to experiment with different denoising coefficients, bounds, or alternative mathematical fitting models, Python is faster to modify and test without recompilation.
+### We Recommend the **Python Implementation** for Prototyping and Scripting Extensions
+* **Rapid Prototyping**: If you are experimenting with new signal-processing methods, loss weights (e.g. Huber vs. Cauchy loss), or custom visualization backends, the Python environment is fast and doesn't require compilation.
+* **Matplotlib Customization**: Helpful if you need to build highly customized scripts to generate specific figures or integrate with other data science pipelines.
