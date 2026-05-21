@@ -127,7 +127,8 @@ If a batch run yields `WARN` or `FAIL` flags, you can easily inspect and correct
 **Step-by-step Triage Workflow:**
 1. **Load the Processed Data:** 
    - Launch the C++ GUI app. 
-   - Click **"Load Results CSV"** at the top left of the window and select the generated results file (e.g., `sample-subject-2259/bolus1_baseline_results_cpp.csv`).
+   - Click the **"Load Subject Data"** button in the top bar to open the file browser modal, select your generated results CSV (e.g., `sample-subject-2259/bolus1_baseline_results_cpp.csv`), and click **"Open Selected File"** (or click **"Select Current Folder"** if selecting the parent folder containing the CSV/TIFF).
+   - *Note on Multi-Subject Loading*: The GUI is designed to load and triage one subject dataset (CSV, TIFF, and ROI files) at a time to focus on that subject's capillaries. You can load subjects sequentially via the file browser, or open multiple instances of the GUI app in separate terminal windows to work on multiple subjects in parallel.
    - *Alternative (CLI)*: You can pass the path to the CSV directly when running the application from the command line:
      ```bash
      ./build/bolus_tracking_gui sample-subject-2259/bolus1_baseline_results_cpp.csv

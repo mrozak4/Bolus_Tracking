@@ -1310,6 +1310,11 @@ private:
         
         ImGui::Text("Total Dataset ROIs: %d", (int)m_records.size());
         ImGui::Text("Active Filter Queue: %d", (int)m_triage_queue.size());
+        int manual_count = 0;
+        for (const auto& r : m_records) {
+            if (r.fit_source != "auto") manual_count++;
+        }
+        ImGui::Text("Manually Updated: %d", manual_count);
         ImGui::Separator();
         
         ImGui::BeginChild("ListScrollPane", ImVec2(0, 0), false);
@@ -1318,7 +1323,11 @@ private:
             const auto& rec = m_records[idx];
             
             char label[64];
-            snprintf(label, sizeof(label), "ROI %d", rec.roi_id);
+            if (rec.fit_source != "auto") {
+                snprintf(label, sizeof(label), "ROI %d *", rec.roi_id);
+            } else {
+                snprintf(label, sizeof(label), "ROI %d", rec.roi_id);
+            }
             
             bool is_selected = (m_selected_roi_idx == idx);
             
@@ -1338,7 +1347,12 @@ private:
             ImGui::SameLine(180);
             ImGui::TextColored(status_color, "[%s]", rec.qc_flag.c_str());
             ImGui::SameLine(260);
-            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "%s", rec.fit_source.c_str());
+            if (rec.fit_source != "auto") {
+                // Highlight manually updated fits in blue/cyan
+                ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "%s", rec.fit_source.c_str());
+            } else {
+                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "%s", rec.fit_source.c_str());
+            }
         }
         ImGui::EndChild();
     }
