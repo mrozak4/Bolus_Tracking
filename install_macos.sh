@@ -75,10 +75,27 @@ touch "$APP_BUNDLE"
 
 # 6. Install to Applications folder for Launchpad integration
 echo "Step 6: Installing to Applications folder for Launchpad integration..."
+
+# Clean up any old installations in either location first to prevent duplicates
+echo "Checking for and removing old installations..."
+if [ -d "/Applications/$APP_NAME.app" ]; then
+    echo "Found old version in /Applications. Removing..."
+    if [ -w "/Applications" ]; then
+        rm -rf "/Applications/$APP_NAME.app"
+    else
+        echo "System-wide /Applications requires administrator permissions to modify."
+        echo "Attempting to remove old version using sudo..."
+        sudo rm -rf "/Applications/$APP_NAME.app"
+    fi
+fi
+if [ -d "$HOME/Applications/$APP_NAME.app" ]; then
+    echo "Found old version in $HOME/Applications. Removing..."
+    rm -rf "$HOME/Applications/$APP_NAME.app"
+fi
+
 INSTALL_DEST="/Applications"
 if [ -w "$INSTALL_DEST" ]; then
     echo "Installing to system-wide $INSTALL_DEST..."
-    rm -rf "$INSTALL_DEST/$APP_NAME.app"
     cp -R "$APP_BUNDLE" "$INSTALL_DEST/"
     touch "$INSTALL_DEST/$APP_NAME.app"
     echo "Successfully installed to $INSTALL_DEST!"
@@ -86,7 +103,6 @@ else
     USER_APP_DIR="$HOME/Applications"
     echo "System-wide $INSTALL_DEST is not writable. Installing to user-local $USER_APP_DIR..."
     mkdir -p "$USER_APP_DIR"
-    rm -rf "$USER_APP_DIR/$APP_NAME.app"
     cp -R "$APP_BUNDLE" "$USER_APP_DIR/"
     touch "$USER_APP_DIR/$APP_NAME.app"
     echo "Successfully installed to $USER_APP_DIR!"
