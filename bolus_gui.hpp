@@ -101,6 +101,7 @@ struct Translation {
     // Denoising translations
     std::string section_denoise;
     std::string label_denoise_strength;
+    std::string section_actions;
     
     // Status/Source translations (replaces inline ternaries)
     std::string qc_pass;

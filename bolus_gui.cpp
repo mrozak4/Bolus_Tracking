@@ -772,6 +772,7 @@ void BolusApp::update_locale() {
         m_tr.label_auto_fit = "Original Auto Fit";
         m_tr.section_denoise = "DENOISING OPTIONS";
         m_tr.label_denoise_strength = "Denoising Strength";
+        m_tr.section_actions = "FITTING ACTIONS";
     } else {
         m_tr.title_app = "SUIVI DE BOLUS - TRIAGE MANUEL";
         m_tr.section_markers = "FENÊTRE DE MODÉLISATION ET MARQUEURS INTERACTIFS";
@@ -865,6 +866,7 @@ void BolusApp::update_locale() {
         m_tr.label_auto_fit = "Ajustement auto initial";
         m_tr.section_denoise = "OPTIONS DE DÉBRUITAGE";
         m_tr.label_denoise_strength = "Force du débruitage";
+        m_tr.section_actions = "ACTIONS D'AJUSTEMENT";
     }
 }
 BolusApp::BolusApp() : m_fitter(1e-6, 1023.0, 1e-6, 1e6, 0.5, 1e6), m_denoise_strength_factor(1.0f) {}
@@ -2358,8 +2360,10 @@ void BolusApp::draw_main_area() {
         ImGui::BeginChild("ParamsPane", ImVec2(0, 0), true);
         
         // Manual fitting and cropping
-        ImGui::Columns(2, "ControlsGrid", false);
-        ImGui::SetColumnWidth(0, 480.0f);
+        ImGui::Columns(3, "ControlsGrid", false);
+        ImGui::SetColumnWidth(0, 450.0f);
+        ImGui::SetColumnWidth(1, 380.0f);
+        // Column 2 takes the remainder
         
         ImGui::PushFont(m_font_bold);
         ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", m_tr.section_markers.c_str());
@@ -2388,37 +2392,6 @@ void BolusApp::draw_main_area() {
         ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.78f, 0.58f, 0.78f, 1.0f));
         ImGui::SliderScalar(m_tr.label_baseline.c_str(), ImGuiDataType_Double, &m_baseline_marker, &base_min, &base_max, "%.1f");
         ImGui::PopStyleColor(2);
-        
-        ImGui::Dummy(ImVec2(0.0f, 4.0f));
-        
-        // Single row of action buttons
-        if (ImGui::Button(m_tr.btn_refit.c_str(), ImVec2(120, 26))) {
-            run_fit_on_current_roi();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button(m_tr.btn_override.c_str(), ImVec2(130, 26))) {
-            m_records[m_selected_roi_idx].qc_flag = "PASS";
-            m_records[m_selected_roi_idx].fit_source = "override";
-            if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_gui_roi_states.size())) {
-                m_gui_roi_states[m_selected_roi_idx].qc_flag = "PASS";
-                m_gui_roi_states[m_selected_roi_idx].fit_source = "override";
-            }
-            build_triage_queue();
-            save_active_roi_svg();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button(m_tr.btn_revert.c_str(), ImVec2(160, 26))) {
-            if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records_backup.size())) {
-                int idx = m_selected_roi_idx;
-                m_records[idx] = m_records_backup[idx];
-                m_gui_roi_states[idx] = m_gui_roi_states_backup[idx];
-                m_selected_roi_idx = -1; // Bypass saving current modified state
-                select_record(idx);
-                precompute_fit_plot(idx);
-                build_triage_queue();
-                save_active_roi_svg();
-            }
-        }
         
         ImGui::NextColumn();
         
@@ -2450,6 +2423,42 @@ void BolusApp::draw_main_area() {
             }
         }
         ImGui::PopItemWidth();
+        
+        ImGui::NextColumn();
+        
+        ImGui::PushFont(m_font_bold);
+        ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", m_tr.section_actions.c_str());
+        ImGui::PopFont();
+        ImGui::Dummy(ImVec2(0.0f, 4.0f));
+        
+        float btn_w = ImGui::GetContentRegionAvail().x - 8.0f;
+        if (ImGui::Button(m_tr.btn_refit.c_str(), ImVec2(btn_w, 26))) {
+            run_fit_on_current_roi();
+        }
+        ImGui::Dummy(ImVec2(0.0f, 4.0f));
+        if (ImGui::Button(m_tr.btn_override.c_str(), ImVec2(btn_w, 26))) {
+            m_records[m_selected_roi_idx].qc_flag = "PASS";
+            m_records[m_selected_roi_idx].fit_source = "override";
+            if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_gui_roi_states.size())) {
+                m_gui_roi_states[m_selected_roi_idx].qc_flag = "PASS";
+                m_gui_roi_states[m_selected_roi_idx].fit_source = "override";
+            }
+            build_triage_queue();
+            save_active_roi_svg();
+        }
+        ImGui::Dummy(ImVec2(0.0f, 4.0f));
+        if (ImGui::Button(m_tr.btn_revert.c_str(), ImVec2(btn_w, 26))) {
+            if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records_backup.size())) {
+                int idx = m_selected_roi_idx;
+                m_records[idx] = m_records_backup[idx];
+                m_gui_roi_states[idx] = m_gui_roi_states_backup[idx];
+                m_selected_roi_idx = -1; // Bypass saving current modified state
+                select_record(idx);
+                precompute_fit_plot(idx);
+                build_triage_queue();
+                save_active_roi_svg();
+            }
+        }
         
         ImGui::Columns(1);
         ImGui::Separator();
