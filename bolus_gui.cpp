@@ -83,6 +83,96 @@ void play_sound_cross_platform(const std::string& audio_path) {
 #endif
 }
 
+std::string to_klingon_piqad(const std::string& input) {
+    std::string result = "";
+    size_t i = 0;
+    while (i < input.length()) {
+        if (i + 2 < input.length() && input.substr(i, 3) == "tlh") {
+            result += "\xEF\xA3\xA4"; // U+F8E4
+            i += 3;
+        } else if (i + 1 < input.length() && input.substr(i, 2) == "ch") {
+            result += "\xEF\xA3\x92"; // U+F8D2
+            i += 2;
+        } else if (i + 1 < input.length() && input.substr(i, 2) == "gh") {
+            result += "\xEF\xA3\x95"; // U+F8D5
+            i += 2;
+        } else if (i + 1 < input.length() && input.substr(i, 2) == "ng") {
+            result += "\xEF\xA3\x9C"; // U+F8DC
+            i += 2;
+        } else {
+            char c = input[i];
+            if (c == 'a') result += "\xEF\xA3\x90";      // U+F8D0
+            else if (c == 'b') result += "\xEF\xA3\x91"; // U+F8D1
+            else if (c == 'D') result += "\xEF\xA3\x93"; // U+F8D3
+            else if (c == 'e') result += "\xEF\xA3\x94"; // U+F8D4
+            else if (c == 'H') result += "\xEF\xA3\x96"; // U+F8D6
+            else if (c == 'I') result += "\xEF\xA3\x97"; // U+F8D7
+            else if (c == 'j') result += "\xEF\xA3\x98"; // U+F8D8
+            else if (c == 'l') result += "\xEF\xA3\x99"; // U+F8D9
+            else if (c == 'm') result += "\xEF\xA3\x9A"; // U+F8DA
+            else if (c == 'n') result += "\xEF\xA3\x9B"; // U+F8DB
+            else if (c == 'o') result += "\xEF\xA3\x9D"; // U+F8DD
+            else if (c == 'p') result += "\xEF\xA3\x9E"; // U+F8DE
+            else if (c == 'q') result += "\xEF\xA3\x9F"; // U+F8DF
+            else if (c == 'Q') result += "\xEF\xA3\xA0"; // U+F8E0
+            else if (c == 'r') result += "\xEF\xA3\xA1"; // U+F8E1
+            else if (c == 'S') result += "\xEF\xA3\xA2"; // U+F8E2
+            else if (c == 't') result += "\xEF\xA3\xA3"; // U+F8E3
+            else if (c == 'u') result += "\xEF\xA3\xA5"; // U+F8E5
+            else if (c == 'v') result += "\xEF\xA3\xA6"; // U+F8E6
+            else if (c == 'w') result += "\xEF\xA3\xA7"; // U+F8E7
+            else if (c == 'y') result += "\xEF\xA3\xA8"; // U+F8E8
+            else if (c == '\'') result += "\xEF\xA3\xA9"; // U+F8E9
+            else if (c == '0') result += "\xEF\xA3\xB0"; // U+F8F0
+            else if (c == '1') result += "\xEF\xA3\xB1"; // U+F8F1
+            else if (c == '2') result += "\xEF\xA3\xB2"; // U+F8F2
+            else if (c == '3') result += "\xEF\xA3\xB3"; // U+F8F3
+            else if (c == '4') result += "\xEF\xA3\xB4"; // U+F8F4
+            else if (c == '5') result += "\xEF\xA3\xB5"; // U+F8F5
+            else if (c == '6') result += "\xEF\xA3\xB6"; // U+F8F6
+            else if (c == '7') result += "\xEF\xA3\xB7"; // U+F8F7
+            else if (c == '8') result += "\xEF\xA3\xB8"; // U+F8F8
+            else if (c == '9') result += "\xEF\xA3\xB9"; // U+F8F9
+            else if (c == ',') result += "\xEF\xA3\xBD"; // U+F8FD
+            else if (c == '.') result += "\xEF\xA3\xBE"; // U+F8FE
+            else {
+                result += c;
+            }
+            i++;
+        }
+    }
+    return result;
+}
+
+std::string find_cjk_font() {
+    std::vector<std::string> paths = {
+        // macOS
+        "/System/Library/Fonts/PingFang.ttc",
+        "/System/Library/Fonts/STHeiti Light.ttc",
+        "/System/Library/Fonts/STHeiti Medium.ttc",
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        "/Library/Fonts/Arial Unicode.ttf",
+        // Windows
+        "C:\\Windows\\Fonts\\msyh.ttc",
+        "C:\\Windows\\Fonts\\simsun.ttc",
+        "C:\\Windows\\Fonts\\msgothic.ttc",
+        "C:\\Windows\\Fonts\\msmincho.ttc",
+        // Linux
+        "/usr/share/fonts/truetype/droid/DroidSansFallback.ttf",
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+        "/usr/share/fonts/wqy-microhei/wqy-microhei.ttc",
+        "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc"
+    };
+    for (const auto& p : paths) {
+        if (is_valid_ttf(p)) {
+            return p;
+        }
+    }
+    return "";
+}
+
+
 
 
 
@@ -703,11 +793,11 @@ void BolusApp::update_locale() {
         m_tr.btn_ok = "OK";
         m_tr.btn_cancel = "Cancel";
         m_tr.modal_reset_title = "Reset All Changes?";
-        m_tr.modal_reset_desc = "WARNING: This will discard ALL manual adjustments, overrides,\nand triage edits you have made in this session.\n\nAre you sure you want to proceed?";
+        m_tr.modal_reset_desc = "WARNING: This will discard ALL manual adjustments, overrides,\nand triage edits made during this session.\n\nAre you sure you want to proceed?";
         m_tr.btn_reset_confirm = "Yes, Reset All";
         m_tr.modal_save_success = "Save Success";
-        m_tr.modal_save_state_success = "Save State Success";
-        m_tr.modal_load_state_success = "Load State Success";
+        m_tr.modal_save_state_success = "State saved successfully";
+        m_tr.modal_load_state_success = "State loaded successfully";
         m_tr.text_active_roi = "Active ROI:";
         m_tr.text_qc_flag = "QC Flag:";
         m_tr.text_fit_source = "Fit Source:";
@@ -732,22 +822,22 @@ void BolusApp::update_locale() {
         m_tr.path_selector = "Path Selector";
         m_tr.btn_select_folder = "Select Current Folder";
         m_tr.btn_open_file = "Open Selected File";
-        m_tr.btn_close_dialog = "Close Dialog";
+        m_tr.btn_close_dialog = "Close";
         m_tr.dialog_title = "Open Folder or File";
         m_tr.text_total_rois = "Total Dataset ROIs: %d";
         m_tr.text_active_queue = "Active Filter Queue: %d";
         m_tr.text_triage_queue = "Triage Queue: %d / %d";
         m_tr.btn_next_problem = "Next Problem >>";
         m_tr.btn_prev_problem = "<< Previous Problem";
-        m_tr.text_no_data = "No subject folder or CSV file loaded yet. Use the top button to open a subject data file.";
+        m_tr.text_no_data = "No subject data or results loaded. Use the button above to load a dataset directory or a results CSV file.";
         m_tr.text_plot_status_header = "Signal Time Series (SU) - ROI #%d (Size: %d px) | Status: %s (Source: %s)";
         m_tr.title_manual_override = "MANUAL OVERRIDES & FIT WINDOW ADJUSTMENTS";
         m_tr.text_manual_override_desc = "Drag the Onset/Peak/End line markers directly on the plot, then click 'Re-Fit' below to manually optimize parameters.";
         m_tr.btn_revert_loaded = "Revert to Loaded Values";
         m_tr.text_load_subject_data = "Load Subject Data";
-        m_tr.text_save_state_msg = "Analysis state paused & saved successfully to:\n%s.gui_state";
-        m_tr.text_load_state_msg = "Analysis state resumed successfully from:\n%s.gui_state";
-        m_tr.text_save_csv_msg = "Results written successfully to:\n%s";
+        m_tr.text_save_state_msg = "Analysis state saved successfully to:\n%s.gui_state";
+        m_tr.text_load_state_msg = "Analysis state restored successfully from:\n%s.gui_state";
+        m_tr.text_save_csv_msg = "Results saved successfully to:\n%s";
         m_tr.tag_onset = "Onset: %.1fs";
         m_tr.tag_peak = "Peak: %.1fs";
         m_tr.tag_end = "End: %.1fs";
@@ -773,7 +863,7 @@ void BolusApp::update_locale() {
         m_tr.section_denoise = "DENOISING OPTIONS";
         m_tr.label_denoise_strength = "Denoising Strength";
         m_tr.section_actions = "FITTING ACTIONS";
-    } else {
+    } else if (m_lang == LANG_FR) {
         m_tr.title_app = "SUIVI DE BOLUS - TRIAGE MANUEL";
         m_tr.section_markers = "FENÊTRE D'AJUSTEMENT ET MARQUEURS INTERACTIFS";
         m_tr.section_crop = "ROGNAGE ET AFFICHAGE";
@@ -788,64 +878,64 @@ void BolusApp::update_locale() {
         m_tr.btn_override = "Déroger (PASS)";
         m_tr.btn_revert = "Rétablir les estimations automatiques";
         m_tr.btn_reset_crop = "Réinitialiser le rognage";
-        m_tr.btn_crop_bounds = "Rogner aux limites";
-        m_tr.label_onset = "Début du bolus (s)";
-        m_tr.label_peak = "Pic (s)";
-        m_tr.label_end = "Fin (s)";
+        m_tr.btn_crop_bounds = "Rogner aux marqueurs";
+        m_tr.label_onset = "Marqueur de début (s)";
+        m_tr.label_peak = "Marqueur de pic (s)";
+        m_tr.label_end = "Marqueur de fin (s)";
         m_tr.label_baseline = "Ligne de base";
-        m_tr.text_slider_desc = "Utilisez la glissière de plage sous le graphique pour ajuster la zone de rognage.";
+        m_tr.text_slider_desc = "Utilisez le curseur sous le graphique pour ajuster la zone de rognage.";
         m_tr.btn_ok = "OK";
         m_tr.btn_cancel = "Annuler";
-        m_tr.modal_reset_title = "Réinitialiser toutes les modifications ?";
-        m_tr.modal_reset_desc = "AVERTISSEMENT : cette opération annulera toutes les modifications,\nvalidations et dérogations manuelles de cette session.\n\nSouhaitez-vous continuer ?";
-        m_tr.btn_reset_confirm = "Oui, réinitialiser tout";
+        m_tr.modal_reset_title = "Réinitialiser toutes les modifications?";
+        m_tr.modal_reset_desc = "ATTENTION: Cela annulera TOUTES les modifications manuelles et\nles dérogations effectuées au cours de cette session.\n\nVoulez-vous continuer?";
+        m_tr.btn_reset_confirm = "Oui, tout réinitialiser";
         m_tr.modal_save_success = "Enregistrement réussi";
         m_tr.modal_save_state_success = "État enregistré avec succès";
         m_tr.modal_load_state_success = "État chargé avec succès";
-        m_tr.text_active_roi = "ROI active :";
-        m_tr.text_qc_flag = "Statut de contrôle de qualité (CQ) :";
-        m_tr.text_fit_source = "Source de l'ajustement :";
-        m_tr.text_dataset_loaded = "Jeu de données chargé :";
-        m_tr.text_roi_count = "Nombre de ROI :";
-        m_tr.text_flagged_count = "Signalés (ÉCHEC/AVERT.) :";
-        m_tr.text_manual_count = "Ajustés manuellement :";
+        m_tr.text_active_roi = "ROI active:";
+        m_tr.text_qc_flag = "Statut QC:";
+        m_tr.text_fit_source = "Source d'ajustement:";
+        m_tr.text_dataset_loaded = "Données chargées:";
+        m_tr.text_roi_count = "Nombre de ROIs:";
+        m_tr.text_flagged_count = "À réviser (ÉCHEC/AVERT.):";
+        m_tr.text_manual_count = "Ajustées manuellement:";
         m_tr.col_variable = "Variable";
         m_tr.col_amplitude = "Amplitude";
-        m_tr.col_t2p = "Temps au pic (TAP)";
-        m_tr.col_fwhm = "Largeur à mi-hauteur (LMH)";
+        m_tr.col_t2p = "Temps au pic (T2p)";
+        m_tr.col_fwhm = "FWHM";
         m_tr.col_baseline = "Ligne de base";
-        m_tr.col_cnr = "Rapport contraste-bruit (RCB)";
-        m_tr.col_onset = "Temps de début (TD)";
-        m_tr.plot_title = "Graphique de modélisation";
+        m_tr.col_cnr = "CNR";
+        m_tr.col_onset = "Temps de début (OnT)";
+        m_tr.plot_title = "Graphique d'ajustement de courbe";
         m_tr.plot_x_axis = "Temps (s)";
-        m_tr.plot_y_axis = "Intensité (UA)";
-        m_tr.plot_raw = "Signal brut (sans tendance)";
-        m_tr.plot_denoised = "Signal débruité";
-        m_tr.plot_fit = "Courbe d'ajustement Gamma";
+        m_tr.plot_y_axis = "Signal (SU)";
+        m_tr.plot_raw = "Signal brut (sans dérive)";
+        m_tr.plot_denoised = "Débruité";
+        m_tr.plot_fit = "Ajustement Gamma";
         m_tr.current_folder = "Dossier actuel";
         m_tr.path_selector = "Sélecteur de chemin";
         m_tr.btn_select_folder = "Sélectionner ce dossier";
         m_tr.btn_open_file = "Ouvrir le fichier sélectionné";
         m_tr.btn_close_dialog = "Fermer";
-        m_tr.dialog_title = "Ouvrir dossier ou fichier";
-        m_tr.text_total_rois = "Total ROI du jeu de données : %d";
-        m_tr.text_active_queue = "File de filtrage active : %d";
-        m_tr.text_triage_queue = "File de triage : %d / %d";
-        m_tr.btn_next_problem = "Suivant >>";
-        m_tr.btn_prev_problem = "<< Précédent";
-        m_tr.text_no_data = "Aucun jeu de données chargé. Utilisez le bouton ci-dessus pour charger un dossier ou un fichier CSV.";
-        m_tr.text_plot_status_header = "Signal (UA) - ROI #%d (%d px) | Statut : %s (Source : %s)";
-        m_tr.title_manual_override = "AJUSTEMENTS ET DÉROGATIONS MANUELLES";
-        m_tr.text_manual_override_desc = "Glissez les marqueurs de début, de pic et de fin directement sur le graphique, puis cliquez sur 'Réajuster (LM)'.";
+        m_tr.dialog_title = "Ouvrir un dossier ou un fichier";
+        m_tr.text_total_rois = "Total ROIs du jeu de données: %d";
+        m_tr.text_active_queue = "File de triage active: %d";
+        m_tr.text_triage_queue = "File de triage: %d / %d";
+        m_tr.btn_next_problem = "Problème suivant >>";
+        m_tr.btn_prev_problem = "<< Problème précédent";
+        m_tr.text_no_data = "Aucun jeu de données chargé. Utilisez le bouton ci-dessus pour charger un dossier de données ou un fichier CSV de résultats.";
+        m_tr.text_plot_status_header = "Série temporelle de signal (SU) - ROI #%d (Taille: %d px) | Statut: %s (Source: %s)";
+        m_tr.title_manual_override = "DÉROGATIONS MANUELLES ET MARQUEURS";
+        m_tr.text_manual_override_desc = "Faites glisser les marqueurs de début/pic/fin sur le graphique, puis cliquez sur 'Réajuster' ci-dessous pour optimiser.";
         m_tr.btn_revert_loaded = "Rétablir les valeurs chargées";
         m_tr.text_load_subject_data = "Charger les données";
-        m_tr.text_save_state_msg = "L'état de l'analyse a été sauvegardé avec succès dans :\n%s.gui_state";
-        m_tr.text_load_state_msg = "L'état de l'analyse a été restauré avec succès depuis :\n%s.gui_state";
-        m_tr.text_save_csv_msg = "Les résultats ont été enregistrés avec succès dans :\n%s";
-        m_tr.tag_onset = "Début : %.1fs";
-        m_tr.tag_peak = "Pic : %.1fs";
-        m_tr.tag_end = "Fin : %.1fs";
-        m_tr.tag_base = "Base : %.1f";
+        m_tr.text_save_state_msg = "État d'analyse enregistré sous:\n%s.gui_state";
+        m_tr.text_load_state_msg = "État d'analyse restauré depuis:\n%s.gui_state";
+        m_tr.text_save_csv_msg = "Résultats enregistrés sous:\n%s";
+        m_tr.tag_onset = "Début: %.1fs";
+        m_tr.tag_peak = "Pic: %.1fs";
+        m_tr.tag_end = "Fin: %.1fs";
+        m_tr.tag_base = "Base: %.1f";
         m_tr.btn_clear_data = "Effacer les données";
         m_tr.qc_pass = "CONFORME";
         m_tr.qc_warn = "AVERT.";
@@ -867,6 +957,382 @@ void BolusApp::update_locale() {
         m_tr.section_denoise = "OPTIONS DE DÉBRUITAGE";
         m_tr.label_denoise_strength = "Force du débruitage";
         m_tr.section_actions = "ACTIONS D'AJUSTEMENT";
+    } else if (m_lang == LANG_DE_CH) {
+        m_tr.title_app = "BOLUS TRACKING MANUELLE TRIAGE APP";
+        m_tr.section_markers = "ANPASSUNGSFENSTER & INTERAKTIVE MARKER";
+        m_tr.section_crop = "VISUALISIERUNGS-CROP-STEUERUNG";
+        m_tr.section_params = "AKTUELLE HÄMODYNAMISCHE PARAMETER";
+        m_tr.sidebar_title = "Triage-Seitenleiste";
+        m_tr.checkbox_flagged = "Nur Problemfälle anzeigen (FEHLER/WARNUNG)";
+        m_tr.btn_save_csv = "Finale CSV speichern";
+        m_tr.btn_reset_all = "Zurücksetzen";
+        m_tr.btn_load_state = "Zustand laden";
+        m_tr.btn_save_state = "Zustand speichern";
+        m_tr.btn_refit = "Neu anpassen (LM)";
+        m_tr.btn_override = "Erzwinge PASS";
+        m_tr.btn_revert = "Auf Original zurücksetzen";
+        m_tr.btn_reset_crop = "Crop zurücksetzen";
+        m_tr.btn_crop_bounds = "Auf Marker zuschneiden";
+        m_tr.label_onset = "Start-Marker (s)";
+        m_tr.label_peak = "Peak-Marker (s)";
+        m_tr.label_end = "End-Marker (s)";
+        m_tr.label_baseline = "Basislinie";
+        m_tr.text_slider_desc = "Verwenden Sie den Schieberegler unter dem Diagramm, um den Crop-Bereich anzupassen.";
+        m_tr.btn_ok = "OK";
+        m_tr.btn_cancel = "Abbrechen";
+        m_tr.modal_reset_title = "Alle Änderungen zurücksetzen?";
+        m_tr.modal_reset_desc = "WARNUNG: Dies verwirft ALLE manuellen Anpassungen, Überschreibungen\nund Triage-Änderungen dieser Sitzung.\n\nWollen Sie wirklich fortfahren?";
+        m_tr.btn_reset_confirm = "Ja, alle zurücksetzen";
+        m_tr.modal_save_success = "Erfolgreich gespeichert";
+        m_tr.modal_save_state_success = "Zustand erfolgreich gespeichert";
+        m_tr.modal_load_state_success = "Zustand erfolgreich geladen";
+        m_tr.text_active_roi = "Aktive ROI:";
+        m_tr.text_qc_flag = "Qualitätskontrolle:";
+        m_tr.text_fit_source = "Anpassungsquelle:";
+        m_tr.text_dataset_loaded = "Datensatz geladen:";
+        m_tr.text_roi_count = "Anzahl ROIs:";
+        m_tr.text_flagged_count = "Markiert (FEHLER/WARNUNG):";
+        m_tr.text_manual_count = "Manuell angepasst:";
+        m_tr.col_variable = "Variable";
+        m_tr.col_amplitude = "Amplitude";
+        m_tr.col_t2p = "Zeit bis Peak (T2p)";
+        m_tr.col_fwhm = "FWHM";
+        m_tr.col_baseline = "Basislinie";
+        m_tr.col_cnr = "CNR";
+        m_tr.col_onset = "Startzeit (OnT)";
+        m_tr.plot_title = "Messkurven-Anpassungs-Plot";
+        m_tr.plot_x_axis = "Zeit (s)";
+        m_tr.plot_y_axis = "Signal (SU)";
+        m_tr.plot_raw = "Rohdaten (bereinigt)";
+        m_tr.plot_denoised = "Entrauscht";
+        m_tr.plot_fit = "Gamma-Anpassung";
+        m_tr.current_folder = "Aktueller Ordner";
+        m_tr.path_selector = "Pfad-Auswahl";
+        m_tr.btn_select_folder = "Diesen Ordner auswählen";
+        m_tr.btn_open_file = "Ausgewählte Datei öffnen";
+        m_tr.btn_close_dialog = "Schliessen";
+        m_tr.dialog_title = "Ordner oder Datei öffnen";
+        m_tr.text_total_rois = "ROIs im Datensatz: %d";
+        m_tr.text_active_queue = "Aktive Triage-Warteschlange: %d";
+        m_tr.text_triage_queue = "Triage-Warteschlange: %d / %d";
+        m_tr.btn_next_problem = "Nächstes Problem >>";
+        m_tr.btn_prev_problem = "<< Vorheriges Problem";
+        m_tr.text_no_data = "Kein Datensatz geladen. Benutzen Sie den obigen Button, um einen Ordner oder eine CSV-Datei zu öffnen.";
+        m_tr.text_plot_status_header = "Signal-Zeitreihe (SU) - ROI #%d (Grösse: %d px) | Status: %s (Quelle: %s)";
+        m_tr.title_manual_override = "MANUELLE ANPASSUNGEN & DIAGRAMM-ZUSCHNITT";
+        m_tr.text_manual_override_desc = "Verschieben Sie die Start/Peak/End-Marker direkt im Diagramm und klicken Sie auf 'Neu anpassen'.";
+        m_tr.btn_revert_loaded = "Auf geladene Werte zurücksetzen";
+        m_tr.text_load_subject_data = "Daten laden";
+        m_tr.text_save_state_msg = "Analyse-Zustand erfolgreich gespeichert unter:\n%s.gui_state";
+        m_tr.text_load_state_msg = "Analyse-Zustand erfolgreich geladen aus:\n%s.gui_state";
+        m_tr.text_save_csv_msg = "Ergebnisse erfolgreich gespeichert unter:\n%s";
+        m_tr.tag_onset = "Start: %.1fs";
+        m_tr.tag_peak = "Peak: %.1fs";
+        m_tr.tag_end = "Ende: %.1fs";
+        m_tr.tag_base = "Basis: %.1f";
+        m_tr.btn_clear_data = "Daten löschen";
+        m_tr.qc_pass = "PASS";
+        m_tr.qc_warn = "WARNUNG";
+        m_tr.qc_fail = "FEHLER";
+        m_tr.qc_review = "PRÜFEN";
+        m_tr.source_auto = "auto";
+        m_tr.source_manual = "manuell";
+        m_tr.source_override = "manuell (PASS)";
+        m_tr.label_fitted = "Angepasst";
+        m_tr.label_estimated_init = "Geschätzt (Init)";
+        m_tr.label_filter = "Filter:";
+        m_tr.filter_all = "Alle";
+        m_tr.filter_flagged = "Problemfälle (FEHLER/WARNUNG/PRÜFEN)";
+        m_tr.filter_fail = "Nur FEHLER";
+        m_tr.filter_warn = "Nur WARNUNG";
+        m_tr.filter_pass = "Nur PASS";
+        m_tr.filter_review = "Nur PRÜFEN";
+        m_tr.label_auto_fit = "Originale Auto-Anpassung";
+        m_tr.section_denoise = "ENTRAUSCHUNGS-OPTIONEN";
+        m_tr.label_denoise_strength = "Entrauschungs-Stärke";
+        m_tr.section_actions = "AKTIONEN";
+    } else if (m_lang == LANG_JA) {
+        m_tr.title_app = "丸薬追跡手動評価アプリ (BOLUS TRACKING)";
+        m_tr.section_markers = "フィッティングウィンドウ & インタラクティブマーカー";
+        m_tr.section_crop = "可視化クロップコントロール";
+        m_tr.section_params = "現在の血行動態パラメータ";
+        m_tr.sidebar_title = "評価サイドバー";
+        m_tr.checkbox_flagged = "問題のあるケースのみ表示 (FAIL/WARN)";
+        m_tr.btn_save_csv = "最終CSV保存";
+        m_tr.btn_reset_all = "すべてリセット";
+        m_tr.btn_load_state = "状態を読込";
+        m_tr.btn_save_state = "状態を保存";
+        m_tr.btn_refit = "再フィッティング (LM)";
+        m_tr.btn_override = "強制 PASS";
+        m_tr.btn_revert = "初期値に戻す";
+        m_tr.btn_reset_crop = "クロップ解除";
+        m_tr.btn_crop_bounds = "範囲をマーカーに合わせる";
+        m_tr.label_onset = "開始点マーカー (秒)";
+        m_tr.label_peak = "ピークマーカー (秒)";
+        m_tr.label_end = "終了点マーカー (秒)";
+        m_tr.label_baseline = "ベースライン値";
+        m_tr.text_slider_desc = "プロットの下にあるレンジスライダーを使用して、クロップ範囲を調整します。";
+        m_tr.btn_ok = "確定";
+        m_tr.btn_cancel = "キャンセル";
+        m_tr.modal_reset_title = "すべての変更をリセットしますか？";
+        m_tr.modal_reset_desc = "警告：このセッションで行われたすべての手動調整、強制変更、\nおよびトリアージ編集が破棄されます。\n\n本当に続行しますか？";
+        m_tr.btn_reset_confirm = "はい、すべてリセット";
+        m_tr.modal_save_success = "保存成功";
+        m_tr.modal_save_state_success = "状態の保存完了";
+        m_tr.modal_load_state_success = "状態の読込完了";
+        m_tr.text_active_roi = "アクティブ ROI:";
+        m_tr.text_qc_flag = "品質管理 (QC) フラグ:";
+        m_tr.text_fit_source = "フィッティング元:";
+        m_tr.text_dataset_loaded = "読込済データ:";
+        m_tr.text_roi_count = "ROI数:";
+        m_tr.text_flagged_count = "要確認 (FAIL/WARN):";
+        m_tr.text_manual_count = "手動修正済:";
+        m_tr.col_variable = "変数";
+        m_tr.col_amplitude = "振幅 (Amplitude)";
+        m_tr.col_t2p = "ピーク時間 (T2p)";
+        m_tr.col_fwhm = "半値幅 (FWHM)";
+        m_tr.col_baseline = "ベースライン";
+        m_tr.col_cnr = "コントラストノイズ比 (CNR)";
+        m_tr.col_onset = "開始時間 (OnT)";
+        m_tr.plot_title = "トレースフィッティングプロット";
+        m_tr.plot_x_axis = "時間 (秒)";
+        m_tr.plot_y_axis = "信号値 (SU)";
+        m_tr.plot_raw = "生信号 (トレンド除去済)";
+        m_tr.plot_denoised = "ノイズ除去後";
+        m_tr.plot_fit = "ガンマフィット";
+        m_tr.current_folder = "現在のフォルダ";
+        m_tr.path_selector = "パス選択";
+        m_tr.btn_select_folder = "このフォルダを選択";
+        m_tr.btn_open_file = "選択ファイルを開く";
+        m_tr.btn_close_dialog = "閉じる";
+        m_tr.dialog_title = "フォルダまたはファイルを開く";
+        m_tr.text_total_rois = "データセット総ROI数: %d";
+        m_tr.text_active_queue = "アクティブフィルターキュー: %d";
+        m_tr.text_triage_queue = "評価キュー: %d / %d";
+        m_tr.btn_next_problem = "次の問題 >>";
+        m_tr.btn_prev_problem = "<< 前の問題";
+        m_tr.text_no_data = "データセットが読み込まれていません。上部のボタンからフォルダまたはCSVファイルを開いてください。";
+        m_tr.text_plot_status_header = "信号時間系列 (SU) - ROI #%d (サイズ: %d px) | ステータス: %s (ソース: %s)";
+        m_tr.title_manual_override = "手動修正 & フィットウィンドウ調整";
+        m_tr.text_manual_override_desc = "プロット上の開始・ピーク・終了ラインマーカーをドラッグし、下の「再フィッティング」をクリックして手動で最適化します。";
+        m_tr.btn_revert_loaded = "読み込み時の値に戻す";
+        m_tr.text_load_subject_data = "被験者データを読込";
+        m_tr.text_save_state_msg = "解析状態を一時保存しました：\n%s.gui_state";
+        m_tr.text_load_state_msg = "解析状態を復元しました：\n%s.gui_state";
+        m_tr.text_save_csv_msg = "結果を書き出しました：\n%s";
+        m_tr.tag_onset = "開始: %.1f秒";
+        m_tr.tag_peak = "ピーク: %.1f秒";
+        m_tr.tag_end = "終了: %.1f秒";
+        m_tr.tag_base = "ベース: %.1f";
+        m_tr.btn_clear_data = "データをクリア";
+        m_tr.qc_pass = "PASS (合格)";
+        m_tr.qc_warn = "WARN (警告)";
+        m_tr.qc_fail = "FAIL (不合格)";
+        m_tr.qc_review = "REVIEW (要確認)";
+        m_tr.source_auto = "自動 (auto)";
+        m_tr.source_manual = "手動 (manual)";
+        m_tr.source_override = "強制合格 (override)";
+        m_tr.label_fitted = "フィット済";
+        m_tr.label_estimated_init = "推定初期値";
+        m_tr.label_filter = "フィルター:";
+        m_tr.filter_all = "すべて";
+        m_tr.filter_flagged = "問題あり (FAIL/WARN/REVIEW)";
+        m_tr.filter_fail = "FAIL のみ";
+        m_tr.filter_warn = "WARN のみ";
+        m_tr.filter_pass = "PASS のみ";
+        m_tr.filter_review = "REVIEW のみ";
+        m_tr.label_auto_fit = "初期自動フィット";
+        m_tr.section_denoise = "ノイズ除去オプション";
+        m_tr.label_denoise_strength = "ノイズ除去強度";
+        m_tr.section_actions = "フィッティング操作";
+    } else if (m_lang == LANG_ZH_CN) {
+        m_tr.title_app = "团注追踪手动评估软件 (BOLUS TRACKING)";
+        m_tr.section_markers = "拟合窗口与交互式标记";
+        m_tr.section_crop = "可视化裁剪控制";
+        m_tr.section_params = "当前血流动力学参数";
+        m_tr.sidebar_title = "评估侧边栏";
+        m_tr.checkbox_flagged = "仅显示有问题的病例 (FAIL/WARN)";
+        m_tr.btn_save_csv = "保存最终 CSV";
+        m_tr.btn_reset_all = "重置全部";
+        m_tr.btn_load_state = "加载进度";
+        m_tr.btn_save_state = "保存进度";
+        m_tr.btn_refit = "重新拟合 (LM)";
+        m_tr.btn_override = "强制 PASS";
+        m_tr.btn_revert = "恢复到自动估计";
+        m_tr.btn_reset_crop = "重置裁剪";
+        m_tr.btn_crop_bounds = "裁剪至标记范围";
+        m_tr.label_onset = "起始点标记 (秒)";
+        m_tr.label_peak = "峰值标记 (秒)";
+        m_tr.label_end = "终点标记 (秒)";
+        m_tr.label_baseline = "基线值";
+        m_tr.text_slider_desc = "使用图表下方的范围滑块来调整裁剪区域。";
+        m_tr.btn_ok = "确定";
+        m_tr.btn_cancel = "取消";
+        m_tr.modal_reset_title = "重置所有更改？";
+        m_tr.modal_reset_desc = "警告：这将放弃您在此会话中进行的所有手动调整、强制更改\n和评估编辑。\n\n您确定要继续吗？";
+        m_tr.btn_reset_confirm = "是，重置全部";
+        m_tr.modal_save_success = "保存成功";
+        m_tr.modal_save_state_success = "进度保存成功";
+        m_tr.modal_load_state_success = "进度加载成功";
+        m_tr.text_active_roi = "当前 ROI:";
+        m_tr.text_qc_flag = "质量控制 (QC) 标志:";
+        m_tr.text_fit_source = "拟合来源:";
+        m_tr.text_dataset_loaded = "已加载数据:";
+        m_tr.text_roi_count = "ROI 总数:";
+        m_tr.text_flagged_count = "需标记 (FAIL/WARN):";
+        m_tr.text_manual_count = "手动修改数:";
+        m_tr.col_variable = "变量";
+        m_tr.col_amplitude = "振幅 (Amplitude)";
+        m_tr.col_t2p = "达峰时间 (T2p)";
+        m_tr.col_fwhm = "半峰全宽 (FWHM)";
+        m_tr.col_baseline = "基线";
+        m_tr.col_cnr = "对比度噪声比 (CNR)";
+        m_tr.col_onset = "起效时间 (OnT)";
+        m_tr.plot_title = "曲线拟合图";
+        m_tr.plot_x_axis = "时间 (秒)";
+        m_tr.plot_y_axis = "信号强度 (SU)";
+        m_tr.plot_raw = "原始信号 (已去趋势)";
+        m_tr.plot_denoised = "已去噪";
+        m_tr.plot_fit = "伽马拟合";
+        m_tr.current_folder = "当前文件夹";
+        m_tr.path_selector = "路径选择器";
+        m_tr.btn_select_folder = "选择当前文件夹";
+        m_tr.btn_open_file = "打开选中文件";
+        m_tr.btn_close_dialog = "关闭";
+        m_tr.dialog_title = "打开文件夹或文件";
+        m_tr.text_total_rois = "数据集 ROI 总数: %d";
+        m_tr.text_active_queue = "当前筛选队列数: %d";
+        m_tr.text_triage_queue = "评估队列: %d / %d";
+        m_tr.btn_next_problem = "下一个问题 >>";
+        m_tr.btn_prev_problem = "<< 上一个问题";
+        m_tr.text_no_data = "尚未加载数据集。使用上方按钮打开数据文件夹或 CSV 文件。";
+        m_tr.text_plot_status_header = "信号时间序列 (SU) - ROI #%d (大小: %d 像素) | 状态: %s (来源: %s)";
+        m_tr.title_manual_override = "手动微调与拟合窗口裁剪";
+        m_tr.text_manual_override_desc = "在图表上直接拖动起始/峰值/终点标记线，然后点击下方的“重新拟合”以手动优化参数。";
+        m_tr.btn_revert_loaded = "恢复到加载时的值";
+        m_tr.text_load_subject_data = "加载受试者数据";
+        m_tr.text_save_state_msg = "分析进度已成功保存至：\n%s.gui_state";
+        m_tr.text_load_state_msg = "分析进度已成功恢复自：\n%s.gui_state";
+        m_tr.text_save_csv_msg = "结果已成功写入：\n%s";
+        m_tr.tag_onset = "起点: %.1f秒";
+        m_tr.tag_peak = "峰值: %.1f秒";
+        m_tr.tag_end = "终点: %.1f秒";
+        m_tr.tag_base = "基线: %.1f";
+        m_tr.btn_clear_data = "清空数据";
+        m_tr.qc_pass = "通过 (PASS)";
+        m_tr.qc_warn = "警告 (WARN)";
+        m_tr.qc_fail = "失败 (FAIL)";
+        m_tr.qc_review = "复核 (REVIEW)";
+        m_tr.source_auto = "自动 (auto)";
+        m_tr.source_manual = "手动 (manual)";
+        m_tr.source_override = "强制通过 (override)";
+        m_tr.label_fitted = "拟合值";
+        m_tr.label_estimated_init = "估计初始值";
+        m_tr.label_filter = "筛选器：";
+        m_tr.filter_all = "全部";
+        m_tr.filter_flagged = "有问题的病例 (FAIL/WARN/REVIEW)";
+        m_tr.filter_fail = "仅限 FAIL";
+        m_tr.filter_warn = "仅限 WARN";
+        m_tr.filter_pass = "仅限 PASS";
+        m_tr.filter_review = "仅限 REVIEW";
+        m_tr.label_auto_fit = "原始自动拟合";
+        m_tr.section_denoise = "去噪设置";
+        m_tr.label_denoise_strength = "去噪强度";
+        m_tr.section_actions = "拟合操作";
+    } else {
+        m_tr.title_app = to_klingon_piqad("bolus ghal wIv pat");
+        m_tr.section_markers = to_klingon_piqad("chenmoHmeH QorwI' je lach");
+        m_tr.section_crop = to_klingon_piqad("leghmeH pe'wI' pat");
+        m_tr.section_params = to_klingon_piqad("DaHjaj parameters");
+        m_tr.sidebar_title = to_klingon_piqad("trIyaD nentay");
+        m_tr.checkbox_flagged = to_klingon_piqad("QIp je ghel neH tuch");
+        m_tr.btn_save_csv = to_klingon_piqad("CSV pat pol");
+        m_tr.btn_reset_all = to_klingon_piqad("hogh choH");
+        m_tr.btn_load_state = to_klingon_piqad("wanI' yIwoH");
+        m_tr.btn_save_state = to_klingon_piqad("wanI' yIpol");
+        m_tr.btn_refit = to_klingon_piqad("re-chenmoH (LM)");
+        m_tr.btn_override = to_klingon_piqad("PASS yIchav");
+        m_tr.btn_revert = to_klingon_piqad("yItuch");
+        m_tr.btn_reset_crop = to_klingon_piqad("pe' choH");
+        m_tr.btn_crop_bounds = to_klingon_piqad("lach pe'");
+        m_tr.label_onset = to_klingon_piqad("tagh lach (s)");
+        m_tr.label_peak = to_klingon_piqad("yoD lach (s)");
+        m_tr.label_end = to_klingon_piqad("pItlh lach (s)");
+        m_tr.label_baseline = to_klingon_piqad("rav lach");
+        m_tr.text_slider_desc = to_klingon_piqad("pe'meH range slider yIlo'");
+        m_tr.btn_ok = to_klingon_piqad("lu'");
+        m_tr.btn_cancel = to_klingon_piqad("Qo'");
+        m_tr.modal_reset_title = to_klingon_piqad("hogh choH?");
+        m_tr.modal_reset_desc = to_klingon_piqad("tuch: hogh choH neH?");
+        m_tr.btn_reset_confirm = to_klingon_piqad("HIja', hogh choH");
+        m_tr.modal_save_success = to_klingon_piqad("pol potlh");
+        m_tr.modal_save_state_success = to_klingon_piqad("state pol potlh");
+        m_tr.modal_load_state_success = to_klingon_piqad("state woH potlh");
+        m_tr.text_active_roi = to_klingon_piqad("ROI active:");
+        m_tr.text_qc_flag = to_klingon_piqad("QC lach:");
+        m_tr.text_fit_source = to_klingon_piqad("fit hal:");
+        m_tr.text_dataset_loaded = to_klingon_piqad("data woH:");
+        m_tr.text_roi_count = to_klingon_piqad("ROI mI':");
+        m_tr.text_flagged_count = to_klingon_piqad("tuch (QIp/ghel):");
+        m_tr.text_manual_count = to_klingon_piqad("manual mI':");
+        m_tr.col_variable = to_klingon_piqad("choH");
+        m_tr.col_amplitude = to_klingon_piqad("amplitude");
+        m_tr.col_t2p = to_klingon_piqad("T2p");
+        m_tr.col_fwhm = to_klingon_piqad("FWHM");
+        m_tr.col_baseline = to_klingon_piqad("rav");
+        m_tr.col_cnr = to_klingon_piqad("CNR");
+        m_tr.col_onset = to_klingon_piqad("tagh (OnT)");
+        m_tr.plot_title = to_klingon_piqad("ghal mIw");
+        m_tr.plot_x_axis = to_klingon_piqad("tup (s)");
+        m_tr.plot_y_axis = to_klingon_piqad("yIj (SU)");
+        m_tr.plot_raw = to_klingon_piqad("raw");
+        m_tr.plot_denoised = to_klingon_piqad("denoised");
+        m_tr.plot_fit = to_klingon_piqad("Gamma fit");
+        m_tr.current_folder = to_klingon_piqad("folder active");
+        m_tr.path_selector = to_klingon_piqad("path select");
+        m_tr.btn_select_folder = to_klingon_piqad("folder active yIselect");
+        m_tr.btn_open_file = to_klingon_piqad("file active yIopen");
+        m_tr.btn_close_dialog = to_klingon_piqad("dialog yIclose");
+        m_tr.dialog_title = to_klingon_piqad("yIopen");
+        m_tr.text_total_rois = to_klingon_piqad("Total ROIs: %d");
+        m_tr.text_active_queue = to_klingon_piqad("Filter Queue: %d");
+        m_tr.text_triage_queue = to_klingon_piqad("Queue: %d / %d");
+        m_tr.btn_next_problem = to_klingon_piqad("Next >>");
+        m_tr.btn_prev_problem = to_klingon_piqad("<< Prev");
+        m_tr.text_no_data = to_klingon_piqad("no subject data");
+        m_tr.text_plot_status_header = to_klingon_piqad("yIj (SU) - ROI #%d (%d px) | Status: %s (Source: %s)");
+        m_tr.title_manual_override = to_klingon_piqad("manual overrides");
+        m_tr.text_manual_override_desc = to_klingon_piqad("drag markers");
+        m_tr.btn_revert_loaded = to_klingon_piqad("yItuch");
+        m_tr.text_load_subject_data = to_klingon_piqad("data yIwoH");
+        m_tr.text_save_state_msg = to_klingon_piqad("saved");
+        m_tr.text_load_state_msg = to_klingon_piqad("resumed");
+        m_tr.text_save_csv_msg = to_klingon_piqad("saved");
+        m_tr.tag_onset = to_klingon_piqad("tagh: %.1fs");
+        m_tr.tag_peak = to_klingon_piqad("yoD: %.1fs");
+        m_tr.tag_end = to_klingon_piqad("pItlh: %.1fs");
+        m_tr.tag_base = to_klingon_piqad("rav: %.1f");
+        m_tr.btn_clear_data = to_klingon_piqad("data yIQaw'");
+        m_tr.qc_pass = to_klingon_piqad("PASS");
+        m_tr.qc_warn = to_klingon_piqad("ghel");
+        m_tr.qc_fail = to_klingon_piqad("QIp");
+        m_tr.qc_review = to_klingon_piqad("tob");
+        m_tr.source_auto = to_klingon_piqad("pat");
+        m_tr.source_manual = to_klingon_piqad("ghob");
+        m_tr.source_override = to_klingon_piqad("chav");
+        m_tr.label_fitted = to_klingon_piqad("fitted");
+        m_tr.label_estimated_init = to_klingon_piqad("initial");
+        m_tr.label_filter = to_klingon_piqad("Filter:");
+        m_tr.filter_all = to_klingon_piqad("All");
+        m_tr.filter_flagged = to_klingon_piqad("Flagged");
+        m_tr.filter_fail = to_klingon_piqad("QIp neH");
+        m_tr.filter_warn = to_klingon_piqad("ghel neH");
+        m_tr.filter_pass = to_klingon_piqad("PASS neH");
+        m_tr.filter_review = to_klingon_piqad("tob neH");
+        m_tr.label_auto_fit = to_klingon_piqad("auto fit");
+        m_tr.section_denoise = to_klingon_piqad("denoising");
+        m_tr.label_denoise_strength = to_klingon_piqad("denoising strength");
+        m_tr.section_actions = to_klingon_piqad("fit actions");
     }
 }
 BolusApp::BolusApp() : m_fitter(1e-6, 1023.0, 1e-6, 1e6, 0.5, 1e6), m_denoise_strength_factor(1.0f) {}
@@ -992,15 +1458,93 @@ bool BolusApp::init() {
         std::string font_reg_path = get_resource_path("resources/fonts/Outfit-Medium.ttf");
         std::string font_bold_path = get_resource_path("resources/fonts/Outfit-Bold.ttf");
         
+        std::string cjk_font = find_cjk_font();
+        std::string klingon_font = get_resource_path("resources/fonts/Klingon-pIqaD.ttf");
+        
         if (is_valid_ttf(font_reg_path)) {
             m_font_regular = io.Fonts->AddFontFromFileTTF(font_reg_path.c_str(), 16.0f, &font_config);
+            
+            if (!cjk_font.empty()) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                static const ImWchar ChineseSimplifiedRanges[] = {
+                    0x0020, 0x00FF,
+                    0x2000, 0x206F,
+                    0x3000, 0x30FF,
+                    0x4E00, 0x9FAF,
+                    0xFF00, 0xFFEF,
+                    0
+                };
+                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 16.0f, &merge_config, ChineseSimplifiedRanges);
+            }
+            if (is_valid_ttf(klingon_font)) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                static const ImWchar KlingonRanges[] = {
+                    0xF8D0, 0xF8FF,
+                    0
+                };
+                io.Fonts->AddFontFromFileTTF(klingon_font.c_str(), 16.0f, &merge_config, KlingonRanges);
+            }
         }
+        
         if (is_valid_ttf(font_bold_path)) {
             m_font_bold = io.Fonts->AddFontFromFileTTF(font_bold_path.c_str(), 18.0f, &font_config);
+            
+            if (!cjk_font.empty()) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                static const ImWchar ChineseSimplifiedRanges[] = {
+                    0x0020, 0x00FF,
+                    0x2000, 0x206F,
+                    0x3000, 0x30FF,
+                    0x4E00, 0x9FAF,
+                    0xFF00, 0xFFEF,
+                    0
+                };
+                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 18.0f, &merge_config, ChineseSimplifiedRanges);
+            }
+            if (is_valid_ttf(klingon_font)) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                static const ImWchar KlingonRanges[] = {
+                    0xF8D0, 0xF8FF,
+                    0
+                };
+                io.Fonts->AddFontFromFileTTF(klingon_font.c_str(), 18.0f, &merge_config, KlingonRanges);
+            }
         }
         
         if (!m_font_regular) {
             m_font_regular = io.Fonts->AddFontDefault();
+            if (!cjk_font.empty()) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                static const ImWchar ChineseSimplifiedRanges[] = {
+                    0x0020, 0x00FF,
+                    0x2000, 0x206F,
+                    0x3000, 0x30FF,
+                    0x4E00, 0x9FAF,
+                    0xFF00, 0xFFEF,
+                    0
+                };
+                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 13.0f, &merge_config, ChineseSimplifiedRanges);
+            }
+            if (is_valid_ttf(klingon_font)) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                static const ImWchar KlingonRanges[] = {
+                    0xF8D0, 0xF8FF,
+                    0
+                };
+                io.Fonts->AddFontFromFileTTF(klingon_font.c_str(), 13.0f, &merge_config, KlingonRanges);
+            }
         }
         if (!m_font_bold) {
             m_font_bold = m_font_regular;
@@ -1929,19 +2473,15 @@ void BolusApp::draw_top_bar() {
     ImGui::PushFont(m_font_bold);
     ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", m_tr.title_app.c_str());
     ImGui::PopFont();
-    ImGui::SameLine();
-    ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 930.0f);
+    ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 955.0f);
     
-    if (m_lang == LANG_EN) {
-        if (ImGui::Button("FR (Québec)", ImVec2(105, 24))) {
-            m_lang = LANG_FR;
-            update_locale();
-        }
-    } else {
-        if (ImGui::Button("EN (Canada)", ImVec2(105, 24))) {
-            m_lang = LANG_EN;
-            update_locale();
-        }
+    std::string kl_label = to_klingon_piqad("tlhIngan Hol");
+    const char* languages[] = { "EN (Canada)", "FR (Québec)", "DE (Schweiz)", "日本語", "简体中文", kl_label.c_str() };
+    int current_lang = static_cast<int>(m_lang);
+    ImGui::SetNextItemWidth(130.0f);
+    if (ImGui::Combo("##LanguageCombo", &current_lang, languages, IM_ARRAYSIZE(languages))) {
+        m_lang = static_cast<Language>(current_lang);
+        update_locale();
     }
     ImGui::SameLine();
     
