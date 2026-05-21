@@ -25,6 +25,7 @@ This repository provides tools to:
 We provide detailed documentation for each part of the codebase. Please refer to the files below depending on your workflow:
 
 * **[RUNNING_GUIDE.md](RUNNING_GUIDE.md)**: **Start Here.** A complete, beginner-friendly guide for setting up and running the parallel C++ batch pipeline, reference Python pipeline, and launching the interactive GUI. Covers macOS, Linux, Windows, and Docker.
+* **[INSTALL.md](INSTALL.md)**: **Installation Instructions.** Setup, building, packaging, and installing the GUI application (including macOS app bundles and custom icons).
 * **[PARITY_REPORT.md](PARITY_REPORT.md)**: **Performance & Parity Report.** Compares Python vs. C++ implementation execution speeds, numerical outcomes, and provides recommendations.
 * **[README_Python_Pipeline.md](README_Python_Pipeline.md)**: Details the Python implementation, custom loss functions (Cauchy robust weightings), and numerical optimization settings.
 * **[README_BolusAnalysis.md](README_BolusAnalysis.md)**: Standard overview of the bolus analysis workflow and math models.
