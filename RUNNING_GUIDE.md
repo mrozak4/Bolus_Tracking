@@ -142,6 +142,51 @@ This script compiles the GUI, builds `BolusTrackingStudio.app` in the repository
 
 ---
 
+### Fit Quality Parameters & Triage Limits
+
+To ensure biological plausibility, the automated pipeline and GUI evaluate the fits against the following QC criteria:
+
+| Parameter | Description | Warning Threshold (`WARN`) | Failure Threshold (`FAIL`) | Absolute Solver Bounds (Hard Limit) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Amplitude** | Peak height of the bolus curve | — | `< 1.0` | `[1e-6, 1023.0]` |
+| **Time to Peak ($T_{2p}$)** | Duration from onset to peak | `> 10.0 s` | `> 50.0 s` | `[1e-6, inf)` |
+| **FWHM** | Full width of bolus at half max amplitude | `> 15.0 s` | `> 100.0 s` | `[0.5, inf)` |
+| **CNR** | Contrast-to-Noise Ratio (Peak / SD of baseline) | `< 5.0` | `< 3.0` | — |
+
+* **`PASS`**: The fit completed successfully, and all parameters fell within the healthy warning limits.
+* **`WARN`**: The fit succeeded, but one or more parameters crossed the warning limits (e.g., abnormally long FWHM or low contrast).
+* **`FAIL`**: The fit diverged, converged to an absolute solver boundary (indicating a non-physical mathematical solution), or failed critical QC constraints.
+
+---
+
+### Operator's Guide: Triaging & Correcting Fits in the GUI
+
+If a subject folder has capillary fits flagged as `WARN` or `FAIL`, use the C++ GUI (see **[INSTALL.md](INSTALL.md)** for installation instructions) to review and manually fit them:
+
+1. **Focus on Problem Cases:** Click **Load Folder** to select a subject directory, or open the existing results CSV. Once the queue list in the sidebar is populated, check **"Show WARN/FAIL only"** at the top of the sidebar. This hides all healthy fits, letting you isolate problem cases.
+2. **Inspect the Raw Signal:** Click on a flagged ROI to load its trace. Look for common issues:
+   * *Baseline Noise:* High high-frequency fluctuations before the dye bolus arrives.
+   * *Recirculation Tail:* A secondary rise or slow decay in fluorescence after the main bolus passes.
+   * *Incorrect Peak/Onset Selection:* The automated derivative heuristic may have locked onto a noisy spike instead of the true bolus passage.
+3. **Define a Crop Window (On-the-Fly Cropping):**
+   * Adjust the blue and magenta vertical brackets at the edges of the plot to define a crop window.
+   * For example, if there is late recirculation or a noisy baseline tail, drag the right bracket (magenta) to the left to exclude data past the first-pass clearance.
+   * If the pre-bolus baseline is noisy, drag the left bracket (blue) to the right.
+   * *Note:* You can double-click the plot to reset the axis limits, or click **Undo Crop** to restore the full signal range at any time.
+4. **Manually Drag the Fitting Markers:**
+   * Drag the three vertical lines directly on the plot to specify your manual estimates:
+     * **Green line:** Onset time
+     * **Yellow line:** Peak time
+     * **Red line:** Clearance/End time
+   * These lines serve as the initial guess parameters for the constrained optimizer.
+5. **Run the Constrained Re-fit:**
+   * Click **Re-fit Manual**. The C++ optimizer will run a Levenberg-Marquardt fitting step *exclusively* within the cropped window you defined in Step 3, using your dragged markers from Step 4 as initial values.
+   * The fit will immediately update on screen. If it satisfies the QC constraints, its status in the sidebar will update (e.g. to a green `PASS` or `WARN` manually-fit status).
+6. **Save and Export:**
+   * When you are satisfied with the manually adjusted fits, click **Save CSV** in the sidebar. The updated fitting parameters (Amplitude, FWHM, Time to Peak, AUC, etc.) are written directly to the output CSV. Note that all timing parameters are exported relative to the *original, uncropped* absolute time scale so that manual crop bounds do not bias the physical transit times.
+
+---
+
 ### B. The Python GUI: Tkinter & Matplotlib Studio
 
 The Python GUI provides a premium, interactive interface to visually browse datasets, select ROIs, click on plots to adjust markers, run fits, and save results.
