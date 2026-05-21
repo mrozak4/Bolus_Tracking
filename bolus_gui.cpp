@@ -100,6 +100,7 @@ struct RoiCachedData {
     int roi_id = 0;
     std::vector<double> t_raw;
     std::vector<double> y_raw;
+    std::vector<double> y_raw_detrended;
     std::vector<double> y_denoised;
     std::vector<double> t_us;
     std::vector<double> y_us;
@@ -540,6 +541,151 @@ public:
 };
 
 // ============================================================================
+// Custom range slider for visual crop selection
+// ============================================================================
+static bool RangeSlider(const char* id_str, double* v_min, double* v_max, double v_min_limit, double v_max_limit, const ImVec2& size) {
+    ImGui::PushID(id_str);
+    
+    ImVec2 pos = ImGui::GetCursorScreenPos();
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    
+    // Add an invisible button to handle inputs
+    ImGui::InvisibleButton("slider_bar", size);
+    bool is_active = ImGui::IsItemActive();
+    
+    float width = size.x;
+    float height = size.y;
+    
+    double range_limit = v_max_limit - v_min_limit;
+    if (range_limit <= 0.0) range_limit = 1.0;
+    
+    // Normalize coordinates
+    float t_min = (float)((*v_min - v_min_limit) / range_limit);
+    float t_max = (float)((*v_max - v_min_limit) / range_limit);
+    t_min = std::max(0.0f, std::min(1.0f, t_min));
+    t_max = std::max(0.0f, std::min(1.0f, t_max));
+    
+    float x_min = pos.x + t_min * width;
+    float x_max = pos.x + t_max * width;
+    
+    // Check if dragging left or right handle, or middle section
+    static int dragging_handle = 0; // 0 = none, 1 = min handle, 2 = max handle, 3 = middle range
+    static float start_t_min = 0.0f;
+    static float start_t_max = 0.0f;
+    static float drag_start_x = 0.0f;
+    
+    float handle_width = 12.0f;
+    
+    if (ImGui::IsItemActivated()) {
+        ImVec2 mouse_pos = ImGui::GetIO().MousePos;
+        float mx = mouse_pos.x;
+        
+        // Check distance to min/max handle
+        float dist_min = std::abs(mx - x_min);
+        float dist_max = std::abs(mx - x_max);
+        
+        drag_start_x = mx;
+        start_t_min = t_min;
+        start_t_max = t_max;
+        
+        if (dist_min < handle_width && dist_min <= dist_max) {
+            dragging_handle = 1;
+        } else if (dist_max < handle_width) {
+            dragging_handle = 2;
+        } else if (mx >= x_min && mx <= x_max) {
+            dragging_handle = 3;
+        } else {
+            // Click outside - jump closest handle to mouse
+            float click_t = (mx - pos.x) / width;
+            click_t = std::max(0.0f, std::min(1.0f, click_t));
+            if (std::abs(click_t - t_min) < std::abs(click_t - t_max)) {
+                t_min = std::min(click_t, t_max - 0.01f);
+                dragging_handle = 1;
+            } else {
+                t_max = std::max(click_t, t_min + 0.01f);
+                dragging_handle = 2;
+            }
+            *v_min = v_min_limit + t_min * range_limit;
+            *v_max = v_min_limit + t_max * range_limit;
+            start_t_min = t_min;
+            start_t_max = t_max;
+        }
+    }
+    
+    bool changed = false;
+    if (is_active && dragging_handle != 0) {
+        float dx = ImGui::GetIO().MousePos.x - drag_start_x;
+        float dt = dx / width;
+        
+        if (dragging_handle == 1) {
+            float new_t = start_t_min + dt;
+            new_t = std::max(0.0f, std::min(start_t_max - 0.01f, new_t));
+            *v_min = v_min_limit + new_t * range_limit;
+            changed = true;
+        } else if (dragging_handle == 2) {
+            float new_t = start_t_max + dt;
+            new_t = std::max(start_t_min + 0.01f, std::min(1.0f, new_t));
+            *v_max = v_min_limit + new_t * range_limit;
+            changed = true;
+        } else if (dragging_handle == 3) {
+            float new_t_min = start_t_min + dt;
+            float new_t_max = start_t_max + dt;
+            float len = start_t_max - start_t_min;
+            if (new_t_min < 0.0f) {
+                new_t_min = 0.0f;
+                new_t_max = len;
+            } else if (new_t_max > 1.0f) {
+                new_t_max = 1.0f;
+                new_t_min = 1.0f - len;
+            }
+            *v_min = v_min_limit + new_t_min * range_limit;
+            *v_max = v_min_limit + new_t_max * range_limit;
+            changed = true;
+        }
+    }
+    
+    if (!is_active) {
+        dragging_handle = 0;
+    }
+    
+    // Render slider background
+    ImU32 bg_color = ImGui::GetColorU32(ImGuiCol_FrameBg);
+    ImU32 active_track_color = ImGui::GetColorU32(ImGuiCol_SliderGrabActive);
+    ImU32 handle_color = ImGui::GetColorU32(ImGuiCol_SliderGrab);
+    ImU32 border_color = ImGui::GetColorU32(ImGuiCol_Border);
+    
+    // Draw background track
+    draw_list->AddRectFilled(pos, ImVec2(pos.x + width, pos.y + height), bg_color, 4.0f);
+    draw_list->AddRect(pos, ImVec2(pos.x + width, pos.y + height), border_color, 4.0f);
+    
+    // Draw active range track
+    ImVec2 active_min(pos.x + t_min * width, pos.y);
+    ImVec2 active_max(pos.x + t_max * width, pos.y + height);
+    draw_list->AddRectFilled(active_min, active_max, active_track_color, 0.0f);
+    
+    // Draw handles
+    ImVec2 h1_min(pos.x + t_min * width - handle_width * 0.5f, pos.y);
+    ImVec2 h1_max(pos.x + t_min * width + handle_width * 0.5f, pos.y + height);
+    draw_list->AddRectFilled(h1_min, h1_max, handle_color, 2.0f);
+    draw_list->AddRect(h1_min, h1_max, border_color, 2.0f);
+    
+    ImVec2 h2_min(pos.x + t_max * width - handle_width * 0.5f, pos.y);
+    ImVec2 h2_max(pos.x + t_max * width + handle_width * 0.5f, pos.y + height);
+    draw_list->AddRectFilled(h2_min, h2_max, handle_color, 2.0f);
+    draw_list->AddRect(h2_min, h2_max, border_color, 2.0f);
+    
+    // Add text label overlay inside the slider
+    char label_buf[128];
+    snprintf(label_buf, sizeof(label_buf), "Visual Crop Range: %.1fs - %.1fs", *v_min, *v_max);
+    ImVec2 text_size = ImGui::CalcTextSize(label_buf);
+    ImVec2 text_pos(pos.x + (width - text_size.x) * 0.5f, pos.y + (height - text_size.y) * 0.5f);
+    draw_list->AddText(text_pos, ImGui::GetColorU32(ImGuiCol_Text), label_buf);
+    
+    ImGui::PopID();
+    return changed;
+}
+
+// ============================================================================
 // Main Application Class
 // ============================================================================
 
@@ -557,6 +703,8 @@ private:
     // Loaded data
     std::vector<CsvRecord> m_records;
     std::vector<RoiState> m_gui_roi_states;
+    std::vector<CsvRecord> m_records_backup;
+    std::vector<RoiState> m_gui_roi_states_backup;
     TiffData m_tiff;
     std::vector<ROI> m_rois;
     double m_fr = 1.0;
@@ -739,6 +887,10 @@ public:
         // Try loading gui state
         load_gui_state();
         
+        // Backup the loaded CSV and GUI state for reverting
+        m_records_backup = m_records;
+        m_gui_roi_states_backup = m_gui_roi_states;
+        
         build_triage_queue();
         
         // Select either the loaded last active index, or default to triage queue start
@@ -908,6 +1060,7 @@ private:
             for (size_t i = 0; i < detrended.size(); ++i) {
                 detrended[i] -= c.drift_slope * c.t_raw[i];
             }
+            c.y_raw_detrended = detrended;
             
             // 4. Denoise and Spline
             c.y_denoised = SignalProcessor::denoise_trace(detrended);
@@ -957,11 +1110,12 @@ private:
         c.t_fit_plot = c.t_us;
         c.y_fit_plot.resize(c.t_fit_plot.size());
         
+        double onset_t = !std::isnan(rec.click_onset) ? rec.click_onset : (!std::isnan(rec.ont) ? rec.ont : 0.0);
         for (size_t i = 0; i < c.t_fit_plot.size(); ++i) {
             double t = c.t_fit_plot[i];
             double val = rec.f_m;
-            if (t >= rec.ont) {
-                double dt = t - rec.ont;
+            if (t >= onset_t) {
+                double dt = t - onset_t;
                 val = rec.f_m + rec.f_amp * std::pow(dt / rec.f_t2p, alpha) * std::exp(-(dt - rec.f_t2p) / beta);
             }
             c.y_fit_plot[i] = val;
@@ -1378,18 +1532,62 @@ private:
         // Render plot
         ImGui::Text("MFI Time Series - ROI #%d (Size: %d px) | Status: %s (Source: %s)", rec.roi_id, rec.roi_size, rec.qc_flag.c_str(), rec.fit_source.c_str());
         
+        // Calculate Y limits with a 10% buffer based on visible traces in the crop range
+        double visible_y_min = std::numeric_limits<double>::max();
+        double visible_y_max = -std::numeric_limits<double>::max();
+        
+        for (size_t i = 0; i < c.t_raw.size(); ++i) {
+            double t = c.t_raw[i];
+            if (t >= m_crop_min && t <= m_crop_max) {
+                if (c.y_raw_detrended[i] < visible_y_min) visible_y_min = c.y_raw_detrended[i];
+                if (c.y_raw_detrended[i] > visible_y_max) visible_y_max = c.y_raw_detrended[i];
+                
+                if (c.y_denoised[i] < visible_y_min) visible_y_min = c.y_denoised[i];
+                if (c.y_denoised[i] > visible_y_max) visible_y_max = c.y_denoised[i];
+            }
+        }
+        
+        if (!c.y_fit_plot.empty()) {
+            for (size_t i = 0; i < c.t_fit_plot.size(); ++i) {
+                double t = c.t_fit_plot[i];
+                if (t >= m_crop_min && t <= m_crop_max) {
+                    if (c.y_fit_plot[i] < visible_y_min) visible_y_min = c.y_fit_plot[i];
+                    if (c.y_fit_plot[i] > visible_y_max) visible_y_max = c.y_fit_plot[i];
+                }
+            }
+        }
+        
+        if (visible_y_min > visible_y_max) {
+            visible_y_min = 0.0;
+            visible_y_max = 100.0;
+        }
+        
+        double y_range = visible_y_max - visible_y_min;
+        if (y_range <= 0.0) y_range = 1.0;
+        
+        double y_limit_min = visible_y_min - 0.10 * y_range;
+        double y_limit_max = visible_y_max + 0.10 * y_range;
+        
         // Draggable Baseline visual crop limits setup
-        ImPlot::SetNextAxesLimits(m_crop_min, m_crop_max, 30.0, 300.0, ImGuiCond_Once);
+        ImPlot::SetNextAxesLimits(m_crop_min, m_crop_max, y_limit_min, y_limit_max, ImGuiCond_Always);
+        
+        ImVec2 plot_pos(0.0f, 0.0f);
+        ImVec2 plot_size(0.0f, 0.0f);
         
         if (ImPlot::BeginPlot("Trace Fitting Plot", ImVec2(-1, 380))) {
             ImPlot::SetupAxes("Time (s)", "Signal (MFI)");
             
+            // Query plot area screen coordinates and dimensions
+            plot_pos = ImPlot::GetPlotPos();
+            plot_size = ImPlot::GetPlotSize();
+            
             // Limit the current axis limits to show cropped visual window on the fly
             ImPlot::SetupAxisLimits(ImAxis_X1, m_crop_min, m_crop_max, ImGuiCond_Always);
+            ImPlot::SetupAxisLimits(ImAxis_Y1, y_limit_min, y_limit_max, ImGuiCond_Always);
             
             // Draw visual curves
             ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, 1.5f);
-            ImPlot::PlotLine("Raw (Detrended)", c.t_raw.data(), c.y_raw.data(), c.t_raw.size());
+            ImPlot::PlotLine("Raw (Detrended)", c.t_raw.data(), c.y_raw_detrended.data(), c.t_raw.size());
             ImPlot::PlotLine("Denoised", c.t_raw.data(), c.y_denoised.data(), c.t_raw.size());
             
             if (!c.y_fit_plot.empty()) {
@@ -1408,14 +1606,37 @@ private:
             
             ImPlot::DragLineY(104, &m_baseline_marker, ImVec4(0.8f, 0.4f, 0.8f, 1.0f), 2.0f); // Purple Baseline
             
-            // Annotate Draggable Lines
-            ImPlot::TagX(m_onset_marker, ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "Onset");
-            ImPlot::TagX(m_peak_marker, ImVec4(1.0f, 0.7f, 0.0f, 1.0f), "Peak");
-            ImPlot::TagX(m_end_marker, ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "End");
-            ImPlot::TagY(m_baseline_marker, ImVec4(0.8f, 0.4f, 0.8f, 1.0f), "Base");
+            // Enforce ordering and bounds constraints on markers immediately
+            double max_t = c.t_raw.empty() ? 120.0 : c.t_raw.back();
+            const double min_gap = 0.1; // 100 ms minimum gap
+            m_onset_marker = std::clamp(m_onset_marker, 0.0, max_t - 2.0 * min_gap);
+            m_peak_marker = std::clamp(m_peak_marker, m_onset_marker + min_gap, max_t - min_gap);
+            m_end_marker = std::clamp(m_end_marker, m_peak_marker + min_gap, max_t);
+            
+            // Annotate Draggable Lines with formatted numeric values
+            ImPlot::TagX(m_onset_marker, ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "Onset: %.1fs", m_onset_marker);
+            ImPlot::TagX(m_peak_marker, ImVec4(1.0f, 0.7f, 0.0f, 1.0f), "Peak: %.1fs", m_peak_marker);
+            ImPlot::TagX(m_end_marker, ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "End: %.1fs", m_end_marker);
+            ImPlot::TagY(m_baseline_marker, ImVec4(0.8f, 0.4f, 0.8f, 1.0f), "Base: %.1f", m_baseline_marker);
             
             ImPlot::EndPlot();
         }
+        
+        // Render unified RangeSlider right below the plot, aligned exactly with the plot width
+        {
+            if (plot_size.x > 0.0f) {
+                ImVec2 cursor_pos = ImGui::GetCursorPos();
+                ImGui::SetCursorPosX(plot_pos.x - ImGui::GetWindowPos().x);
+                double limit_max = c.t_raw.empty() ? 120.0 : c.t_raw.back();
+                RangeSlider("PlotCropSlider", &m_crop_min, &m_crop_max, 0.0, limit_max, ImVec2(plot_size.x, 24.0f));
+                ImGui::SetCursorPosX(cursor_pos.x);
+            } else {
+                float avail_w = ImGui::GetContentRegionAvail().x;
+                double limit_max = c.t_raw.empty() ? 120.0 : c.t_raw.back();
+                RangeSlider("PlotCropSlider", &m_crop_min, &m_crop_max, 0.0, limit_max, ImVec2(avail_w, 24.0f));
+            }
+        }
+        ImGui::Dummy(ImVec2(0.0f, 6.0f));
         
         // Parameters & Controls Panel
         ImGui::BeginChild("ParamsPane", ImVec2(0, 0), true);
@@ -1442,10 +1663,14 @@ private:
         ImGui::SetColumnWidth(0, 480.0f);
         
         ImGui::TextColored(ImVec4(0.2f, 0.6f, 1.0f, 1.0f), "FITTING WINDOW & INTERACTIVE MARKERS");
-        ImGui::SliderFloat("Onset Marker (s)", (float*)&m_onset_marker, 0.0f, (float)c.t_raw.back());
-        ImGui::SliderFloat("Peak Marker (s)", (float*)&m_peak_marker, (float)m_onset_marker, (float)c.t_raw.back());
-        ImGui::SliderFloat("End Marker (s)", (float*)&m_end_marker, (float)m_peak_marker, (float)c.t_raw.back());
-        ImGui::SliderFloat("Baseline Value", (float*)&m_baseline_marker, 0.0f, 1000.0f);
+        double min_t = 0.0;
+        double max_t = c.t_raw.back();
+        double base_min = 0.0;
+        double base_max = 1000.0;
+        ImGui::SliderScalar("Onset Marker (s)", ImGuiDataType_Double, &m_onset_marker, &min_t, &max_t, "%.1f");
+        ImGui::SliderScalar("Peak Marker (s)", ImGuiDataType_Double, &m_peak_marker, &m_onset_marker, &max_t, "%.1f");
+        ImGui::SliderScalar("End Marker (s)", ImGuiDataType_Double, &m_end_marker, &m_peak_marker, &max_t, "%.1f");
+        ImGui::SliderScalar("Baseline Value", ImGuiDataType_Double, &m_baseline_marker, &base_min, &base_max, "%.1f");
         
         ImGui::Dummy(ImVec2(0.0f, 8.0f));
         if (ImGui::Button("Re-Fit Manual Window (LM)", ImVec2(240, 36))) {
@@ -1462,13 +1687,24 @@ private:
             build_triage_queue();
         }
         
+        ImGui::Dummy(ImVec2(0.0f, 4.0f));
+        if (ImGui::Button("Revert to Manual Assignments", ImVec2(240, 30))) {
+            if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records_backup.size())) {
+                int idx = m_selected_roi_idx;
+                m_records[idx] = m_records_backup[idx];
+                m_gui_roi_states[idx] = m_gui_roi_states_backup[idx];
+                m_selected_roi_idx = -1; // Bypass saving current modified state
+                select_record(idx);
+                precompute_fit_plot(idx);
+                build_triage_queue();
+            }
+        }
+        
         ImGui::NextColumn();
         
-        ImGui::TextColored(ImVec4(0.2f, 0.6f, 1.0f, 1.0f), "VISUALIZATION CROP");
-        ImGui::Text("Drag sliders to zoom into a specific sub-range of the bolus:");
-        ImGui::SliderFloat("Crop Start (s)", (float*)&m_crop_min, 0.0f, (float)m_crop_max - 1.0f);
-        ImGui::SliderFloat("Crop End (s)", (float*)&m_crop_max, (float)m_crop_min + 1.0f, (float)c.t_raw.back());
-        
+        ImGui::TextColored(ImVec4(0.2f, 0.6f, 1.0f, 1.0f), "VISUALIZATION CROP CONTROLS");
+        ImGui::Text("Use the range slider below the plot to adjust the crop region.");
+        ImGui::Dummy(ImVec2(0.0f, 4.0f));
         if (ImGui::Button("Reset Visual Crop", ImVec2(180, 30))) {
             m_crop_min = 0.0;
             m_crop_max = c.t_raw.back();
