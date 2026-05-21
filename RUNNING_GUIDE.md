@@ -58,6 +58,11 @@ bash run_pipeline_cpp.sh sample-subject-2259
 > ```bash
 > bash run_pipeline_cpp.sh sample-subject-2259 --plot --drift 10
 > ```
+> **Configuring Fit & Quality Limits**: You can override the default physiological parameter bounds and QC thresholds directly from the script arguments (e.g. to enforce a minimum $T_{2p}$ threshold of `2.0` seconds or custom QC CNR warnings):
+> ```bash
+> # Restrict Time-to-Peak (T2p) and set custom QC CNR warnings
+> bash run_pipeline_cpp.sh sample-subject-2259 --min-t2p 2.0 --qc-cnr-min 6.0
+> ```
 > The SVG plots will be saved to a `plots_cpp` subdirectory within the subject folder.
 
 **Batch Processing Multiple Subjects**: You can process multiple subjects at once by targeting a parent directory that contains multiple subject folders. The pipeline recursively scans and matches the corresponding `.tif`, `_rois.txt`, and metadata files within each subject directory without conflicts:
@@ -101,7 +106,8 @@ If a batch run yields `WARN` or `FAIL` flags, you can easily inspect and correct
 3. **Define a Crop Window (On-the-Fly Cropping):** Adjust the blue and magenta vertical brackets on the plot boundaries to crop out noise or secondary recirculation tails. Double-clicking the plot resets the zoom, and the **Undo Crop** button resets the active crop window.
 4. **Manually Drag the Fitting Markers:** Drag the three vertical lines (**Green** for onset, **Yellow** for peak, **Red** for clearance/end) to visually align with the first-pass bolus.
 5. **Run the Constrained Re-fit:** Click **Re-fit Manual**. The Levenberg-Marquardt optimizer runs exclusively within your crop window using your markers as initial parameters. The ROI status in the queue will update dynamically.
-6. **Save Changes:** Click **Save CSV** in the sidebar to write the updated parameters back to your results file.
+6. **Save Changes:** Click **Save Final CSV** in the toolbar to write the updated parameters back to your results file.
+7. **Resume Anytime:** The GUI automatically saves your triage progress (including active selection, visual crop boundaries, customized fitting markers, and queue filters) in a sidecar `.gui_state` file. You can close the app at any point and resume exactly where you left off when you reload the CSV.
 
 ---
 

@@ -69,6 +69,22 @@ struct CsvRecord {
 };
 
 /**
+ * @brief Representation of an ROI's interactive state to save and restore GUI workflow progress.
+ */
+struct RoiState {
+    int roi_id = -1;
+    double crop_min = 0.0;
+    double crop_max = 0.0;
+    double onset = 0.0;
+    double peak = 0.0;
+    double end = 0.0;
+    double baseline = 0.0;
+    std::string qc_flag = "FAIL";
+    std::string fit_source = "auto";
+};
+
+
+/**
  * @brief Representation of a TIFF stack metadata and frame buffers.
  */
 struct TiffData {
@@ -540,6 +556,7 @@ private:
     
     // Loaded data
     std::vector<CsvRecord> m_records;
+    std::vector<RoiState> m_gui_roi_states;
     TiffData m_tiff;
     std::vector<ROI> m_rois;
     double m_fr = 1.0;
@@ -649,6 +666,7 @@ public:
             
             glfwSwapBuffers(m_window);
         }
+        save_gui_state();
     }
 
 public:
@@ -700,9 +718,33 @@ public:
         }
         
         precompute_all_traces();
+        
+        // Initialize default GUI ROI states
+        m_gui_roi_states.resize(m_records.size());
+        for (size_t i = 0; i < m_records.size(); ++i) {
+            const auto& rec = m_records[i];
+            const auto& c = m_cache[i];
+            auto& s = m_gui_roi_states[i];
+            s.roi_id = rec.roi_id;
+            s.crop_min = (!std::isnan(rec.click_start) && rec.click_start >= 0.0) ? rec.click_start : 0.0;
+            s.crop_max = c.t_raw.empty() ? 120.0 : c.t_raw.back();
+            s.onset = !std::isnan(rec.click_onset) ? rec.click_onset : (!std::isnan(rec.ont) ? rec.ont : s.crop_max * 0.35);
+            s.peak = !std::isnan(rec.click_peak) ? rec.click_peak : (!std::isnan(rec.f_t2p) && !std::isnan(rec.ont) ? rec.ont + rec.f_t2p : s.onset + 4.0);
+            s.end = !std::isnan(rec.click_end) ? rec.click_end : s.peak + 6.0;
+            s.baseline = !std::isnan(rec.f_m) ? rec.f_m : (!std::isnan(rec.init_m) ? rec.init_m : c.y_denoised.front());
+            s.qc_flag = rec.qc_flag;
+            s.fit_source = rec.fit_source;
+        }
+
+        // Try loading gui state
+        load_gui_state();
+        
         build_triage_queue();
         
-        if (!m_triage_queue.empty()) {
+        // Select either the loaded last active index, or default to triage queue start
+        if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records.size())) {
+            select_record(m_selected_roi_idx);
+        } else if (!m_triage_queue.empty()) {
             select_record(m_triage_queue[0]);
         } else {
             select_record(0);
@@ -712,6 +754,105 @@ public:
     }
 
 private:
+    void save_gui_state() {
+        if (m_csv_path.empty()) return;
+        
+        // Save current active ROI state before writing
+        if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records.size())) {
+            auto& s = m_gui_roi_states[m_selected_roi_idx];
+            s.crop_min = m_crop_min;
+            s.crop_max = m_crop_max;
+            s.onset = m_onset_marker;
+            s.peak = m_peak_marker;
+            s.end = m_end_marker;
+            s.baseline = m_baseline_marker;
+            s.qc_flag = m_records[m_selected_roi_idx].qc_flag;
+            s.fit_source = m_records[m_selected_roi_idx].fit_source;
+        }
+        
+        std::string state_path = m_csv_path + ".gui_state";
+        std::ofstream out(state_path);
+        if (!out.is_open()) return;
+        
+        out << "# Bolus Tracking Studio GUI State File\n";
+        out << "LastSelectedRoiIndex=" << m_selected_roi_idx << "\n";
+        out << "FilterFlaggedOnly=" << (m_filter_flagged_only ? 1 : 0) << "\n";
+        out << "# ROI,crop_min,crop_max,onset,peak,end,baseline,qc_flag,fit_source\n";
+        for (const auto& s : m_gui_roi_states) {
+            out << s.roi_id << ","
+                << s.crop_min << ","
+                << s.crop_max << ","
+                << s.onset << ","
+                << s.peak << ","
+                << s.end << ","
+                << s.baseline << ","
+                << s.qc_flag << ","
+                << s.fit_source << "\n";
+        }
+        std::cout << "Saved GUI workflow progress to: " << state_path << std::endl;
+    }
+
+    void load_gui_state() {
+        if (m_csv_path.empty()) return;
+        std::string state_path = m_csv_path + ".gui_state";
+        std::ifstream in(state_path);
+        if (!in.is_open()) return;
+        
+        std::string line;
+        while (std::getline(in, line)) {
+            if (line.empty() || line[0] == '#') continue;
+            
+            size_t eq_pos = line.find('=');
+            if (eq_pos != std::string::npos) {
+                std::string key = line.substr(0, eq_pos);
+                std::string val = line.substr(eq_pos + 1);
+                if (key == "LastSelectedRoiIndex") {
+                    try { m_selected_roi_idx = std::stoi(val); } catch (...) {}
+                } else if (key == "FilterFlaggedOnly") {
+                    try { m_filter_flagged_only = (std::stoi(val) != 0); } catch (...) {}
+                }
+                continue;
+            }
+            
+            // Parse CSV-style ROI state line
+            std::stringstream ss(line);
+            std::vector<std::string> cells;
+            std::string cell;
+            while (std::getline(ss, cell, ',')) {
+                cells.push_back(cell);
+            }
+            if (cells.size() < 9) continue;
+            
+            try {
+                int roi_id = std::stoi(cells[0]);
+                for (size_t i = 0; i < m_gui_roi_states.size(); ++i) {
+                    if (m_gui_roi_states[i].roi_id == roi_id) {
+                        auto& s = m_gui_roi_states[i];
+                        s.crop_min = std::stod(cells[1]);
+                        s.crop_max = std::stod(cells[2]);
+                        s.onset = std::stod(cells[3]);
+                        s.peak = std::stod(cells[4]);
+                        s.end = std::stod(cells[5]);
+                        s.baseline = std::stod(cells[6]);
+                        s.qc_flag = cells[7];
+                        s.fit_source = cells[8];
+                        
+                        // Sync back to CsvRecord
+                        auto& rec = m_records[i];
+                        rec.click_start = s.crop_min;
+                        rec.click_onset = s.onset;
+                        rec.click_peak = s.peak;
+                        rec.click_end = s.end;
+                        rec.qc_flag = s.qc_flag;
+                        rec.fit_source = s.fit_source;
+                        break;
+                    }
+                }
+            } catch (...) {}
+        }
+        std::cout << "Loaded GUI workflow progress from: " << state_path << std::endl;
+    }
+
     /**
      * @brief Precompute raw signals, drift, denoised, and upsampled spline arrays for all ROIs.
      */
@@ -859,52 +1000,45 @@ private:
      */
     void select_record(int idx) {
         if (idx < 0 || idx >= static_cast<int>(m_records.size())) return;
+        
+        // 1. Save currently active state to m_gui_roi_states and CsvRecord click times
+        if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records.size())) {
+            auto& s = m_gui_roi_states[m_selected_roi_idx];
+            s.crop_min = m_crop_min;
+            s.crop_max = m_crop_max;
+            s.onset = m_onset_marker;
+            s.peak = m_peak_marker;
+            s.end = m_end_marker;
+            s.baseline = m_baseline_marker;
+            s.qc_flag = m_records[m_selected_roi_idx].qc_flag;
+            s.fit_source = m_records[m_selected_roi_idx].fit_source;
+            
+            auto& old_rec = m_records[m_selected_roi_idx];
+            old_rec.click_start = m_crop_min;
+            old_rec.click_onset = m_onset_marker;
+            old_rec.click_peak = m_peak_marker;
+            old_rec.click_end = m_end_marker;
+        }
+
         m_selected_roi_idx = idx;
         
         const auto& rec = m_records[idx];
         const auto& c = m_cache[idx];
+        const auto& s = m_gui_roi_states[idx];
         
-        // Setup crop limits (default to full duration)
-        m_crop_min = 0.0;
-        m_crop_max = c.t_raw.back();
-        
-        // Sync vertical markers
-        if (!std::isnan(rec.click_onset) && rec.click_onset > 0) {
-            m_onset_marker = rec.click_onset;
-        } else if (!std::isnan(rec.ont) && rec.ont > 0) {
-            m_onset_marker = rec.ont;
-        } else {
-            m_onset_marker = c.t_raw.back() * 0.35;
-        }
-        
-        if (!std::isnan(rec.click_peak) && rec.click_peak > 0) {
-            m_peak_marker = rec.click_peak;
-        } else if (!std::isnan(rec.f_t2p) && !std::isnan(rec.ont)) {
-            m_peak_marker = rec.ont + rec.f_t2p;
-        } else {
-            m_peak_marker = m_onset_marker + 4.0;
-        }
-        
-        if (!std::isnan(rec.click_end) && rec.click_end > 0) {
-            m_end_marker = rec.click_end;
-        } else {
-            m_end_marker = m_peak_marker + 6.0;
-        }
+        // 2. Load markers from m_gui_roi_states
+        m_crop_min = s.crop_min;
+        m_crop_max = s.crop_max;
+        m_onset_marker = s.onset;
+        m_peak_marker = s.peak;
+        m_end_marker = s.end;
+        m_baseline_marker = s.baseline;
         
         // Limit markers inside trace bounds
         double max_t = c.t_raw.back();
         m_onset_marker = std::clamp(m_onset_marker, 0.0, max_t);
         m_peak_marker = std::clamp(m_peak_marker, m_onset_marker + 0.01, max_t);
         m_end_marker = std::clamp(m_end_marker, m_peak_marker + 0.01, max_t);
-        
-        // Sync baseline
-        if (!std::isnan(rec.f_m)) {
-            m_baseline_marker = rec.f_m;
-        } else if (!std::isnan(rec.init_m)) {
-            m_baseline_marker = rec.init_m;
-        } else {
-            m_baseline_marker = c.y_denoised.front();
-        }
         
         // Find queue position
         m_queue_pos = -1;
@@ -969,7 +1103,7 @@ private:
         std::vector<double> popt = m_fitter.run_nonlinear_fit(t_fit, y_fit, init_params, c.sd_base, fit_success);
         
         // 5. Update CsvRecord
-        rec.click_start = 0.0;
+        rec.click_start = m_crop_min;
         rec.click_onset = m_onset_marker;
         rec.click_peak = m_peak_marker;
         rec.click_end = m_end_marker;
@@ -1083,6 +1217,19 @@ private:
             rec.qc_flag = "FAIL";
         }
         
+        // Sync to m_gui_roi_states
+        if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_gui_roi_states.size())) {
+            auto& s = m_gui_roi_states[m_selected_roi_idx];
+            s.crop_min = m_crop_min;
+            s.crop_max = m_crop_max;
+            s.onset = m_onset_marker;
+            s.peak = m_peak_marker;
+            s.end = m_end_marker;
+            s.baseline = m_baseline_marker;
+            s.qc_flag = rec.qc_flag;
+            s.fit_source = rec.fit_source;
+        }
+
         // Update curves and triage state
         precompute_fit_plot(m_selected_roi_idx);
         build_triage_queue();
@@ -1131,6 +1278,7 @@ private:
         if (ImGui::Button("Save Final CSV", ImVec2(160, 24))) {
             if (!m_csv_path.empty()) {
                 save_results_csv(m_csv_path, m_records);
+                save_gui_state();
                 ImGui::OpenPopup("Save Success");
             }
         }
@@ -1289,6 +1437,10 @@ private:
         if (ImGui::Button("Override PASS", ImVec2(140, 36))) {
             m_records[m_selected_roi_idx].qc_flag = "PASS";
             m_records[m_selected_roi_idx].fit_source = "override";
+            if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_gui_roi_states.size())) {
+                m_gui_roi_states[m_selected_roi_idx].qc_flag = "PASS";
+                m_gui_roi_states[m_selected_roi_idx].fit_source = "override";
+            }
             build_triage_queue();
         }
         
