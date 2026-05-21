@@ -386,6 +386,9 @@ class DatasetProcessor:
                 ttlb = abs(ci_lower - ont)
                 tthb = abs(ci_upper - ont)
                 
+                if np.isnan([f_amp, f_t2p, f_fwhm, f_m, f_snr, f_cnr, auc, aucn, ttlb, ttm, tthb, ont]).any():
+                    qc_flag = "FAIL"
+
                 results.append({
                     'ROI': i+1,
                     'SubjNum': subj_num,

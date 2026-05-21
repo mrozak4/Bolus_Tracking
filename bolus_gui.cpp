@@ -1191,7 +1191,11 @@ private:
                 rec.tthb = std::abs((popt[1] + 1.96 * se[1]) - rec.ont);
                 
                 // Determine QC Flag
-                if (rec.f_cnr < m_qc_settings.cnr_fail || popt[2] > m_qc_settings.fwhm_fail || popt[1] > m_qc_settings.t2p_fail || popt[0] < m_qc_settings.amp_fail) {
+                if (std::isnan(rec.f_amp) || std::isnan(rec.f_t2p) || std::isnan(rec.f_fwhm) || std::isnan(rec.f_m) ||
+                    std::isnan(rec.f_cnr) || std::isnan(rec.f_snr) || std::isnan(rec.auc) || std::isnan(rec.aucn) ||
+                    std::isnan(rec.ttlb) || std::isnan(rec.ttm) || std::isnan(rec.tthb) || std::isnan(rec.ont)) {
+                    rec.qc_flag = "FAIL";
+                } else if (rec.f_cnr < m_qc_settings.cnr_fail || popt[2] > m_qc_settings.fwhm_fail || popt[1] > m_qc_settings.t2p_fail || popt[0] < m_qc_settings.amp_fail) {
                     rec.qc_flag = "FAIL";
                 } else if (rec.f_cnr < m_qc_settings.cnr_min || popt[2] > m_qc_settings.fwhm_max || popt[1] > m_qc_settings.t2p_max) {
                     rec.qc_flag = "WARN";

@@ -125,13 +125,20 @@ bash run_pipeline_cpp.sh sample-subject-2259 --qc-fwhm-max 20.0 --qc-cnr-min 6.0
 If a batch run yields `WARN` or `FAIL` flags, you can easily inspect and correct them using the native C++ GUI app (see **[INSTALL.md](INSTALL.md)** for installation instructions).
 
 **Step-by-step Triage Workflow:**
-1. **Focus on Problem Cases:** Launch the C++ GUI app, load your results CSV, and check **"Show WARN/FAIL only"** at the top of the sidebar queue. This filters out all successful `PASS` cases.
-2. **Inspect the Raw Signal:** Click on any flagged ROI. Inspect the trace to identify if the issue is due to pre-bolus baseline noise, a recirculation tail, or incorrect initial marker detection.
-3. **Define a Crop Window (On-the-Fly Cropping):** Adjust the blue and magenta vertical brackets on the plot boundaries to crop out noise or secondary recirculation tails. Double-clicking the plot resets the zoom, and the **Undo Crop** button resets the active crop window.
-4. **Manually Drag the Fitting Markers:** Drag the three vertical lines (**Green** for onset, **Yellow** for peak, **Red** for clearance/end) to visually align with the first-pass bolus.
-5. **Run the Constrained Re-fit:** Click **Re-fit Manual**. The Levenberg-Marquardt optimizer runs exclusively within your crop window using your markers as initial parameters. The ROI status in the queue will update dynamically.
-6. **Save Changes:** Click **Save Final CSV** in the toolbar to write the updated parameters back to your results file.
-7. **Resume Anytime:** The GUI automatically saves your triage progress (including active selection, visual crop boundaries, customized fitting markers, and queue filters) in a sidecar `.gui_state` file. You can close the app at any point and resume exactly where you left off when you reload the CSV.
+1. **Load the Processed Data:** 
+   - Launch the C++ GUI app. 
+   - Click **"Load Results CSV"** at the top left of the window and select the generated results file (e.g., `sample-subject-2259/bolus1_baseline_results_cpp.csv`).
+   - *Alternative (CLI)*: You can pass the path to the CSV directly when running the application from the command line:
+     ```bash
+     ./build/bolus_tracking_gui sample-subject-2259/bolus1_baseline_results_cpp.csv
+     ```
+2. **Focus on Problem Cases:** Check the **"Show WARN/FAIL only"** checkbox at the top of the sidebar queue. This filters out all successful `PASS` cases. Note that **any fit calculation returning a `NaN` parameter (due to divergence or numerical issues) is automatically flagged as `FAIL`**.
+3. **Inspect the Raw Signal:** Click on any flagged ROI. Inspect the trace to identify if the issue is due to pre-bolus baseline noise, a recirculation tail, or incorrect initial marker detection.
+4. **Define a Crop Window (On-the-Fly Cropping):** Adjust the blue and magenta vertical brackets on the plot boundaries to crop out noise or secondary recirculation tails. Double-clicking the plot resets the zoom, and the **Undo Crop** button resets the active crop window.
+5. **Manually Drag the Fitting Markers:** Drag the three vertical lines (**Green** for onset, **Yellow** for peak, **Red** for clearance/end) to visually align with the first-pass bolus.
+6. **Run the Constrained Re-fit:** Click **Re-fit Manual**. The Levenberg-Marquardt optimizer runs exclusively within your crop window using your markers as initial parameters. The ROI status in the queue will update dynamically.
+7. **Save Changes:** Click **Save Final CSV** in the toolbar to write the updated parameters back to your results file.
+8. **Resume Anytime:** The GUI automatically saves your triage progress (including active selection, visual crop boundaries, customized fitting markers, and queue filters) in a sidecar `.gui_state` file. You can close the app at any point and resume exactly where you left off when you reload the CSV.
 
 ---
 

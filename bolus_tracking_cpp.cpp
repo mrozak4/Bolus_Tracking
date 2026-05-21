@@ -1291,6 +1291,12 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
         double ci_upper = popt[1] + 1.96 * se_t2p;
         rec.ttlb = std::abs(ci_lower - rec.ont);
         rec.tthb = std::abs(ci_upper - rec.ont);
+        
+        if (std::isnan(rec.f_amp) || std::isnan(rec.f_t2p) || std::isnan(rec.f_fwhm) || std::isnan(rec.f_m) ||
+            std::isnan(rec.f_cnr) || std::isnan(rec.f_snr) || std::isnan(rec.auc) || std::isnan(rec.aucn) ||
+            std::isnan(rec.ttlb) || std::isnan(rec.ttm) || std::isnan(rec.tthb) || std::isnan(rec.ont)) {
+            rec.qc_flag = "FAIL";
+        }
     } else {
         rec.f_amp = NAN;
         rec.f_t2p = NAN;
