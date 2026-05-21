@@ -690,11 +690,11 @@ void BolusApp::update_locale() {
         m_tr.btn_reset_all = "Reset All";
         m_tr.btn_load_state = "Load State";
         m_tr.btn_save_state = "Save State";
-        m_tr.btn_refit = "Re-Fit Manual Window (LM)";
-        m_tr.btn_override = "Override PASS";
-        m_tr.btn_revert = "Revert to Automatic Assignments";
-        m_tr.btn_reset_crop = "Reset Visual Crop";
-        m_tr.btn_crop_bounds = "Crop to Draggable Bounds";
+        m_tr.btn_refit = "Re-Fit (LM)";
+        m_tr.btn_override = "Force PASS";
+        m_tr.btn_revert = "Revert to Original";
+        m_tr.btn_reset_crop = "Reset Crop";
+        m_tr.btn_crop_bounds = "Crop to Markers";
         m_tr.label_onset = "Onset Marker (s)";
         m_tr.label_peak = "Peak Marker (s)";
         m_tr.label_end = "End Marker (s)";
@@ -772,95 +772,95 @@ void BolusApp::update_locale() {
         m_tr.label_auto_fit = "Original Auto Fit";
     } else {
         m_tr.title_app = "SUIVI DE BOLUS - TRIAGE MANUEL";
-        m_tr.section_markers = "FENÊTRE DE MODÉLISATION & MARQUEURS";
-        m_tr.section_crop = "ROGNAGE DE LA FENÊTRE VISUELLE";
+        m_tr.section_markers = "FENÊTRE DE MODÉLISATION ET MARQUEURS INTERACTIFS";
+        m_tr.section_crop = "ROGNAGE ET AFFICHAGE";
         m_tr.section_params = "PARAMÈTRES HÉMODYNAMIQUES";
-        m_tr.sidebar_title = "Barre d'évaluation";
-        m_tr.checkbox_flagged = "Cas à réviser uniquement (ÉCHEC/AVERT)";
+        m_tr.sidebar_title = "Volet de triage";
+        m_tr.checkbox_flagged = "Afficher uniquement les cas à réviser (ÉCHEC/AVERT.)";
         m_tr.btn_save_csv = "Enregistrer le CSV final";
         m_tr.btn_reset_all = "Réinitialiser tout";
         m_tr.btn_load_state = "Charger l'état";
         m_tr.btn_save_state = "Enregistrer l'état";
-        m_tr.btn_refit = "Recalculer (LM)";
-        m_tr.btn_override = "Forcer PASS";
-        m_tr.btn_revert = "Rétablir l'original";
-        m_tr.btn_reset_crop = "Réinitialiser rognage";
-        m_tr.btn_crop_bounds = "Rogner aux marqueurs";
-        m_tr.label_onset = "Début (s)";
+        m_tr.btn_refit = "Réajuster (LM)";
+        m_tr.btn_override = "Forcer conforme";
+        m_tr.btn_revert = "Rétablir les estimations automatiques";
+        m_tr.btn_reset_crop = "Réinitialiser le rognage";
+        m_tr.btn_crop_bounds = "Rogner aux limites";
+        m_tr.label_onset = "Début du bolus (s)";
         m_tr.label_peak = "Pic (s)";
         m_tr.label_end = "Fin (s)";
         m_tr.label_baseline = "Ligne de base";
-        m_tr.text_slider_desc = "Glissez le curseur sous le graphique pour rogner la zone.";
+        m_tr.text_slider_desc = "Utilisez le glisseur de plage sous le graphique pour ajuster la zone de rognage.";
         m_tr.btn_ok = "OK";
         m_tr.btn_cancel = "Annuler";
-        m_tr.modal_reset_title = "Réinitialiser tout ?";
-        m_tr.modal_reset_desc = "AVERTISSEMENT : cette opération annulera toutes les modifications,\nvalidations et corrections manuelles de cette session.\n\nSouhaitez-vous continuer ?";
-        m_tr.btn_reset_confirm = "Oui, réinitialiser";
+        m_tr.modal_reset_title = "Réinitialiser toutes les modifications ?";
+        m_tr.modal_reset_desc = "AVERTISSEMENT : cette opération annulera toutes les modifications,\nvalidations et dérogations manuelles de cette session.\n\nSouhaitez-vous continuer ?";
+        m_tr.btn_reset_confirm = "Oui, réinitialiser tout";
         m_tr.modal_save_success = "Enregistrement réussi";
-        m_tr.modal_save_state_success = "État enregistré";
-        m_tr.modal_load_state_success = "État chargé";
+        m_tr.modal_save_state_success = "État enregistré avec succès";
+        m_tr.modal_load_state_success = "État chargé avec succès";
         m_tr.text_active_roi = "ROI active :";
         m_tr.text_qc_flag = "Statut CQ :";
-        m_tr.text_fit_source = "Source :";
-        m_tr.text_dataset_loaded = "Données chargées :";
-        m_tr.text_roi_count = "Total ROI :";
-        m_tr.text_flagged_count = "Signalés (ÉCHEC/AVERT) :";
+        m_tr.text_fit_source = "Source de l'ajustement :";
+        m_tr.text_dataset_loaded = "Jeu de données chargé :";
+        m_tr.text_roi_count = "Nombre de ROI :";
+        m_tr.text_flagged_count = "Signalés (ÉCHEC/AVERT.) :";
         m_tr.text_manual_count = "Ajustés manuellement :";
         m_tr.col_variable = "Variable";
         m_tr.col_amplitude = "Amplitude";
-        m_tr.col_t2p = "Pic (T2p)";
-        m_tr.col_fwhm = "Largeur (FWHM)";
-        m_tr.col_baseline = "Ligne base";
-        m_tr.col_cnr = "CNR";
-        m_tr.col_onset = "Début (OnT)";
-        m_tr.plot_title = "Ajustement de modélisation";
+        m_tr.col_t2p = "Temps de pic (T2p)";
+        m_tr.col_fwhm = "Largeur à mi-hauteur (FWHM)";
+        m_tr.col_baseline = "Ligne de base";
+        m_tr.col_cnr = "Rapport contraste-bruit (CNR)";
+        m_tr.col_onset = "Temps de début (OnT)";
+        m_tr.plot_title = "Graphique de modélisation";
         m_tr.plot_x_axis = "Temps (s)";
-        m_tr.plot_y_axis = "Signal (UA)";
-        m_tr.plot_raw = "Brut (sans tendance)";
-        m_tr.plot_denoised = "Filtré";
-        m_tr.plot_fit = "Ajustement Gamma";
+        m_tr.plot_y_axis = "Intensité (UA)";
+        m_tr.plot_raw = "Signal brut (sans tendance)";
+        m_tr.plot_denoised = "Signal débruité";
+        m_tr.plot_fit = "Courbe d'ajustement Gamma";
         m_tr.current_folder = "Dossier actuel";
         m_tr.path_selector = "Sélecteur de chemin";
         m_tr.btn_select_folder = "Sélectionner ce dossier";
-        m_tr.btn_open_file = "Ouvrir le fichier";
+        m_tr.btn_open_file = "Ouvrir le fichier sélectionné";
         m_tr.btn_close_dialog = "Fermer";
-        m_tr.dialog_title = "Ouvrir dossier/fichier";
-        m_tr.text_total_rois = "Total ROI : %d";
-        m_tr.text_active_queue = "File de filtrage : %d";
-        m_tr.text_triage_queue = "Triage : %d / %d";
+        m_tr.dialog_title = "Ouvrir dossier ou fichier";
+        m_tr.text_total_rois = "Total ROI du jeu de données : %d";
+        m_tr.text_active_queue = "File de filtrage active : %d";
+        m_tr.text_triage_queue = "File de triage : %d / %d";
         m_tr.btn_next_problem = "Suivant >>";
         m_tr.btn_prev_problem = "<< Précédent";
-        m_tr.text_no_data = "Aucune donnée chargée. Utilisez le bouton ci-dessus pour ouvrir un dossier de sujet.";
-        m_tr.text_plot_status_header = "Signal (UA) - ROI #%d (%d px) | Statut : %s (%s)";
-        m_tr.title_manual_override = "AJUSTEMENTS ET VALIDATIONS MANUELLES";
-        m_tr.text_manual_override_desc = "Glissez les marqueurs Début/Pic/Fin sur le graphique, puis cliquez sur 'Recalculer (LM)'.";
-        m_tr.btn_revert_loaded = "Rétablir l'état chargé";
+        m_tr.text_no_data = "Aucun jeu de données chargé. Utilisez le bouton ci-dessus pour charger un dossier ou un fichier CSV.";
+        m_tr.text_plot_status_header = "Signal (UA) - ROI #%d (%d px) | Statut : %s (Source : %s)";
+        m_tr.title_manual_override = "AJUSTEMENTS ET DÉROGATIONS MANUELLES";
+        m_tr.text_manual_override_desc = "Glissez les marqueurs de début, de pic et de fin directement sur le graphique, puis cliquez sur 'Réajuster (LM)'.";
+        m_tr.btn_revert_loaded = "Rétablir les valeurs chargées";
         m_tr.text_load_subject_data = "Charger les données";
-        m_tr.text_save_state_msg = "État sauvegardé avec succès dans :\n%s.gui_state";
-        m_tr.text_load_state_msg = "État restauré avec succès depuis :\n%s.gui_state";
-        m_tr.text_save_csv_msg = "Résultats enregistrés avec succès dans :\n%s";
+        m_tr.text_save_state_msg = "L'état de l'analyse a été sauvegardé avec succès dans :\n%s.gui_state";
+        m_tr.text_load_state_msg = "L'état de l'analyse a été restauré avec succès depuis :\n%s.gui_state";
+        m_tr.text_save_csv_msg = "Les résultats ont été enregistrés avec succès dans :\n%s";
         m_tr.tag_onset = "Début : %.1fs";
         m_tr.tag_peak = "Pic : %.1fs";
         m_tr.tag_end = "Fin : %.1fs";
         m_tr.tag_base = "Base : %.1f";
         m_tr.btn_clear_data = "Effacer les données";
         m_tr.qc_pass = "CONFORME";
-        m_tr.qc_warn = "AVERT";
+        m_tr.qc_warn = "AVERT.";
         m_tr.qc_fail = "ÉCHEC";
         m_tr.qc_review = "À RÉVISER";
         m_tr.source_auto = "auto";
         m_tr.source_manual = "manuel";
         m_tr.source_override = "dérogé";
-        m_tr.label_fitted = "Ajusté";
-        m_tr.label_estimated_init = "Estimé (init)";
+        m_tr.label_fitted = "Modélisé";
+        m_tr.label_estimated_init = "Estimé (initial)";
         m_tr.label_filter = "Filtre :";
         m_tr.filter_all = "Tout";
-        m_tr.filter_flagged = "Signalés (ÉCHEC/AVERT/À RÉVISER)";
+        m_tr.filter_flagged = "À réviser (ÉCHEC/AVERT./À RÉVISER)";
         m_tr.filter_fail = "ÉCHEC uniquement";
-        m_tr.filter_warn = "AVERT uniquement";
+        m_tr.filter_warn = "AVERT. uniquement";
         m_tr.filter_pass = "CONFORME uniquement";
         m_tr.filter_review = "À RÉVISER uniquement";
-        m_tr.label_auto_fit = "Ajustement auto d'origine";
+        m_tr.label_auto_fit = "Ajustement auto initial";
     }
 }
 BolusApp::BolusApp() : m_fitter(1e-6, 1023.0, 1e-6, 1e6, 0.5, 1e6) {}
@@ -1793,7 +1793,7 @@ void BolusApp::draw_gui() {
         // Main Panels (Left: Sidebar, Right: Plot & Parameter Details)
         ImGui::Separator();
         
-        float sidebar_w = 380.0f;
+        float sidebar_w = 310.0f;
         ImGui::BeginChild("SidebarPane", ImVec2(sidebar_w, 0), true);
         draw_sidebar();
         ImGui::EndChild();
@@ -1971,13 +1971,15 @@ void BolusApp::draw_sidebar() {
     }
     ImGui::PopItemWidth();
     
-    ImGui::Text(m_tr.text_total_rois.c_str(), (int)m_records.size());
-    ImGui::Text(m_tr.text_active_queue.c_str(), (int)m_triage_queue.size());
     int manual_count = 0;
     for (const auto& r : m_records) {
         if (r.fit_source != "auto") manual_count++;
     }
-    ImGui::Text(m_tr.text_manual_count.c_str(), manual_count);
+    if (m_lang == LANG_FR) {
+        ImGui::Text("ROI : %d  |  Actives : %d  |  Manuelles : %d", (int)m_records.size(), (int)m_triage_queue.size(), manual_count);
+    } else {
+        ImGui::Text("ROIs: %d  |  Active: %d  |  Manual: %d", (int)m_records.size(), (int)m_triage_queue.size(), manual_count);
+    }
     ImGui::Separator();
     
     ImGui::BeginChild("ListScrollPane", ImVec2(0, 0), false);
@@ -2007,7 +2009,7 @@ void BolusApp::draw_sidebar() {
         }
         ImGui::PopStyleColor();
         
-        ImGui::SameLine(170);
+        ImGui::SameLine(115);
         std::string disp_flag;
         if (rec.qc_flag == "PASS") disp_flag = m_tr.qc_pass;
         else if (rec.qc_flag == "WARN") disp_flag = m_tr.qc_warn;
@@ -2017,7 +2019,7 @@ void BolusApp::draw_sidebar() {
         
         ImGui::TextColored(status_color, "[%s]", disp_flag.c_str());
         
-        ImGui::SameLine(280);
+        ImGui::SameLine(215);
         std::string disp_source;
         if (rec.fit_source == "auto") disp_source = m_tr.source_auto;
         else if (rec.fit_source == "manual") disp_source = m_tr.source_manual;
@@ -2073,6 +2075,27 @@ void BolusApp::draw_main_area() {
     ImGui::Indent(8.0f);
     ImGui::Text(m_tr.text_plot_status_header.c_str(), rec.roi_id, rec.roi_size, disp_flag.c_str(), disp_source.c_str());
     ImGui::Unindent(8.0f);
+    
+    // Navigation buttons aligned to the right
+    ImGui::SameLine();
+    float avail_w = ImGui::GetWindowWidth();
+    ImGui::SetCursorPosX(avail_w - 280.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6, 2));
+    if (ImGui::Button(m_lang == LANG_FR ? "< Précédent" : "< Previous", ImVec2(90, 22))) {
+        if (m_queue_pos > 0) {
+            select_record(m_triage_queue[m_queue_pos - 1]);
+        }
+    }
+    ImGui::SameLine();
+    ImGui::Text("%d / %d", m_queue_pos + 1, (int)m_triage_queue.size());
+    ImGui::SameLine();
+    if (ImGui::Button(m_lang == LANG_FR ? "Suivant >" : "Next >", ImVec2(90, 22))) {
+        if (m_queue_pos >= 0 && m_queue_pos + 1 < static_cast<int>(m_triage_queue.size())) {
+            select_record(m_triage_queue[m_queue_pos + 1]);
+        }
+    }
+    ImGui::PopStyleVar();
+    
     ImGui::EndChild();
         
         // Calculate Y limits with a 10% buffer based on visible traces in the crop range
@@ -2147,7 +2170,13 @@ void BolusApp::draw_main_area() {
         ImVec2 plot_pos(0.0f, 0.0f);
         ImVec2 plot_size(0.0f, 0.0f);
         
-        if (ImPlot::BeginPlot(m_tr.plot_title.c_str(), ImVec2(-1, 380))) {
+        // Calculate dynamic plot height based on available window height
+        float avail_h = ImGui::GetContentRegionAvail().y;
+        float plot_h = avail_h - 220.0f; // Reserved for ParamsPane and RangeSlider
+        if (plot_h < 380.0f) plot_h = 380.0f;
+        if (plot_h > 580.0f) plot_h = 580.0f;
+
+        if (ImPlot::BeginPlot(m_tr.plot_title.c_str(), ImVec2(-1, plot_h))) {
             ImPlot::SetupAxes(m_tr.plot_x_axis.c_str(), m_tr.plot_y_axis.c_str());
             
             // Limit the current axis limits to show cropped visual window on the fly
@@ -2228,23 +2257,6 @@ void BolusApp::draw_main_area() {
         // Parameters & Controls Panel
         ImGui::BeginChild("ParamsPane", ImVec2(0, 0), true);
         
-        // Navigation Buttons
-        if (ImGui::Button(m_tr.btn_prev_problem.c_str(), ImVec2(180, 0))) {
-            if (m_queue_pos > 0) {
-                select_record(m_triage_queue[m_queue_pos - 1]);
-            }
-        }
-        ImGui::SameLine();
-        ImGui::Text(m_tr.text_triage_queue.c_str(), m_queue_pos + 1, (int)m_triage_queue.size());
-        ImGui::SameLine();
-        if (ImGui::Button(m_tr.btn_next_problem.c_str(), ImVec2(180, 0))) {
-            if (m_queue_pos >= 0 && m_queue_pos + 1 < static_cast<int>(m_triage_queue.size())) {
-                select_record(m_triage_queue[m_queue_pos + 1]);
-            }
-        }
-        
-        ImGui::Separator();
-        
         // Manual fitting and cropping
         ImGui::Columns(2, "ControlsGrid", false);
         ImGui::SetColumnWidth(0, 480.0f);
@@ -2256,6 +2268,7 @@ void BolusApp::draw_main_area() {
         double max_t = c.t_raw.back();
         double base_min = 0.0;
         double base_max = 1000.0;
+        
         ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.55f, 0.62f, 0.45f, 0.8f));
         ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.65f, 0.72f, 0.55f, 1.0f));
         ImGui::SliderScalar(m_tr.label_onset.c_str(), ImGuiDataType_Double, &m_onset_marker, &min_t, &max_t, "%.1f");
@@ -2276,12 +2289,14 @@ void BolusApp::draw_main_area() {
         ImGui::SliderScalar(m_tr.label_baseline.c_str(), ImGuiDataType_Double, &m_baseline_marker, &base_min, &base_max, "%.1f");
         ImGui::PopStyleColor(2);
         
-        ImGui::Dummy(ImVec2(0.0f, 8.0f));
-        if (ImGui::Button(m_tr.btn_refit.c_str(), ImVec2(240, 36))) {
+        ImGui::Dummy(ImVec2(0.0f, 4.0f));
+        
+        // Single row of action buttons
+        if (ImGui::Button(m_tr.btn_refit.c_str(), ImVec2(120, 26))) {
             run_fit_on_current_roi();
         }
         ImGui::SameLine();
-        if (ImGui::Button(m_tr.btn_override.c_str(), ImVec2(140, 36))) {
+        if (ImGui::Button(m_tr.btn_override.c_str(), ImVec2(130, 26))) {
             m_records[m_selected_roi_idx].qc_flag = "PASS";
             m_records[m_selected_roi_idx].fit_source = "override";
             if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_gui_roi_states.size())) {
@@ -2291,9 +2306,8 @@ void BolusApp::draw_main_area() {
             build_triage_queue();
             save_active_roi_svg();
         }
-        
-        ImGui::Dummy(ImVec2(0.0f, 4.0f));
-        if (ImGui::Button(m_tr.btn_revert.c_str(), ImVec2(240, 30))) {
+        ImGui::SameLine();
+        if (ImGui::Button(m_tr.btn_revert.c_str(), ImVec2(160, 26))) {
             if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records_backup.size())) {
                 int idx = m_selected_roi_idx;
                 m_records[idx] = m_records_backup[idx];
@@ -2313,12 +2327,12 @@ void BolusApp::draw_main_area() {
         ImGui::PopFont();
         ImGui::Text("%s", m_tr.text_slider_desc.c_str());
         ImGui::Dummy(ImVec2(0.0f, 4.0f));
-        if (ImGui::Button(m_tr.btn_reset_crop.c_str(), ImVec2(180, 30))) {
+        if (ImGui::Button(m_tr.btn_reset_crop.c_str(), ImVec2(150, 26))) {
             m_crop_min = 0.0;
             m_crop_max = c.t_raw.back();
         }
         ImGui::SameLine();
-        if (ImGui::Button(m_tr.btn_crop_bounds.c_str(), ImVec2(240, 30))) {
+        if (ImGui::Button(m_tr.btn_crop_bounds.c_str(), ImVec2(150, 26))) {
             m_crop_min = std::max(0.0, m_onset_marker - 5.0);
             m_crop_max = std::min(c.t_raw.back(), m_end_marker + 10.0);
         }
@@ -2347,7 +2361,7 @@ void BolusApp::draw_main_area() {
             
             // Fitted row
             ImGui::TableNextRow();
-            ImGui::TableNextColumn(); ImGui::Text(m_lang == LANG_FR ? "Modélisé" : "Fitted");
+            ImGui::TableNextColumn(); ImGui::Text("%s", m_tr.label_fitted.c_str());
             ImGui::TableNextColumn(); display_val(rec.f_amp);
             ImGui::TableNextColumn(); display_val(rec.f_t2p);
             ImGui::TableNextColumn(); display_val(rec.f_fwhm);
@@ -2357,7 +2371,7 @@ void BolusApp::draw_main_area() {
             
             // Pre-guess row
             ImGui::TableNextRow();
-            ImGui::TableNextColumn(); ImGui::Text(m_lang == LANG_FR ? "Estimé (initial)" : "Estimated (Init)");
+            ImGui::TableNextColumn(); ImGui::Text("%s", m_tr.label_estimated_init.c_str());
             ImGui::TableNextColumn(); display_val(rec.init_amp);
             ImGui::TableNextColumn(); display_val(rec.init_t2p);
             ImGui::TableNextColumn(); display_val(rec.init_fwhm);
