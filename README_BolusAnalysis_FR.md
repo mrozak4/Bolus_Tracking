@@ -86,7 +86,7 @@ ApplyRegistrationToMask
 
 1. Sélectionner le `maskObj`, 2. Sélectionner le fichier `.mat` de décalage, 3. Vérifier sur le TIFF recalé, 4. Enregistrer.
 
-Voir `README_ApplyRegistrationToMask.md` pour plus de détails.
+Voir `README_ApplyRegistrationToMask_FR.md` pour plus de détails.
 
 ---
 
