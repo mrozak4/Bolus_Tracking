@@ -90,7 +90,7 @@ cmake -DBUILD_GUI=ON ..
 make -j4
 ./bolus_tracking_gui
 ```
-This launches the high-performance Dear ImGui dashboard. You can select folders, triage ROIs by status (PASS/WARN/FAIL), drag vertical markers to adjust onset, peak, and end points, crop the fitting window on the fly, automatically save and resume your workflow progress via sidecar `.gui_state` files, and export parameters.
+This launches the high-performance Dear ImGui dashboard. You can select folders, triage ROIs by status (PASS/WARN/FAIL), drag vertical markers to adjust onset, peak, and end points, crop the fitting window on the fly, automatically save and resume your workflow progress via sidecar `.gui_state` files, adjust denoising filters interactively, reset/revert to automatic baseline states, clear subject workspaces, toggle between Canadian English and OQLF-compliant French, and export parameters.
 
 ### Launch Python GUI
 Run:

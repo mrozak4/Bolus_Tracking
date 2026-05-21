@@ -181,6 +181,11 @@ This script compiles the GUI, builds `BolusTrackingStudio.app` in the repository
 * **Resetting / Visual Zoom**: Double-click the plot to reset the axis limits, or click the **Undo Crop** button to restore the full signal range.
 * **Manual Re-fitting**: Click **Re-fit Manual** to execute a constrained fit using your manually dragged markers as the initial parameters and your visual crop bounds as the active fit window. All exported parameters remain mapped relative to the *uncropped* absolute time scale.
 * **Batch Auto-Fitting**: Load a folder, click **Run Auto Fit Batch** to process the folder automatically, and watch the results list update in real time.
+* **Interactive Denoising Strength**: Adjust the **Denoise Strength** slider (0.5x to 3.0x) in the control panel to interactively alter the noise-filtering factor for raw trace smoothing.
+* **Revert to Original (Autoassignments)**: Click the **Revert to Original** button to discard all manual corrections for the selected ROI, restore the baseline automatic fit parameters, and remove the manual triage marker tags.
+* **Reset All Changes**: Click the **Reset All** button in the top menu bar to restore the entire loaded dataset back to its pristine, pre-triaged automatic state. A confirmation dialog prevents accidental data loss.
+* **Clear Subject Data**: Click the **Clear Subject** button in the top menu bar to unload all datasets, ROIs, and TIFF frames, returning the visual dashboard to its empty welcome screen.
+* **Bilingual Translation (OQLF Compliant)**: Click the **EN / FR** flags in the top menu bar to toggle the user interface between Canadian English and official Quebec French (fully compliant with OQLF standardization).
 
 ---
 
