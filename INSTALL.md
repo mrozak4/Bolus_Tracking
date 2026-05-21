@@ -1,5 +1,9 @@
 # Installation Guide: Bolus Tracking Studio
 
+**[English](INSTALL.md) | [Français (Québec)](INSTALL_FR.md)**
+
+---
+
 This guide describes how to install and configure **Bolus Tracking Studio** on macOS, Linux, and Windows.
 
 ---

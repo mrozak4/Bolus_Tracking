@@ -1,5 +1,7 @@
 # Complete Guide to Running the Bolus Tracking Pipeline
 
+**[English](RUNNING_GUIDE.md) | [Français (Québec)](RUNNING_GUIDE_FR.md)**
+
 This guide is designed for **both human users (even with zero coding experience)** and **AI coding agents** to easily set up, run, and maintain the bolus tracking pipeline and interactive GUI.
 
 ---

@@ -1,5 +1,9 @@
 # Python vs C++ Implementation Parity & Performance Report
 
+**[English](PARITY_REPORT.md) | [Français (Québec)](PARITY_REPORT_FR.md)**
+
+---
+
 This report compares the Python and C++ implementations of the Bolus Tracking pipeline, analyzing performance, numerical parity, and architectural trade-offs.
 
 ## 1. Performance Benchmark

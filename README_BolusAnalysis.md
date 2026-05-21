@@ -1,5 +1,9 @@
 # Bolus Analysis Toolkit — README
 
+**[English](README_BolusAnalysis.md) | [Français (Québec)](README_BolusAnalysis_FR.md)**
+
+---
+
 ## Overview
 
 This toolkit performs fluorescence bolus tracking analysis on two-photon microscopy time-series data. It segments vascular regions of interest (ROIs) from maximum intensity projections (MIPs), extracts fluorescence time-courses from each ROI, and fits gamma functions to the bolus passage curve to derive hemodynamic parameters.

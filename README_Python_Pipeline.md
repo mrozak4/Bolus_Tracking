@@ -1,5 +1,9 @@
 # Bolus Tracking: Python Pipeline
 
+**[English](README_Python_Pipeline.md) | [Français (Québec)](README_Python_Pipeline_FR.md)**
+
+---
+
 This document explains how to run the newly automated Python bolus tracking pipeline. This pipeline replaces the manual MATLAB GUI workflow, allowing for headless batch processing on any system (including your Linux registration machine).
 
 ## Prerequisites

@@ -1,5 +1,9 @@
 # ApplyRegistrationToMask — README
 
+**[English](README_ApplyRegistrationToMask.md) | [Français (Québec)](README_ApplyRegistrationToMask_FR.md)**
+
+---
+
 ## Overview
 
 ApplyRegistrationToMask.m is a MATLAB GUI tool that applies Visual Studio registration transforms to existing maskObj ROI files. When you have ROIs drawn on an unregistered bolus file and then register that bolus to the XYZ volumetric stack, the ROIs no longer match the registered image. This tool transforms the ROI vertex coordinates using the same affine transform that was applied to the image, so the ROIs follow the vessels.
