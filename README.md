@@ -1,5 +1,9 @@
 # Capillary Bolus Tracking & Gamma Curve Fitting Studio
 
+**[English](README.md) | [Français (Québec)](README_FR.md)**
+
+---
+
 Welcome to the **Capillary Bolus Tracking & Gamma Curve Fitting** repository. This project is a comprehensive suite of MATLAB, Python, and C++ tools designed to extract, analyze, and mathematically model fluorescent dye transit kinetics in brain capillaries for neurovascular coupling research.
 
 ---
