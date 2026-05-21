@@ -57,9 +57,11 @@ If you are running the python script manually (without the `.sh` script), you ca
 *(Note: You were getting a `FileNotFoundError` earlier because the example command had the placeholder name `adjusted_maskObj.mat` instead of the actual file name `adjusted_3554_bolus1_baseline_shifted_MaskObj.mat`).*
 
 ## Output
-The script will output a CSV file (e.g., `3554_bolus1_baseline_123-300_shifted_results.csv`) containing the automatically estimated and fitted parameters for every ROI mask in the stack:
-- `InitAmp`, `InitT2p`, `InitFWHM`, `InitM` (Auto-estimated starting points)
-- `F_Amp`, `F_T2p`, `F_FWHM`, `F_M` (Final fitted Gamma parameters mathematically identical to MATLAB's `nlinfit`)
+The script will output a CSV file (e.g., `3554_bolus1_baseline_123-300_shifted_results.csv`) containing the automatically estimated and fitted parameters for every ROI mask in the stack. Output columns align with the C++ pipeline:
+- `InitAmp`, `InitT2p`, `InitFWHM`, `InitM`, `InitSNR`, `InitCNR` (Initial guesses and metrics)
+- `F_Amp`, `F_T2p`, `F_FWHM`, `F_M`, `F_SNR`, `F_CNR` (Final fitted Gamma parameters and metrics)
+- `AUC`, `AUCn`, `OnT`, `OnTSc`, `TTlb`, `TTm`, `TThb` (Calculated kinetics: Area under curves, onset time, transit times, and confidence bounds)
+- `QC_Flag`, `Fit_Source`, `VesType` (Fit quality classification, source origin of the parameters, and kinetics-based suggested vessel classification)
 
 ---
 

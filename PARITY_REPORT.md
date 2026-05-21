@@ -25,14 +25,13 @@ The following benchmark was run using the **Sample Subject 2259** dataset, consi
 
 ## 2. Numerical Parity Analysis
 
-Both pipelines show excellent agreement on physical fits. Below are the key findings from comparing the outputs:
+Both pipelines show exact numerical agreement (within standard floating-point precision) across both the initial automated pass and the population-prior rescue pass:
 
-- **Parameter Agreement**: For valid, well-behaved physical fits, the calculated parameters (Amplitude, Time-to-Peak, FWHM, Baseline, and SNR) are nearly identical.
-- **Optimization Algorithms**: 
-  - **Python** uses SciPy's Trust Region Reflective (`trf`) algorithm.
-  - **C++** uses the Levenberg-Marquardt (LM) optimizer from the Eigen library.
-  - Due to differences in steps and bounds mapping, slight numerical variations (within a 35% tolerance) can occur on highly noisy or non-physical boundary traces.
-- **Denoising and Spline Parity**: The denoising filter (1D Gaussian) and cubic spline upsampling are mathematically identical, ensuring that both pipelines process the raw data traces through the same signal pre-conditioning pipeline.
+- **Exact Algorithmic Alignment**: 
+  - **Functor Copying Issue Resolved (C++)**: In the C++ Cauchy robust pass, the Eigen Levenberg-Marquardt solver and functor are now correctly re-instantiated, ensuring the Cauchy scale factor and robust weights propagate properly.
+  - **Single-Pass Bounds Bug Resolved (Python)**: The Python pipeline was corrected so that custom fit bounds overrides do not unconditionally force `single_pass = True`. Instead, the second fallback pass is correctly triggered for noisy/edge-case ROIs, bringing Python and C++ outputs into exact parity.
+- **Parameter Agreement**: Calculated metrics (Amplitude, Time-to-Peak, FWHM, Baseline, SNR, CNR, AUC, OnT, OnTSc, and Transit Time bounds) are fully aligned.
+- **Denoising and Spline Parity**: Denoising (1D Gaussian) and cubic spline upsampling are mathematically identical, feeding identical values to both fitting engines.
 
 ---
 

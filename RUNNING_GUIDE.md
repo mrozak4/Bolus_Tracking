@@ -81,17 +81,13 @@ docker build -t bolus_tracking_cpp -f Dockerfile.cpp .
 docker run --rm -v "$(pwd):/data" bolus_tracking_cpp --folder /data/sample-subject-2259
 ```
 
-#### Handling Warnings and Failures (Triage & GUI)
-
-When the automated C++ pipeline runs, it checks each fit against key physiological parameter limits and marks the ROI status in the results CSV:
-
 ##### Fit Quality Parameters & Triage Limits:
 | Parameter | Description | Warning Threshold (`WARN`) | Failure Threshold (`FAIL`) | Absolute Solver Bounds (Hard Limit) |
 | :--- | :--- | :--- | :--- | :--- |
-| **Amplitude** | Peak height of the bolus curve | — | `< 1.0` | `[1e-6, 1023.0]` |
-| **Time to Peak ($T_{2p}$)** | Duration from onset to peak | `> 10.0 s` | `> 50.0 s` | `[1e-6, inf)` |
-| **FWHM** | Full width of bolus at half max amplitude | `> 15.0 s` | `> 100.0 s` | `[0.5, inf)` |
-| **CNR** | Contrast-to-Noise Ratio (Peak / SD of baseline) | `< 5.0` | `< 3.0` | — |
+| **Amplitude** | Peak height of the bolus curve | Near solver boundary | — | `[1e-6, 1023.0]` |
+| **Time to Peak ($T_{2p}$)** | Duration from onset to peak | `< 0.1 s` or `> 10.0 s` or near boundary | — | `[1e-6, fit window duration]` |
+| **FWHM** | Full width of bolus at half max amplitude | `< 0.5 s` or `> 15.0 s` or near boundary | — | `[0.5, fit window duration]` |
+| **CNR** | Contrast-to-Noise Ratio (Peak / SD of baseline) | `[3.0, 5.0]` | `< 3.0` | — |
 
 ##### Customizing Fit Bounds and QC Thresholds from Command Line
 You can configure both the absolute optimization bounds and the warning/failure triage thresholds dynamically when running the C++ parallel pipeline using the following command-line flags:
@@ -117,9 +113,9 @@ For example, to process a dataset with a custom FWHM warning threshold of `20.0`
 bash run_pipeline_cpp.sh sample-subject-2259 --qc-fwhm-max 20.0 --qc-cnr-min 6.0
 ```
 
-* **`PASS`**: The fit completed successfully, and all parameters fell within the healthy warning limits.
-* **`WARN`**: The fit succeeded, but one or more parameters crossed the warning limits (e.g., abnormally long FWHM or low contrast).
-* **`FAIL`**: The fit diverged, converged to an absolute solver boundary (indicating a non-physical mathematical solution), or failed critical QC constraints.
+* **`PASS`**: The fit completed successfully, did not hit parameter bounds, CNR > 5.0, FWHM is between 0.5–15.0 s, and $T_{2p}$ is between 0.1–10.0 s.
+* **`WARN`**: The fit succeeded, but one or more parameters crossed the warning/pass limits (e.g. FWHM > 15 s, CNR 3.0–5.0, or landed within 1% of a solver boundary).
+* **`FAIL`**: The fit returned NaN, failed solver convergence, or had CNR < 3.0.
 
 ##### Triaging & Correcting Fits:
 If a batch run yields `WARN` or `FAIL` flags, you can easily inspect and correct them using the native C++ GUI app (see **[INSTALL.md](INSTALL.md)** for installation instructions).
@@ -194,14 +190,14 @@ To ensure biological plausibility, the automated pipeline and GUI evaluate the f
 
 | Parameter | Description | Warning Threshold (`WARN`) | Failure Threshold (`FAIL`) | Absolute Solver Bounds (Hard Limit) |
 | :--- | :--- | :--- | :--- | :--- |
-| **Amplitude** | Peak height of the bolus curve | — | `< 1.0` | `[1e-6, 1023.0]` |
-| **Time to Peak ($T_{2p}$)** | Duration from onset to peak | `> 10.0 s` | `> 50.0 s` | `[1e-6, inf)` |
-| **FWHM** | Full width of bolus at half max amplitude | `> 15.0 s` | `> 100.0 s` | `[0.5, inf)` |
-| **CNR** | Contrast-to-Noise Ratio (Peak / SD of baseline) | `< 5.0` | `< 3.0` | — |
+| **Amplitude** | Peak height of the bolus curve | Near solver boundary | — | `[1e-6, 1023.0]` |
+| **Time to Peak ($T_{2p}$)** | Duration from onset to peak | `< 0.1 s` or `> 10.0 s` or near boundary | — | `[1e-6, fit window duration]` |
+| **FWHM** | Full width of bolus at half max amplitude | `< 0.5 s` or `> 15.0 s` or near boundary | — | `[0.5, fit window duration]` |
+| **CNR** | Contrast-to-Noise Ratio (Peak / SD of baseline) | `[3.0, 5.0]` | `< 3.0` | — |
 
-* **`PASS`**: The fit completed successfully, and all parameters fell within the healthy warning limits.
-* **`WARN`**: The fit succeeded, but one or more parameters crossed the warning limits (e.g., abnormally long FWHM or low contrast).
-* **`FAIL`**: The fit diverged, converged to an absolute solver boundary (indicating a non-physical mathematical solution), or failed critical QC constraints.
+* **`PASS`**: The fit completed successfully, did not hit parameter bounds, CNR > 5.0, FWHM is between 0.5–15.0 s, and $T_{2p}$ is between 0.1–10.0 s.
+* **`WARN`**: The fit succeeded, but one or more parameters crossed the warning/pass limits (e.g. FWHM > 15 s, CNR 3.0–5.0, or landed within 1% of a solver boundary).
+* **`FAIL`**: The fit returned NaN, failed solver convergence, or had CNR < 3.0.
 
 ---
 

@@ -129,19 +129,33 @@ The batch pipelines output CSV files containing the following metrics for each c
 | **OnTSc** | Onset Time in Scan (relative to the earliest onset across all ROIs in the scan). |
 | **ROISize** | Size of the Region of Interest mask (in pixels). |
 | **Denoise_RMS** | Root Mean Square (RMS) of the noise removed during spline denoising (in **SU**). |
-| **VesType** | Vessel type classification (defaults to `'U'`). |
+| **VesType** | Vessel type classification (`A` for Arteriole, `V` for Venule, `C` for Capillary, `U` for Unknown). |
+| **QC_Flag** | Quality control flag (`PASS`, `WARN`, or `FAIL`). |
+| **Fit_Source** | Origin of the fit parameters (`auto`, `population_prior`, or `manual`). |
 
 ---
 
-## 6. Physiological Fit Parameter Constraints
+## 6. Physiological Fit Parameter Constraints & Quality Control
 
-To prevent non-physical fits (e.g. infinite/negative values, extremely slow bolus peaks, or amplitude levels exceeding hardware limits), the pipeline implements strict, physiologically informed parameter bounds.
+To prevent non-physical fits (e.g. infinite/negative values, extremely slow bolus peaks, or amplitude levels exceeding hardware limits), the pipeline implements strict, physiologically informed parameter bounds and QC checks.
 
 ### Default Constraint Bounds:
 * **Amplitude (`F_Amp`)**: Constrained between `1e-6` and `1023.0`. The upper bound of `1023.0` corresponds to the maximum dynamic range of the 10-bit microscope digitizer.
 * **Time-to-Peak (`F_T2p`)**: Constrained between `1e-6` and the **duration of the fit window** (automatically computed from the onset to end of the trace segment). This ensures the peak is found within the actual scan window.
 * **FWHM (`F_FWHM`)**: Constrained between `0.5` seconds and the **duration of the fit window**. The lower bound of `0.5` seconds represents the fastest physiologically plausible transit speed of dye through a capillary.
 * **Baseline shift (`F_M`)**: Dynamically constrained based on the estimated baseline noise standard deviation to prevent optimizer divergence.
+
+### Quality Control Triage Status (`QC_Flag`):
+- **`PASS`**: The fit completed successfully, parameters did not land within 1% of absolute solver bounds, $F\_CNR > 5.0$, $F\_FWHM \in [0.5, 15.0]\text{ s}$, and $F\_T2p \in [0.1, 10.0]\text{ s}$.
+- **`WARN`**: The fit succeeded, but one or more parameters crossed the warning limits, $F\_CNR \in [3.0, 5.0]$, or one parameter is near a fitting solver boundary.
+- **`FAIL`**: The fit diverged, returned `NaN`, or had a $F\_CNR < 3.0$.
+
+### Kinetics-Based Vessel Type Suggestions (`VesType`):
+Fits flagged as valid are classified using calculated kinetics metrics:
+- **Arteriole (`A`)**: Early onset ($OnT < 1.8\text{ s}$) and rapid transit time ($TTm < 3.0\text{ s}$).
+- **Venule (`V`)**: Late onset ($OnT > 3.0\text{ s}$) or prolonged transit time ($TTm > 4.5\text{ s}$).
+- **Capillary (`C`)**: Fits falling into intermediate ranges.
+- **Unknown (`U`)**: Failed or `NaN` fits.
 
 These boundaries are automatically applied across the C++ pipeline, the Python batch process script, and the interactive GUI. Override options are available via CLI flags (e.g. `--min-t2p`, `--max-amp`, etc.).
 
