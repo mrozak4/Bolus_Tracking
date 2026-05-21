@@ -17,7 +17,7 @@ GlobalShiftMask applies a uniform XY pixel shift. The Visual Studio registration
 The Visual Studio registration outputs .mat files (e.g., `bolus1_shift.mat`) containing:
 
 - `AffineTransform_float_2_2`: a 6x1 vector [a00, a01, a10, a11, tx, ty] encoding a 2x2 rotation/scale matrix and a 2D translation vector
-- `fixed`: a 2x1 vector specifying the center point of the transform
+- `fixed`: a 2x1 vector specifying the centre point of the transform
 
 The full transform applied to each ROI vertex is:
 
@@ -32,7 +32,7 @@ where A is the 2x2 matrix and translation is [tx, ty].
 1. Type `ApplyRegistrationToMask` in the MATLAB command window
 2. Select the maskObj .mat file containing the ROIs to transform
 3. Select the Visual Studio shift .mat file (e.g., `bolus1_shift.mat`) — this must be the transform for the same bolus the ROIs were drawn on
-4. The tool displays the parsed transform (translation, rotation angle, center point)
+4. The tool displays the parsed transform (translation, rotation angle, centre point)
 5. Optionally load the registered TIFF or MIP to visually verify the transformed ROI positions
 6. Click "Save Transformed Mask" to save the result
 
