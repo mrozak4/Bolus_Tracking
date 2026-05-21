@@ -34,6 +34,7 @@ Both pipelines show exact numerical agreement (within standard floating-point pr
 - **Exact Algorithmic Alignment**: 
   - **Functor Copying Issue Resolved (C++)**: In the C++ Cauchy robust pass, the Eigen Levenberg-Marquardt solver and functor are now correctly re-instantiated, ensuring the Cauchy scale factor and robust weights propagate properly.
   - **Single-Pass Bounds Bug Resolved (Python)**: The Python pipeline was corrected so that custom fit bounds overrides do not unconditionally force `single_pass = True`. Instead, the second fallback pass is correctly triggered for noisy/edge-case ROIs, bringing Python and C++ outputs into exact parity.
+  - **Optimizer Convergence and Evaluation Budget Parity**: The C++ optimizer function evaluation limit (`maxfev`) was increased to `10000` to match SciPy's default budget, and the success condition was updated to accept status code `5` (maximum evaluations/iterations reached). This ensures that marginal/noisy traces (e.g. ROI 44 in Subject 2259 Bolus 1) that terminate at the evaluation limit return their near-optimal fit parameters and correct `WARN` flags in C++, establishing full parity with Python's curve fits.
 - **Parameter Agreement**: Calculated metrics (Amplitude, Time-to-Peak, FWHM, Baseline, SNR, CNR, AUC, OnT, OnTSc, and Transit Time bounds) are fully aligned.
 - **Denoising and Spline Parity**: Denoising (1D Gaussian) and cubic spline upsampling are mathematically identical, feeding identical values to both fitting engines.
 
