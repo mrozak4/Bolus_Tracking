@@ -1306,121 +1306,127 @@ void BolusApp::load_gui_state() {
      */
 void BolusApp::precompute_all_traces() {
         m_cache.resize(m_rois.size());
-        
         for (size_t r = 0; r < m_rois.size(); ++r) {
-            const auto& roi = m_rois[r];
-            auto& c = m_cache[r];
-            c.roi_id = roi.id;
-            
-            // 1. Rasterize
-            std::vector<int> mask = ROIMaskRasterizer::get_mask_pixels(roi.poly, m_tiff.width, m_tiff.height);
-            int mask_size = 0;
-            for (int v : mask) mask_size += v;
-            
-            // 2. Average raw MFI
-            c.y_raw.resize(m_tiff.frames.size(), 0.0);
-            c.t_raw.resize(m_tiff.frames.size(), 0.0);
-            for (size_t f = 0; f < m_tiff.frames.size(); ++f) {
-                c.t_raw[f] = f / m_fr;
-                if (mask_size > 0) {
-                    double sum = 0.0;
-                    for (int idx = 0; idx < m_tiff.width * m_tiff.height; ++idx) {
-                        if (mask[idx]) sum += m_tiff.frames[f][idx];
-                    }
-                    c.y_raw[f] = sum / mask_size;
-                }
-            }
-            
-            // 3. Drift estimation
-            double sum_t = 0.0, sum_y = 0.0, sum_tt = 0.0, sum_ty = 0.0;
-            int count = 0;
-            for (size_t i = 0; i < c.t_raw.size(); ++i) {
-                if (c.t_raw[i] <= m_drift_win) {
-                    sum_t += c.t_raw[i];
-                    sum_y += c.y_raw[i];
-                    sum_tt += c.t_raw[i] * c.t_raw[i];
-                    sum_ty += c.t_raw[i] * c.y_raw[i];
-                    count++;
-                }
-            }
-            c.drift_slope = 0.0;
-            if (count > 1) {
-                double mean_t = sum_t / count;
-                double mean_y = sum_y / count;
-                double num = sum_ty - count * mean_t * mean_y;
-                double den = sum_tt - count * mean_t * mean_t;
-                if (std::abs(den) > 1e-9) c.drift_slope = num / den;
-            }
-            
-            std::vector<double> detrended = c.y_raw;
-            for (size_t i = 0; i < detrended.size(); ++i) {
-                detrended[i] -= c.drift_slope * c.t_raw[i];
-            }
-            c.y_raw_detrended = detrended;
-            
-            // Calculate raw trace CNR
-            int n_base = std::min((int)std::round(2.0 * m_fr), (int)std::round(detrended.size() * 0.1));
-            n_base = std::max(2, n_base);
-            std::vector<double> raw_base_win(detrended.begin(), detrended.begin() + n_base);
-            double raw_baseline = SignalProcessor::compute_median(raw_base_win);
-            double sum_raw_base = 0.0;
-            for (double val : raw_base_win) sum_raw_base += val;
-            double mean_raw_base = sum_raw_base / raw_base_win.size();
-            double raw_sd_base = SignalProcessor::compute_std(raw_base_win, mean_raw_base);
-            
-            double raw_max_val = -1e9;
-            for (double val : detrended) {
-                if (val > raw_max_val) raw_max_val = val;
-            }
-            double raw_amp = raw_max_val - raw_baseline;
-            double raw_cnr = (raw_sd_base > 0.0) ? (raw_amp / raw_sd_base) : 0.0;
-            
-            double denoise_thresh = 2.0;
-            int denoise_half_win = 5;
-            if (raw_cnr < 4.0) {
-                denoise_thresh = 1.5;
-                denoise_half_win = 7;
-            } else if (raw_cnr >= 15.0) {
-                denoise_thresh = 3.0;
-                denoise_half_win = 3;
-            } else if (raw_cnr >= 8.0) {
-                denoise_thresh = 2.5;
-                denoise_half_win = 5;
-            }
-            
-            // Adjust threshold and half-window size based on GUI denoising strength multiplier
-            if (m_denoise_strength_factor > 0.01f) {
-                denoise_thresh = denoise_thresh / static_cast<double>(m_denoise_strength_factor);
-                denoise_half_win = std::max(1, static_cast<int>(std::round(denoise_half_win * m_denoise_strength_factor)));
-            }
-            
-            // 4. Denoise and Spline
-            c.y_denoised = SignalProcessor::denoise_trace(detrended, denoise_thresh, denoise_half_win);
-            c.t_us.resize(c.t_raw.size() * m_upsample_factor);
-            for (size_t i = 0; i < c.t_us.size(); ++i) {
-                c.t_us[i] = i / (m_fr * m_upsample_factor);
-            }
-            
-            SplineInterpolator spline;
-            spline.build(c.t_raw, c.y_denoised);
-            c.y_us.resize(c.t_us.size());
-            for (size_t i = 0; i < c.t_us.size(); ++i) {
-                c.y_us[i] = spline.eval(c.t_us[i]);
-            }
-            
-            // 5. Baseline SD
-            int n_base_us = std::min((int)std::round(2.0 * m_fr * m_upsample_factor), (int)std::round(c.y_us.size() * 0.1));
-            n_base_us = std::max(1, n_base_us);
-            std::vector<double> base_win(c.y_us.begin(), c.y_us.begin() + n_base_us);
-            double mean_base = 0.0;
-            for (double x : base_win) mean_base += x;
-            mean_base /= base_win.size();
-            c.sd_base = SignalProcessor::compute_std(base_win, mean_base);
-            if (c.sd_base <= 0.0) c.sd_base = 0.05;
-            
-            // 6. Precompute Fit Plot Curve (from CSV record parameters)
-            precompute_fit_plot(r);
+            precompute_single_trace(r);
         }
+    }
+
+void BolusApp::precompute_single_trace(size_t r) {
+        if (r >= m_rois.size()) return;
+        if (m_cache.size() <= r) m_cache.resize(m_rois.size());
+        
+        const auto& roi = m_rois[r];
+        auto& c = m_cache[r];
+        c.roi_id = roi.id;
+        
+        // 1. Rasterize
+        std::vector<int> mask = ROIMaskRasterizer::get_mask_pixels(roi.poly, m_tiff.width, m_tiff.height);
+        int mask_size = 0;
+        for (int v : mask) mask_size += v;
+        
+        // 2. Average raw MFI
+        c.y_raw.resize(m_tiff.frames.size(), 0.0);
+        c.t_raw.resize(m_tiff.frames.size(), 0.0);
+        for (size_t f = 0; f < m_tiff.frames.size(); ++f) {
+            c.t_raw[f] = f / m_fr;
+            if (mask_size > 0) {
+                double sum = 0.0;
+                for (int idx = 0; idx < m_tiff.width * m_tiff.height; ++idx) {
+                    if (mask[idx]) sum += m_tiff.frames[f][idx];
+                }
+                c.y_raw[f] = sum / mask_size;
+            }
+        }
+        
+        // 3. Drift estimation
+        double sum_t = 0.0, sum_y = 0.0, sum_tt = 0.0, sum_ty = 0.0;
+        int count = 0;
+        for (size_t i = 0; i < c.t_raw.size(); ++i) {
+            if (c.t_raw[i] <= m_drift_win) {
+                sum_t += c.t_raw[i];
+                sum_y += c.y_raw[i];
+                sum_tt += c.t_raw[i] * c.t_raw[i];
+                sum_ty += c.t_raw[i] * c.y_raw[i];
+                count++;
+            }
+        }
+        c.drift_slope = 0.0;
+        if (count > 1) {
+            double mean_t = sum_t / count;
+            double mean_y = sum_y / count;
+            double num = sum_ty - count * mean_t * mean_y;
+            double den = sum_tt - count * mean_t * mean_t;
+            if (std::abs(den) > 1e-9) c.drift_slope = num / den;
+        }
+        
+        std::vector<double> detrended = c.y_raw;
+        for (size_t i = 0; i < detrended.size(); ++i) {
+            detrended[i] -= c.drift_slope * c.t_raw[i];
+        }
+        c.y_raw_detrended = detrended;
+        
+        // Calculate raw trace CNR
+        int n_base = std::min((int)std::round(2.0 * m_fr), (int)std::round(detrended.size() * 0.1));
+        n_base = std::max(2, n_base);
+        std::vector<double> raw_base_win(detrended.begin(), detrended.begin() + n_base);
+        double raw_baseline = SignalProcessor::compute_median(raw_base_win);
+        double sum_raw_base = 0.0;
+        for (double val : raw_base_win) sum_raw_base += val;
+        double mean_raw_base = sum_raw_base / raw_base_win.size();
+        double raw_sd_base = SignalProcessor::compute_std(raw_base_win, mean_raw_base);
+        
+        double raw_max_val = -1e9;
+        for (double val : detrended) {
+            if (val > raw_max_val) raw_max_val = val;
+        }
+        double raw_amp = raw_max_val - raw_baseline;
+        double raw_cnr = (raw_sd_base > 0.0) ? (raw_amp / raw_sd_base) : 0.0;
+        
+        double denoise_thresh = 2.0;
+        int denoise_half_win = 5;
+        if (raw_cnr < 4.0) {
+            denoise_thresh = 1.5;
+            denoise_half_win = 7;
+        } else if (raw_cnr >= 15.0) {
+            denoise_thresh = 3.0;
+            denoise_half_win = 3;
+        } else if (raw_cnr >= 8.0) {
+            denoise_thresh = 2.5;
+            denoise_half_win = 5;
+        }
+        
+        // Adjust threshold and half-window size based on GUI denoising strength multiplier
+        if (m_denoise_strength_factor > 0.01f) {
+            denoise_thresh = denoise_thresh / static_cast<double>(m_denoise_strength_factor);
+            denoise_half_win = std::max(1, static_cast<int>(std::round(denoise_half_win * m_denoise_strength_factor)));
+        }
+        
+        // 4. Denoise and Spline
+        c.y_denoised = SignalProcessor::denoise_trace(detrended, denoise_thresh, denoise_half_win);
+        c.t_us.resize(c.t_raw.size() * m_upsample_factor);
+        for (size_t i = 0; i < c.t_us.size(); ++i) {
+            c.t_us[i] = i / (m_fr * m_upsample_factor);
+        }
+        
+        SplineInterpolator spline;
+        spline.build(c.t_raw, c.y_denoised);
+        c.y_us.resize(c.t_us.size());
+        for (size_t i = 0; i < c.t_us.size(); ++i) {
+            c.y_us[i] = spline.eval(c.t_us[i]);
+        }
+        
+        // 5. Baseline SD
+        int n_base_us = std::min((int)std::round(2.0 * m_fr * m_upsample_factor), (int)std::round(c.y_us.size() * 0.1));
+        n_base_us = std::max(1, n_base_us);
+        std::vector<double> base_win(c.y_us.begin(), c.y_us.begin() + n_base_us);
+        double mean_base = 0.0;
+        for (double x : base_win) mean_base += x;
+        mean_base /= base_win.size();
+        c.sd_base = SignalProcessor::compute_std(base_win, mean_base);
+        if (c.sd_base <= 0.0) c.sd_base = 0.05;
+        
+        // 6. Precompute Fit Plot Curve (from CSV record parameters)
+        precompute_fit_plot(r);
     }
 
     /**
@@ -1765,6 +1771,13 @@ void BolusApp::run_fit_on_record(int idx, bool is_auto) {
                 }
                 rec.ont = (double)onset_idx / (m_fr * m_upsample_factor);
                 rec.ttm = std::abs(popt[1] - rec.ont);
+                
+                double shift = 0.0;
+                if (idx >= 0 && idx < static_cast<int>(m_records_backup.size())) {
+                    shift = m_records_backup[idx].ont - m_records_backup[idx].ont_sc;
+                }
+                if (std::isnan(shift) || std::isinf(shift)) shift = 0.0;
+                rec.ont_sc = rec.ont - shift;
                 
                 double sum_sq_resid = 0.0;
                 for (size_t i = 0; i < y_fit.size(); ++i) {
@@ -2172,27 +2185,43 @@ void BolusApp::draw_main_area() {
     else disp_source = rec.fit_source;
     
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::GetStyle().Colors[ImGuiCol_FrameBg]);
-    ImGui::BeginChild("PlotHeaderPane", ImVec2(0, 36), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    ImGui::BeginChild("PlotHeaderPane", ImVec2(0, 42), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::PopStyleColor();
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2.0f);
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.0f);
+    
+    float avail_w = ImGui::GetContentRegionAvail().x;
+    float nav_btn_w = m_lang == LANG_FR ? 100.0f : 90.0f;
+    float spacing = ImGui::GetStyle().ItemSpacing.x;
+    char queue_text[64];
+    snprintf(queue_text, sizeof(queue_text), "%d / %d", m_queue_pos + 1, (int)m_triage_queue.size());
+    float text_w = ImGui::CalcTextSize(queue_text).x;
+    float total_buttons_w = nav_btn_w * 2.0f + text_w + spacing * 2.0f;
+    float right_margin = ImGui::GetStyle().WindowPadding.x + 4.0f;
+    
+    float text_width_limit = avail_w - total_buttons_w - right_margin - 24.0f;
+    
     ImGui::Indent(8.0f);
-    ImGui::Text(m_tr.text_plot_status_header.c_str(), rec.roi_id, rec.roi_size, disp_flag.c_str(), disp_source.c_str());
+    if (text_width_limit > 100.0f) {
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + text_width_limit);
+        ImGui::Text(m_tr.text_plot_status_header.c_str(), rec.roi_id, rec.roi_size, disp_flag.c_str(), disp_source.c_str());
+        ImGui::PopTextWrapPos();
+    } else {
+        ImGui::Text("ROI #%d", rec.roi_id);
+    }
     ImGui::Unindent(8.0f);
     
-    // Navigation buttons aligned to the right
     ImGui::SameLine();
-    float avail_w = ImGui::GetWindowWidth();
-    ImGui::SetCursorPosX(avail_w - 280.0f);
+    ImGui::SetCursorPosX(avail_w - total_buttons_w - right_margin);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6, 2));
-    if (ImGui::Button(m_lang == LANG_FR ? "< Précédent" : "< Previous", ImVec2(90, 22))) {
+    if (ImGui::Button(m_lang == LANG_FR ? "< Précédent" : "< Previous", ImVec2(nav_btn_w, 22))) {
         if (m_queue_pos > 0) {
             select_record(m_triage_queue[m_queue_pos - 1]);
         }
     }
     ImGui::SameLine();
-    ImGui::Text("%d / %d", m_queue_pos + 1, (int)m_triage_queue.size());
+    ImGui::Text("%s", queue_text);
     ImGui::SameLine();
-    if (ImGui::Button(m_lang == LANG_FR ? "Suivant >" : "Next >", ImVec2(90, 22))) {
+    if (ImGui::Button(m_lang == LANG_FR ? "Suivant >" : "Next >", ImVec2(nav_btn_w, 22))) {
         if (m_queue_pos >= 0 && m_queue_pos + 1 < static_cast<int>(m_triage_queue.size())) {
             select_record(m_triage_queue[m_queue_pos + 1]);
         }
@@ -2418,10 +2447,13 @@ void BolusApp::draw_main_area() {
         
         ImGui::PushItemWidth(180.0f);
         if (ImGui::SliderFloat(m_tr.label_denoise_strength.c_str(), &m_denoise_strength_factor, 0.5f, 3.0f, "%.2fx")) {
-            precompute_all_traces();
             if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records.size())) {
+                precompute_single_trace(m_selected_roi_idx);
                 select_record(m_selected_roi_idx);
             }
+        }
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            precompute_all_traces();
         }
         ImGui::PopItemWidth();
         
@@ -2502,6 +2534,39 @@ void BolusApp::draw_main_area() {
             ImGui::TableNextColumn(); display_val(rec.init_m);
             ImGui::TableNextColumn(); display_val(rec.init_cnr);
             ImGui::TableNextColumn(); display_val(rec.click_onset);
+            
+            ImGui::EndTable();
+        }
+        
+        ImGui::Dummy(ImVec2(0.0f, 6.0f));
+        ImGui::PushFont(m_font_bold);
+        ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), m_lang == LANG_FR ? "CINÉTIQUE DU BOLUS ET CLASSIFICATION" : "BOLUS KINETICS & CLASSIFICATION");
+        ImGui::PopFont();
+        if (ImGui::BeginTable("KineticsTable", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+            ImGui::TableSetupColumn("AUC");
+            ImGui::TableSetupColumn("AUCn");
+            ImGui::TableSetupColumn(m_lang == LANG_FR ? "Début scan (s)" : "Onset Scan (s)");
+            ImGui::TableSetupColumn(m_lang == LANG_FR ? "TT Inf (s)" : "TT Lower (s)");
+            ImGui::TableSetupColumn(m_lang == LANG_FR ? "TT Pic (s)" : "TT Peak (s)");
+            ImGui::TableSetupColumn(m_lang == LANG_FR ? "TT Sup (s)" : "TT Upper (s)");
+            ImGui::TableSetupColumn(m_lang == LANG_FR ? "Type vaisseau" : "Vessel Type");
+            ImGui::TableHeadersRow();
+            
+            auto display_val = [](double val) {
+                if (std::isnan(val)) ImGui::Text("N/A");
+                else ImGui::Text("%.4f", val);
+            };
+            
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn(); display_val(rec.auc);
+            ImGui::TableNextColumn(); display_val(rec.aucn);
+            ImGui::TableNextColumn(); display_val(rec.ont_sc);
+            ImGui::TableNextColumn(); display_val(rec.ttlb);
+            ImGui::TableNextColumn(); display_val(rec.ttm);
+            ImGui::TableNextColumn(); display_val(rec.tthb);
+            
+            ImGui::TableNextColumn();
+            ImGui::Text("%s", rec.ves_type.c_str());
             
             ImGui::EndTable();
         }

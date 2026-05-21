@@ -284,6 +284,7 @@ private:
     void run_fit_on_current_roi();
     void run_fit_on_record(int idx, bool is_auto);
     void precompute_all_traces();
+    void precompute_single_trace(size_t r);
     void precompute_fit_plot(size_t cache_idx);
     void save_active_roi_svg();
     void save_gui_state();
