@@ -20,13 +20,13 @@ make -j4
 
 # 2. Generate AppIcon.icns if not present or rebuild it
 cd "$REPO_DIR"
-if [ ! -f "AppIcon.icns" ] && [ -f "app_icon.png" ]; then
+if [ -f "app_icon.png" ]; then
     echo "Step 2: Generating AppIcon.icns from app_icon.png..."
     bash create_app_icon.sh
 elif [ -f "AppIcon.icns" ]; then
-    echo "Step 2: AppIcon.icns already exists. Skipping icon generation."
+    echo "Step 2 Warning: app_icon.png not found. Using existing AppIcon.icns."
 else
-    echo "Step 2 Warning: app_icon.png not found. Continuing without icon."
+    echo "Step 2 Warning: No app icon found. Continuing without icon."
 fi
 
 # 3. Create .app Bundle Directory Structure
