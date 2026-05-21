@@ -108,6 +108,14 @@ struct Translation {
     std::string source_override;
     std::string label_fitted;
     std::string label_estimated_init;
+    std::string label_filter;
+    std::string filter_all;
+    std::string filter_flagged;
+    std::string filter_fail;
+    std::string filter_warn;
+    std::string filter_pass;
+    std::string filter_review;
+    std::string label_auto_fit;
 };
 
 // ============================================================================
@@ -176,6 +184,8 @@ struct RoiCachedData {
     std::vector<double> y_us;
     std::vector<double> t_fit_plot;
     std::vector<double> y_fit_plot;
+    std::vector<double> t_fit_auto_plot;
+    std::vector<double> y_fit_auto_plot;
     double sd_base = 0.05;
     double drift_slope = 0.0;
 };
@@ -246,7 +256,7 @@ private:
     std::vector<RoiState> m_gui_roi_states_backup;
 
     int m_selected_roi_idx = -1;
-    bool m_filter_flagged_only = true;
+    int m_qc_filter_type = 1; // 0=All, 1=Flagged, 2=FAIL, 3=WARN, 4=PASS, 5=REVIEW
     std::vector<int> m_triage_queue;
     int m_queue_pos = -1;
 

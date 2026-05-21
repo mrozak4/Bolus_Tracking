@@ -659,10 +659,14 @@ std::vector<double> BolusFitter::run_nonlinear_fit_with_bounds(const std::vector
     double mad = SignalProcessor::compute_median(abs_res) / 0.6745;
     double dynamic_f_scale = std::max(2.3849 * mad, 0.1);
     
-    functor.use_cauchy = true;
-    functor.f_scale = dynamic_f_scale;
+    GammaFunctor functor2{t, y, m_init, m_bound, true, dynamic_f_scale, b_min_amp, b_max_amp, b_min_t2p, b_max_t2p, b_min_fwhm, b_max_fwhm};
+    Eigen::NumericalDiff<GammaFunctor> numDiff2(functor2);
+    Eigen::LevenbergMarquardt<Eigen::NumericalDiff<GammaFunctor>, double> lm2(numDiff2);
+    lm2.parameters.maxfev = 2000;
+    lm2.parameters.xtol = 1e-10;
+    lm2.parameters.ftol = 1e-10;
     
-    info = lm.minimize(x);
+    info = lm2.minimize(x);
     if (info >= 1 && info <= 4) {
         success = true;
     }
@@ -708,7 +712,12 @@ std::vector<double> BolusFitter::run_nonlinear_fit(const std::vector<double>& t,
         return rss;
     };
     
-    bool trigger_pass2 = !pass1_success || std::isnan(popt1[0]) || popt1[2] > 20.0 || popt1[1] > 15.0;
+    bool near_bounds = std::isnan(popt1[0]) || std::isnan(popt1[1]) || std::isnan(popt1[2]) ||
+                       is_near_bounds(popt1[0], min_amp, max_amp) ||
+                       is_near_bounds(popt1[1], min_t2p, actual_max_t2p) ||
+                       is_near_bounds(popt1[2], min_fwhm, actual_max_fwhm);
+    
+    bool trigger_pass2 = !pass1_success || near_bounds || popt1[2] > 20.0 || popt1[1] > 15.0;
     if (trigger_pass2) {
         double clamp_min_amp = 1.0;
         double clamp_max_amp = std::max(10.0 * params_init[0], 100.0);
@@ -723,7 +732,7 @@ std::vector<double> BolusFitter::run_nonlinear_fit(const std::vector<double>& t,
         if (pass2_success) {
             double rss1 = compute_rss(popt1);
             double rss2 = compute_rss(popt2);
-            bool use_pass2 = !pass1_success || (popt1[2] > 20.0 || popt1[1] > 15.0) || (rss2 < rss1);
+            bool use_pass2 = !pass1_success || near_bounds || (popt1[2] > 20.0 || popt1[1] > 15.0) || (rss2 < rss1);
             if (use_pass2) {
                 success = true;
                 return popt2;
@@ -1213,6 +1222,12 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
         denoise_thresh = 1.5;
         denoise_half_win = 7;
         is_low_cnr = true;
+    } else if (raw_cnr >= 15.0) {
+        denoise_thresh = 3.0;
+        denoise_half_win = 3;
+    } else if (raw_cnr >= 8.0) {
+        denoise_thresh = 2.5;
+        denoise_half_win = 5;
     }
     
     std::vector<double> mfi_denoised = SignalProcessor::denoise_trace(mfi_raw_detrended, denoise_thresh, denoise_half_win);

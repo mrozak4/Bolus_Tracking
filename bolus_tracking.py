@@ -323,7 +323,7 @@ class BolusFitter:
         
         return [amp, t2p, fwhm, bsln_shift], start_idx, end_idx, sd_base, clicks
 
-    def fit(self, t, y, params_init, sd_base=1.0, bounds_override=None):
+    def fit(self, t, y, params_init, sd_base=1.0, bounds_override=None, single_pass=None):
         """
         Fits the gamma function to the raw trace using a 2-pass optimization.
         - Pass 1: Linear Least Squares to fit raw signal and estimate outlier MAD.
@@ -333,6 +333,9 @@ class BolusFitter:
         t = np.asarray(t)
         y = np.asarray(y)
         
+        if single_pass is None:
+            single_pass = (bounds_override is not None)
+            
         def fit_once(b_min_amp, b_max_amp, b_min_t2p, b_max_t2p, b_min_fwhm, b_max_fwhm):
             m_init = params_init[3]
             m_bound = max(0.5 * sd_base, 0.005 * m_init, 0.2)
@@ -400,7 +403,15 @@ class BolusFitter:
             
         popt1, pcov1 = fit_once(min_amp_val, max_amp_val, min_t2p_val, max_t2p_val, min_fwhm_val, max_fwhm_val)
         
-        trigger_pass2 = np.isnan(popt1).any() or popt1[2] > 20.0 or popt1[1] > 15.0
+        if single_pass:
+            return popt1, pcov1
+            
+        near_bounds = (np.isnan(popt1).any() or
+                       BolusFitter.is_near_bounds(popt1[0], min_amp_val, max_amp_val) or
+                       BolusFitter.is_near_bounds(popt1[1], min_t2p_val, max_t2p_val) or
+                       BolusFitter.is_near_bounds(popt1[2], min_fwhm_val, max_fwhm_val))
+        
+        trigger_pass2 = np.isnan(popt1).any() or near_bounds or popt1[2] > 20.0 or popt1[1] > 15.0
         if trigger_pass2:
             clamp_min_amp = 1.0
             clamp_max_amp = max(10.0 * params_init[0], 100.0)
@@ -414,7 +425,7 @@ class BolusFitter:
             if not np.isnan(popt2).any():
                 rss1 = compute_rss(popt1)
                 rss2 = compute_rss(popt2)
-                use_pass2 = np.isnan(popt1).any() or (popt1[2] > 20.0 or popt1[1] > 15.0) or (rss2 < rss1)
+                use_pass2 = np.isnan(popt1).any() or near_bounds or (popt1[2] > 20.0 or popt1[1] > 15.0) or (rss2 < rss1)
                 if use_pass2:
                     return popt2, pcov2
                     

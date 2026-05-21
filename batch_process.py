@@ -222,6 +222,12 @@ class DatasetProcessor:
             denoise_thresh = 1.5
             denoise_half_win = 7
             is_low_cnr = True
+        elif raw_cnr >= 15.0:
+            denoise_thresh = 3.0
+            denoise_half_win = 3
+        elif raw_cnr >= 8.0:
+            denoise_thresh = 2.5
+            denoise_half_win = 5
             
         mfi = SignalProcessor.denoise_trace(mfi_raw_detrended, denoise_sd=denoise_thresh, half_win=denoise_half_win)
         
@@ -280,7 +286,7 @@ class DatasetProcessor:
                 [actual_max_amp, actual_max_t2p, actual_max_fwhm, m_init + m_bound]
             )
             
-        popt, pcov = self.fitter.fit(t_fit, y_us[start_idx:end_idx], fit_init_params, sd_base, bounds_override=bounds_override)
+        popt, pcov = self.fitter.fit(t_fit, y_us[start_idx:end_idx], fit_init_params, sd_base, bounds_override=bounds_override, single_pass=(prior_t2p is not None and prior_fwhm is not None))
         
         subj_match = re.search(r'(?:subject[_-]?)(\d+)', tiff_path, re.IGNORECASE)
         if not subj_match:

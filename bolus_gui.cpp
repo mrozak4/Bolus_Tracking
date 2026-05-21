@@ -762,74 +762,82 @@ void BolusApp::update_locale() {
         m_tr.source_override = "override";
         m_tr.label_fitted = "Fitted";
         m_tr.label_estimated_init = "Estimated (Init)";
+        m_tr.label_filter = "Filter:";
+        m_tr.filter_all = "All";
+        m_tr.filter_flagged = "Flagged (FAIL/WARN/REVIEW)";
+        m_tr.filter_fail = "FAIL Only";
+        m_tr.filter_warn = "WARN Only";
+        m_tr.filter_pass = "PASS Only";
+        m_tr.filter_review = "REVIEW Only";
+        m_tr.label_auto_fit = "Original Auto Fit";
     } else {
-        m_tr.title_app = "APPLICATION D'ÉVALUATION DU SUIVI DE BOLUS";
-        m_tr.section_markers = "FENÊTRE DE MODÉLISATION ET MARQUEURS INTERACTIFS";
-        m_tr.section_crop = "COMMANDES DE ROGNAGE DE LA FENÊTRE";
-        m_tr.section_params = "PARAMÈTRES HÉMODYNAMIQUES ACTUELS";
-        m_tr.sidebar_title = "Barre latérale d'évaluation";
-        m_tr.checkbox_flagged = "Afficher uniquement les cas à réviser (ÉCHEC/AVERT)";
-        m_tr.btn_save_csv = "Enregistrer le fichier CSV final";
+        m_tr.title_app = "SUIVI DE BOLUS - TRIAGE MANUEL";
+        m_tr.section_markers = "FENÊTRE DE MODÉLISATION & MARQUEURS";
+        m_tr.section_crop = "ROGNAGE DE LA FENÊTRE VISUELLE";
+        m_tr.section_params = "PARAMÈTRES HÉMODYNAMIQUES";
+        m_tr.sidebar_title = "Barre d'évaluation";
+        m_tr.checkbox_flagged = "Cas à réviser uniquement (ÉCHEC/AVERT)";
+        m_tr.btn_save_csv = "Enregistrer le CSV final";
         m_tr.btn_reset_all = "Réinitialiser tout";
-        m_tr.btn_load_state = "Charger l'état de session";
-        m_tr.btn_save_state = "Enregistrer l'état de session";
-        m_tr.btn_refit = "Recalculer la modélisation (LM)";
-        m_tr.btn_override = "Valider manuellement";
-        m_tr.btn_revert = "Rétablir les valeurs automatiques";
-        m_tr.btn_reset_crop = "Réinitialiser le rognage";
-        m_tr.btn_crop_bounds = "Rogner aux limites des marqueurs";
-        m_tr.label_onset = "Marqueur de début (s)";
-        m_tr.label_peak = "Marqueur de pic (s)";
-        m_tr.label_end = "Marqueur de fin (s)";
+        m_tr.btn_load_state = "Charger l'état";
+        m_tr.btn_save_state = "Enregistrer l'état";
+        m_tr.btn_refit = "Recalculer (LM)";
+        m_tr.btn_override = "Forcer PASS";
+        m_tr.btn_revert = "Rétablir l'original";
+        m_tr.btn_reset_crop = "Réinitialiser rognage";
+        m_tr.btn_crop_bounds = "Rogner aux marqueurs";
+        m_tr.label_onset = "Début (s)";
+        m_tr.label_peak = "Pic (s)";
+        m_tr.label_end = "Fin (s)";
         m_tr.label_baseline = "Ligne de base";
-        m_tr.text_slider_desc = "Utilisez le curseur double sous le graphique pour ajuster la zone de rognage.";
+        m_tr.text_slider_desc = "Glissez le curseur sous le graphique pour rogner la zone.";
         m_tr.btn_ok = "OK";
         m_tr.btn_cancel = "Annuler";
-        m_tr.modal_reset_title = "Réinitialiser toutes les modifications ?";
-        m_tr.modal_reset_desc = "AVERTISSEMENT : cette opération annulera toutes les modifications manuelles,\nles validations manuelles et les corrections de triage effectuées durant cette session.\n\nSouhaitez-vous continuer ?";
-        m_tr.btn_reset_confirm = "Oui, tout réinitialiser";
-        m_tr.modal_save_success = "Enregistrement effectué avec succès";
-        m_tr.modal_save_state_success = "Enregistrement de l'état de session effectué";
-        m_tr.modal_load_state_success = "Chargement de l'état de session effectué";
-        m_tr.text_active_roi = "Région d'intérêt active (ROI) :";
-        m_tr.text_qc_flag = "Indicateur CQ :";
-        m_tr.text_fit_source = "Source de modélisation :";
-        m_tr.text_dataset_loaded = "Jeu de données chargé :";
-        m_tr.text_roi_count = "Nombre total de ROI :";
-        m_tr.text_flagged_count = "Cas signalés (ÉCHEC/AVERT) :";
-        m_tr.text_manual_count = "Modifications manuelles :";
+        m_tr.modal_reset_title = "Réinitialiser tout ?";
+        m_tr.modal_reset_desc = "AVERTISSEMENT : cette opération annulera toutes les modifications,\nvalidations et corrections manuelles de cette session.\n\nSouhaitez-vous continuer ?";
+        m_tr.btn_reset_confirm = "Oui, réinitialiser";
+        m_tr.modal_save_success = "Enregistrement réussi";
+        m_tr.modal_save_state_success = "État enregistré";
+        m_tr.modal_load_state_success = "État chargé";
+        m_tr.text_active_roi = "ROI active :";
+        m_tr.text_qc_flag = "Statut CQ :";
+        m_tr.text_fit_source = "Source :";
+        m_tr.text_dataset_loaded = "Données chargées :";
+        m_tr.text_roi_count = "Total ROI :";
+        m_tr.text_flagged_count = "Signalés (ÉCHEC/AVERT) :";
+        m_tr.text_manual_count = "Ajustés manuellement :";
         m_tr.col_variable = "Variable";
         m_tr.col_amplitude = "Amplitude";
-        m_tr.col_t2p = "Temps de pic (T2p)";
-        m_tr.col_fwhm = "Largeur à mi-hauteur (FWHM)";
-        m_tr.col_baseline = "Ligne de base";
-        m_tr.col_cnr = "Rapport contraste-bruit (CNR)";
-        m_tr.col_onset = "Temps d'arrivée (OnT)";
-        m_tr.plot_title = "Représentation graphique de la modélisation du tracé";
+        m_tr.col_t2p = "Pic (T2p)";
+        m_tr.col_fwhm = "Largeur (FWHM)";
+        m_tr.col_baseline = "Ligne base";
+        m_tr.col_cnr = "CNR";
+        m_tr.col_onset = "Début (OnT)";
+        m_tr.plot_title = "Ajustement de modélisation";
         m_tr.plot_x_axis = "Temps (s)";
         m_tr.plot_y_axis = "Signal (UA)";
         m_tr.plot_raw = "Brut (sans tendance)";
-        m_tr.plot_denoised = "Signal filtré";
-        m_tr.plot_fit = "Modélisation gamma";
+        m_tr.plot_denoised = "Filtré";
+        m_tr.plot_fit = "Ajustement Gamma";
         m_tr.current_folder = "Dossier actuel";
-        m_tr.path_selector = "Sélecteur de dossier";
-        m_tr.btn_select_folder = "Sélectionner le dossier actuel";
-        m_tr.btn_open_file = "Ouvrir le fichier sélectionné";
-        m_tr.btn_close_dialog = "Fermer la boîte de dialogue";
-        m_tr.dialog_title = "Ouvrir un dossier ou un fichier";
-        m_tr.text_total_rois = "Nombre total de ROI : %d";
-        m_tr.text_active_queue = "File de filtrage active : %d";
-        m_tr.text_triage_queue = "File d'évaluation : %d / %d";
-        m_tr.btn_next_problem = "Cas suivant >>";
-        m_tr.btn_prev_problem = "<< Cas précédent";
-        m_tr.text_no_data = "Aucun dossier de sujet ou fichier CSV chargé. Utilisez le bouton supérieur pour charger les données d'un sujet.";
-        m_tr.text_plot_status_header = "Série temporelle (UA) - ROI #%d (Taille : %d px) | Statut : %s (Source : %s)";
-        m_tr.title_manual_override = "VALIDATIONS MANUELLES ET AJUSTEMENTS DE LA FENÊTRE";
-        m_tr.text_manual_override_desc = "Faites glisser les marqueurs de début, de pic et de fin directement sur le graphique, puis cliquez sur le bouton de recalcul ci-dessous.";
-        m_tr.btn_revert_loaded = "Rétablir les valeurs chargées";
+        m_tr.path_selector = "Sélecteur de chemin";
+        m_tr.btn_select_folder = "Sélectionner ce dossier";
+        m_tr.btn_open_file = "Ouvrir le fichier";
+        m_tr.btn_close_dialog = "Fermer";
+        m_tr.dialog_title = "Ouvrir dossier/fichier";
+        m_tr.text_total_rois = "Total ROI : %d";
+        m_tr.text_active_queue = "File de filtrage : %d";
+        m_tr.text_triage_queue = "Triage : %d / %d";
+        m_tr.btn_next_problem = "Suivant >>";
+        m_tr.btn_prev_problem = "<< Précédent";
+        m_tr.text_no_data = "Aucune donnée chargée. Utilisez le bouton ci-dessus pour ouvrir un dossier de sujet.";
+        m_tr.text_plot_status_header = "Signal (UA) - ROI #%d (%d px) | Statut : %s (%s)";
+        m_tr.title_manual_override = "AJUSTEMENTS ET VALIDATIONS MANUELLES";
+        m_tr.text_manual_override_desc = "Glissez les marqueurs Début/Pic/Fin sur le graphique, puis cliquez sur 'Recalculer (LM)'.";
+        m_tr.btn_revert_loaded = "Rétablir l'état chargé";
         m_tr.text_load_subject_data = "Charger les données";
-        m_tr.text_save_state_msg = "État de l'analyse sauvegardé avec succès dans :\n%s.gui_state";
-        m_tr.text_load_state_msg = "État de l'analyse restauré avec succès depuis :\n%s.gui_state";
+        m_tr.text_save_state_msg = "État sauvegardé avec succès dans :\n%s.gui_state";
+        m_tr.text_load_state_msg = "État restauré avec succès depuis :\n%s.gui_state";
         m_tr.text_save_csv_msg = "Résultats enregistrés avec succès dans :\n%s";
         m_tr.tag_onset = "Début : %.1fs";
         m_tr.tag_peak = "Pic : %.1fs";
@@ -842,9 +850,17 @@ void BolusApp::update_locale() {
         m_tr.qc_review = "À RÉVISER";
         m_tr.source_auto = "auto";
         m_tr.source_manual = "manuel";
-        m_tr.source_override = "dérogation";
+        m_tr.source_override = "dérogé";
         m_tr.label_fitted = "Ajusté";
-        m_tr.label_estimated_init = "Estimé (initial)";
+        m_tr.label_estimated_init = "Estimé (init)";
+        m_tr.label_filter = "Filtre :";
+        m_tr.filter_all = "Tout";
+        m_tr.filter_flagged = "Signalés (ÉCHEC/AVERT/À RÉVISER)";
+        m_tr.filter_fail = "ÉCHEC uniquement";
+        m_tr.filter_warn = "AVERT uniquement";
+        m_tr.filter_pass = "CONFORME uniquement";
+        m_tr.filter_review = "À RÉVISER uniquement";
+        m_tr.label_auto_fit = "Ajustement auto d'origine";
     }
 }
 BolusApp::BolusApp() : m_fitter(1e-6, 1023.0, 1e-6, 1e6, 0.5, 1e6) {}
@@ -1152,7 +1168,8 @@ void BolusApp::save_gui_state() {
         
         out << "# Bolus Tracking Studio GUI State File\n";
         out << "LastSelectedRoiIndex=" << m_selected_roi_idx << "\n";
-        out << "FilterFlaggedOnly=" << (m_filter_flagged_only ? 1 : 0) << "\n";
+        out << "FilterFlaggedOnly=" << (m_qc_filter_type == 1 ? 1 : 0) << "\n";
+        out << "QcFilterType=" << m_qc_filter_type << "\n";
         out << "# ROI,crop_min,crop_max,onset,peak,end,baseline,qc_flag,fit_source\n";
         for (const auto& s : m_gui_roi_states) {
             out << s.roi_id << ","
@@ -1185,7 +1202,16 @@ void BolusApp::load_gui_state() {
             if (key == "LastSelectedRoiIndex") {
                 try { m_selected_roi_idx = std::stoi(val); } catch (...) {}
             } else if (key == "FilterFlaggedOnly") {
-                try { m_filter_flagged_only = (std::stoi(val) != 0); } catch (...) {}
+                try {
+                    int val_int = std::stoi(val);
+                    if (val_int != 0) {
+                        m_qc_filter_type = 1;
+                    } else {
+                        m_qc_filter_type = 0;
+                    }
+                } catch (...) {}
+            } else if (key == "QcFilterType") {
+                try { m_qc_filter_type = std::stoi(val); } catch (...) {}
             }
             continue;
         }
@@ -1290,8 +1316,38 @@ void BolusApp::precompute_all_traces() {
             }
             c.y_raw_detrended = detrended;
             
+            // Calculate raw trace CNR
+            int n_base = std::min((int)std::round(2.0 * m_fr), (int)std::round(detrended.size() * 0.1));
+            n_base = std::max(2, n_base);
+            std::vector<double> raw_base_win(detrended.begin(), detrended.begin() + n_base);
+            double raw_baseline = SignalProcessor::compute_median(raw_base_win);
+            double sum_raw_base = 0.0;
+            for (double val : raw_base_win) sum_raw_base += val;
+            double mean_raw_base = sum_raw_base / raw_base_win.size();
+            double raw_sd_base = SignalProcessor::compute_std(raw_base_win, mean_raw_base);
+            
+            double raw_max_val = -1e9;
+            for (double val : detrended) {
+                if (val > raw_max_val) raw_max_val = val;
+            }
+            double raw_amp = raw_max_val - raw_baseline;
+            double raw_cnr = (raw_sd_base > 0.0) ? (raw_amp / raw_sd_base) : 0.0;
+            
+            double denoise_thresh = 2.0;
+            int denoise_half_win = 5;
+            if (raw_cnr < 4.0) {
+                denoise_thresh = 1.5;
+                denoise_half_win = 7;
+            } else if (raw_cnr >= 15.0) {
+                denoise_thresh = 3.0;
+                denoise_half_win = 3;
+            } else if (raw_cnr >= 8.0) {
+                denoise_thresh = 2.5;
+                denoise_half_win = 5;
+            }
+            
             // 4. Denoise and Spline
-            c.y_denoised = SignalProcessor::denoise_trace(detrended);
+            c.y_denoised = SignalProcessor::denoise_trace(detrended, denoise_thresh, denoise_half_win);
             c.t_us.resize(c.t_raw.size() * m_upsample_factor);
             for (size_t i = 0; i < c.t_us.size(); ++i) {
                 c.t_us[i] = i / (m_fr * m_upsample_factor);
@@ -1305,9 +1361,9 @@ void BolusApp::precompute_all_traces() {
             }
             
             // 5. Baseline SD
-            int n_base = std::min((int)std::round(2.0 * m_fr * m_upsample_factor), (int)std::round(c.y_us.size() * 0.1));
-            n_base = std::max(1, n_base);
-            std::vector<double> base_win(c.y_us.begin(), c.y_us.begin() + n_base);
+            int n_base_us = std::min((int)std::round(2.0 * m_fr * m_upsample_factor), (int)std::round(c.y_us.size() * 0.1));
+            n_base_us = std::max(1, n_base_us);
+            std::vector<double> base_win(c.y_us.begin(), c.y_us.begin() + n_base_us);
             double mean_base = 0.0;
             for (double x : base_win) mean_base += x;
             mean_base /= base_win.size();
@@ -1327,6 +1383,8 @@ void BolusApp::precompute_fit_plot(size_t cache_idx) {
         const auto& rec = m_records[cache_idx];
         c.t_fit_plot.clear();
         c.y_fit_plot.clear();
+        c.t_fit_auto_plot.clear();
+        c.y_fit_auto_plot.clear();
         
         if (std::isnan(rec.f_amp) || std::isnan(rec.f_t2p) || std::isnan(rec.f_fwhm) || std::isnan(rec.f_m) || std::isnan(rec.ont)) {
             return;
@@ -1353,6 +1411,42 @@ void BolusApp::precompute_fit_plot(size_t cache_idx) {
             }
             c.y_fit_plot[i] = val;
         }
+
+        // Compute original auto fit curve
+        const CsvRecord* rec_auto_ptr = nullptr;
+        if (cache_idx < m_records_backup.size()) {
+            rec_auto_ptr = &m_records_backup[cache_idx];
+        } else {
+            rec_auto_ptr = &rec;
+        }
+        
+        if (rec_auto_ptr) {
+            const auto& rec_auto = *rec_auto_ptr;
+            if (!std::isnan(rec_auto.f_amp) && !std::isnan(rec_auto.f_t2p) && !std::isnan(rec_auto.f_fwhm) && !std::isnan(rec_auto.f_m) && !std::isnan(rec_auto.ont)) {
+                double alpha_auto = ((rec_auto.f_t2p * rec_auto.f_t2p) / (rec_auto.f_fwhm * rec_auto.f_fwhm)) * 8.0 * std::log(2.0);
+                double beta_auto = ((rec_auto.f_fwhm * rec_auto.f_fwhm) / rec_auto.f_t2p) / (8.0 * std::log(2.0));
+                
+                c.t_fit_auto_plot = c.t_us;
+                c.y_fit_auto_plot.resize(c.t_fit_auto_plot.size());
+                
+                double onset_t_auto = !std::isnan(rec_auto.click_onset) ? rec_auto.click_onset : 0.0;
+                double end_t_auto = !std::isnan(rec_auto.click_end) ? rec_auto.click_end : c.t_us.back();
+                
+                for (size_t i = 0; i < c.t_fit_auto_plot.size(); ++i) {
+                    double t = c.t_fit_auto_plot[i];
+                    if (t > end_t_auto) {
+                        c.y_fit_auto_plot[i] = std::numeric_limits<double>::quiet_NaN();
+                        continue;
+                    }
+                    double val = rec_auto.f_m;
+                    if (t >= onset_t_auto) {
+                        double dt = t - onset_t_auto;
+                        val = rec_auto.f_m + rec_auto.f_amp * std::pow(dt / rec_auto.f_t2p, alpha_auto) * std::exp(-(dt - rec_auto.f_t2p) / beta_auto);
+                    }
+                    c.y_fit_auto_plot[i] = val;
+                }
+            }
+        }
     }
 
     /**
@@ -1361,11 +1455,21 @@ void BolusApp::precompute_fit_plot(size_t cache_idx) {
 void BolusApp::build_triage_queue() {
         m_triage_queue.clear();
         for (size_t i = 0; i < m_records.size(); ++i) {
-            if (m_filter_flagged_only) {
-                if (m_records[i].qc_flag == "FAIL" || m_records[i].qc_flag == "WARN" || m_records[i].qc_flag == "REVIEW") {
-                    m_triage_queue.push_back(i);
-                }
-            } else {
+            bool matches = false;
+            if (m_qc_filter_type == 0) { // All
+                matches = true;
+            } else if (m_qc_filter_type == 1) { // Flagged (FAIL/WARN/REVIEW)
+                matches = (m_records[i].qc_flag == "FAIL" || m_records[i].qc_flag == "WARN" || m_records[i].qc_flag == "REVIEW");
+            } else if (m_qc_filter_type == 2) { // FAIL Only
+                matches = (m_records[i].qc_flag == "FAIL");
+            } else if (m_qc_filter_type == 3) { // WARN Only
+                matches = (m_records[i].qc_flag == "WARN");
+            } else if (m_qc_filter_type == 4) { // PASS Only
+                matches = (m_records[i].qc_flag == "PASS");
+            } else if (m_qc_filter_type == 5) { // REVIEW Only
+                matches = (m_records[i].qc_flag == "REVIEW");
+            }
+            if (matches) {
                 m_triage_queue.push_back(i);
             }
         }
@@ -1689,7 +1793,7 @@ void BolusApp::draw_gui() {
         // Main Panels (Left: Sidebar, Right: Plot & Parameter Details)
         ImGui::Separator();
         
-        float sidebar_w = 320.0f;
+        float sidebar_w = 380.0f;
         ImGui::BeginChild("SidebarPane", ImVec2(sidebar_w, 0), true);
         draw_sidebar();
         ImGui::EndChild();
@@ -1839,12 +1943,33 @@ void BolusApp::draw_sidebar() {
     ImGui::PopFont();
     ImGui::Separator();
     
-    if (ImGui::Checkbox(m_tr.checkbox_flagged.c_str(), &m_filter_flagged_only)) {
+    const char* items[] = {
+        m_tr.filter_all.c_str(),
+        m_tr.filter_flagged.c_str(),
+        m_tr.filter_fail.c_str(),
+        m_tr.filter_warn.c_str(),
+        m_tr.filter_pass.c_str(),
+        m_tr.filter_review.c_str()
+    };
+    ImGui::Text("%s", m_tr.label_filter.c_str());
+    ImGui::SameLine();
+    ImGui::PushItemWidth(-10.0f);
+    if (ImGui::Combo("##QcFilterCombo", &m_qc_filter_type, items, IM_ARRAYSIZE(items))) {
         build_triage_queue();
         if (!m_triage_queue.empty()) {
-            select_record(m_triage_queue[0]);
+            bool current_still_valid = false;
+            for (int idx : m_triage_queue) {
+                if (idx == m_selected_roi_idx) {
+                    current_still_valid = true;
+                    break;
+                }
+            }
+            if (!current_still_valid) {
+                select_record(m_triage_queue[0]);
+            }
         }
     }
+    ImGui::PopItemWidth();
     
     ImGui::Text(m_tr.text_total_rois.c_str(), (int)m_records.size());
     ImGui::Text(m_tr.text_active_queue.c_str(), (int)m_triage_queue.size());
@@ -1882,7 +2007,7 @@ void BolusApp::draw_sidebar() {
         }
         ImGui::PopStyleColor();
         
-        ImGui::SameLine(180);
+        ImGui::SameLine(170);
         std::string disp_flag;
         if (rec.qc_flag == "PASS") disp_flag = m_tr.qc_pass;
         else if (rec.qc_flag == "WARN") disp_flag = m_tr.qc_warn;
@@ -1892,7 +2017,7 @@ void BolusApp::draw_sidebar() {
         
         ImGui::TextColored(status_color, "[%s]", disp_flag.c_str());
         
-        ImGui::SameLine(260);
+        ImGui::SameLine(280);
         std::string disp_source;
         if (rec.fit_source == "auto") disp_source = m_tr.source_auto;
         else if (rec.fit_source == "manual") disp_source = m_tr.source_manual;
@@ -1974,6 +2099,15 @@ void BolusApp::draw_main_area() {
                 }
             }
         }
+        if (rec.fit_source != "auto" && !c.y_fit_auto_plot.empty()) {
+            for (size_t i = 0; i < c.t_fit_auto_plot.size(); ++i) {
+                double t = c.t_fit_auto_plot[i];
+                if (t >= m_crop_min && t <= m_crop_max) {
+                    if (c.y_fit_auto_plot[i] < visible_y_min) visible_y_min = c.y_fit_auto_plot[i];
+                    if (c.y_fit_auto_plot[i] > visible_y_max) visible_y_max = c.y_fit_auto_plot[i];
+                }
+            }
+        }
         
         if (visible_y_min > visible_y_max) {
             visible_y_min = 0.0;
@@ -2035,6 +2169,14 @@ void BolusApp::draw_main_area() {
             ImPlot::PopStyleColor();
             
             if (!c.y_fit_plot.empty()) {
+                if (rec.fit_source != "auto" && !c.y_fit_auto_plot.empty()) {
+                    ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(0.27f, 0.51f, 0.71f, 0.5f)); // Steel blue, semi-transparent
+                    ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, 1.5f);
+                    ImPlot::PlotLine(m_tr.label_auto_fit.c_str(), c.t_fit_auto_plot.data(), c.y_fit_auto_plot.data(), c.t_fit_auto_plot.size());
+                    ImPlot::PopStyleVar();
+                    ImPlot::PopStyleColor();
+                }
+                
                 ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(0.88f, 0.45f, 0.18f, 1.0f)); // Terracotta orange
                 ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, 2.5f);
                 ImPlot::PlotLine(m_tr.plot_fit.c_str(), c.t_fit_plot.data(), c.y_fit_plot.data(), c.t_fit_plot.size());
