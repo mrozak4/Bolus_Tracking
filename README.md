@@ -151,7 +151,7 @@ To prevent non-physical fits (e.g. infinite/negative values, extremely slow bolu
 
 ### Quality Control Triage Status (`QC_Flag`):
 - **`PASS`**: The fit completed successfully, parameters did not land within 1% of absolute solver bounds, $F\_CNR > 5.0$, $F\_FWHM \in [0.5, 15.0]\text{ s}$, and $F\_T2p \in [0.1, 10.0]\text{ s}$.
-- **`WARN`**: The fit succeeded, but one or more parameters crossed the warning limits, $F\_CNR \in [3.0, 5.0]$, or one parameter is near a fitting solver boundary.
+- **`WARN`**: The fit succeeded, but one or more parameters crossed the warning limits, $F\_CNR \in [3.0, 5.0]$, or one parameter is near a fitting solver boundary (evaluated against relaxed bounds of `Amplitude: [1.0, max_amp]`, `T2p: [0.01, 12.0]`, and `FWHM: [0.1, 20.0]` if a second-pass refit was run).
 - **`FAIL`**: The fit diverged, returned `NaN`, or had a $F\_CNR < 3.0$.
 
 ### Kinetics-Based Vessel Type Suggestions (`VesType`):

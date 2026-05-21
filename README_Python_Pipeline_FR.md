@@ -106,3 +106,13 @@ Lorsque vous exécutez le script de traitement par lots `batch_process.py`, vous
 - `--max-t2p` (par défaut : limité dynamiquement à la durée de la fenêtre de modélisation)
 - `--min-fwhm` (par défaut : `0.5` seconde - correspondant aux vitesses de transit rapides du colorant)
 - `--max-fwhm` (par défaut : limité dynamiquement à la durée de la fenêtre de modélisation)
+
+Par exemple, pour contraindre le temps au pic (TAP) entre 2.0 et 8.0 secondes :
+```bash
+python batch_process.py --folder sample-subject-2259 --min-t2p 2.0 --max-t2p 8.0
+```
+
+### Niveaux de statut de contrôle de qualité (`QC_Flag`) :
+- **`PASS`** : Modélisation réussie, aucun paramètre à moins de 1 % des bornes absolues du solveur, $F\_CNR > 5.0$, $F\_LMH \in [0.5, 15.0]\text{ s}$, et $F\_TAP \in [0.1, 10.0]\text{ s}$.
+- **`WARN`** : Modélisation réussie, mais un ou plusieurs paramètres ont atteint les limites d'avertissement, $F\_CNR \in [3.0, 5.0]$, ou un paramètre est proche d'une frontière de recherche du solveur (évalué par rapport aux bornes de recherche relâchées `Amplitude: [1.0, max_amp]`, `TAP: [0.01, 12.0]` et `LMH: [0.1, 20.0]` si une passe d'ajustement de secours a été exécutée).
+- **`FAIL`** : Modélisation divergente, retour de valeur non définie (`NaN`), ou $F\_CNR < 3.0$.

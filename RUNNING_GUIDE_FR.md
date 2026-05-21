@@ -117,7 +117,7 @@ bash run_pipeline_cpp.sh sample-subject-2259 --qc-fwhm-max 20.0 --qc-cnr-min 6.0
 ```
 
 * **`PASS`** : Modélisation réussie sans atteindre les bornes, RCB > 5.0, LMH entre 0.5–15.0 s, et TAP entre 0.1–10.0 s.
-- **`WARN`** : Modélisation réussie, mais un ou plusieurs paramètres ont atteint les limites d'avertissement (ex: LMH > 15 s, RCB entre 3.0 et 5.0, ou paramètre proche d'une borne).
+- **`WARN`** : Modélisation réussie, mais un ou plusieurs paramètres ont atteint les limites d'avertissement (ex : LMH > 15 s, RCB entre 3.0 et 5.0, ou paramètre proche d'une borne du solveur — évalué par rapport aux bornes de recherche relâchées `Amplitude: [1.0, max_amp]`, `TAP: [0.01, 12.0]` et `LMH: [0.1, 20.0]` si une passe d'ajustement de secours a été exécutée).
 - **`FAIL`** : Modélisation divergente, retour de valeur non définie (`NaN`), ou RCB < 3.0.
 
 ---

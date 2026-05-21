@@ -151,7 +151,7 @@ Pour prévenir les modélisations physiquement aberrantes (valeurs infinies/nég
 
 ### Niveaux de statut de contrôle de qualité (`QC_Flag`) :
 - **`PASS`** : Modélisation réussie, aucun paramètre à moins de 1 % des bornes absolues du solveur, $F\_CNR > 5.0$, $F\_LMH \in [0.5, 15.0]\text{ s}$, et $F\_TAP \in [0.1, 10.0]\text{ s}$.
-- **`WARN`** : Modélisation réussie, mais un ou plusieurs paramètres ont atteint les limites d'avertissement, $F\_CNR \in [3.0, 5.0]$, ou un paramètre est proche d'une frontière de recherche.
+- **`WARN`** : Modélisation réussie, mais un ou plusieurs paramètres ont atteint les limites d'avertissement, $F\_CNR \in [3.0, 5.0]$, ou un paramètre est proche d'une frontière de recherche du solveur (évalué par rapport aux bornes de recherche relâchées `Amplitude: [1.0, max_amp]`, `TAP: [0.01, 12.0]` et `LMH: [0.1, 20.0]` si une passe d'ajustement de secours a été exécutée).
 - **`FAIL`** : Modélisation divergente, retour de valeur non définie (`NaN`), ou $F\_CNR < 3.0$.
 
 ### Classifications suggérées de types de vaisseaux (`VesType`) :
