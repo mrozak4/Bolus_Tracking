@@ -35,6 +35,11 @@ Pour prendre en charge les traductions localisées, d'autres polices sont fusion
 *   **Coréen** : Fusion dynamique des plages de glyphes coréens standards.
 *   **Cyrillique (russe, ukrainien)** : Fusion des blocs Unicode `0x0400` à `0x052F`.
 *   **Klingon (pIqaD)** : Fusion de la zone d'utilisation privée standard du Klingon (`0xF8D0` à `0xF8FF`).
+*   **Vietnamien** : Fusion des blocs de caractères latins étendus `0x0180` à `0x024F` et `0x1E00` à `0x1EFF`.
+*   **Devanagari (hindi)** : Fusion des plages de police système Devanagari (`0x0900` à `0x097F`).
+*   **Bengali** : Fusion des plages de police système Bengali (`0x0980` à `0x09FF`).
+*   **Tamoul** : Fusion des plages de police système Tamoul (`0x0B80` à `0x0BFF`).
+*   **Thaï** : Fusion des plages de police système Thaï (`0x0E00` à `0x0E7F`).
 
 ---
 

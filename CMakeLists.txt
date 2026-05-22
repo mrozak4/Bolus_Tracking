@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.14)
 project(BolusTrackingCpp CXX)
 
 set(CMAKE_OSX_ARCHITECTURES "x86_64")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -9,8 +10,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Find Eigen3
 find_package(Eigen3 REQUIRED)
 
-# Find TIFF
+# Find TIFF and ZLIB
 find_package(TIFF REQUIRED)
+find_package(ZLIB REQUIRED)
 
 set(PIPELINE_SRCS
     cpp/src/signal_processing.cpp
@@ -23,14 +25,14 @@ set(PIPELINE_SRCS
 
 # Core pipeline command-line executable
 add_executable(bolus_tracking_cpp cpp/src/main.cpp ${PIPELINE_SRCS} cpp/include/bolus_tracking_cpp.hpp)
-target_include_directories(bolus_tracking_cpp PRIVATE cpp/include ${TIFF_INCLUDE_DIRS})
-target_link_libraries(bolus_tracking_cpp PRIVATE ${TIFF_LIBRARIES} Eigen3::Eigen)
+target_include_directories(bolus_tracking_cpp PRIVATE cpp/include ${TIFF_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS})
+target_link_libraries(bolus_tracking_cpp PRIVATE ${TIFF_LIBRARIES} Eigen3::Eigen ZLIB::ZLIB)
 
 # Core pipeline test executable
 add_executable(test_bolus_tracking_cpp cpp/tests/test_bolus_tracking_cpp.cpp ${PIPELINE_SRCS} cpp/include/bolus_tracking_cpp.hpp)
 target_compile_definitions(test_bolus_tracking_cpp PRIVATE BUILD_TESTS=1)
-target_include_directories(test_bolus_tracking_cpp PRIVATE cpp/include ${TIFF_INCLUDE_DIRS})
-target_link_libraries(test_bolus_tracking_cpp PRIVATE ${TIFF_LIBRARIES} Eigen3::Eigen)
+target_include_directories(test_bolus_tracking_cpp PRIVATE cpp/include ${TIFF_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS})
+target_link_libraries(test_bolus_tracking_cpp PRIVATE ${TIFF_LIBRARIES} Eigen3::Eigen ZLIB::ZLIB)
 
 # ========================================================
 # GUI Build Configuration
@@ -108,8 +110,8 @@ if(BUILD_GUI)
         ${implot_SOURCE_DIR}
     )
     
-    # Define GUI macro
-    target_compile_definitions(bolus_tracking_gui PRIVATE BUILD_GUI=1)
+    # Define GUI macro and 32-bit Wchar support for ImGui
+    target_compile_definitions(bolus_tracking_gui PRIVATE BUILD_GUI=1 IMGUI_USE_WCHAR32=1)
     
     # Link libraries
     target_link_libraries(bolus_tracking_gui PRIVATE
@@ -117,6 +119,7 @@ if(BUILD_GUI)
         Eigen3::Eigen
         glfw
         OpenGL::GL
+        ZLIB::ZLIB
     )
     
     # Platform-specific framework linking for GLFW on macOS

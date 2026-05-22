@@ -163,7 +163,7 @@ Ce script compile l'application, génère le paquet `BolusTrackingStudio.app` et
 * **Rétablir les valeurs d'origine (Revert to Original)** : Cliquez sur ce bouton pour annuler les corrections manuelles sur la ROI sélectionnée, restaurer les paramètres automatiques d'origine et effacer les marqueurs manuels.
 * **Réinitialiser toutes les modifications (Reset All)** : Dans la barre de menu supérieure, cliquez sur ce bouton pour restaurer l'intégralité du jeu de données chargé à son état d'origine. Une boîte de dialogue de confirmation évite les pertes accidentelles.
 * **Vider les données du sujet (Clear Subject)** : Dans la barre de menu supérieure, cliquez sur ce bouton pour décharger les fichiers CSV, TIFF et ROI, ramenant l'interface graphique à son écran d'accueil d'origine.
-* **Traduction bilingue (OQLF Compliant)** : Cliquez sur les drapeaux **EN / FR** dans la barre de menu supérieure pour basculer instantanément l'interface graphique entre l'anglais canadien et le français du Québec conforme aux normes de l'Office québécois de la langue française.
+* **Localisation multilingue** : Sélectionnez votre langue préférée dans le menu déroulant de la barre de menu supérieure (prenant en charge l'anglais canadien, le français conforme à l'OQLF et plus de 40 autres langues comme l'égyptien ancien, l'indonésien, le vietnamien, le tagalog, le thaï, le hindi, le tamoul et le bengali) pour mettre à jour instantanément toute l'interface utilisateur.
 
 ---
 

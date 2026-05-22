@@ -1,4 +1,5 @@
 #include "bolus_tracking_cpp.hpp"
+#include "mat_parser.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -392,6 +393,13 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
     TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
     
     std::vector<std::vector<float>> frames;
+    tsize_t scanline_size = TIFFScanlineSize(tif);
+    tdata_t buf = _TIFFmalloc(scanline_size);
+    if (!buf) {
+        TIFFClose(tif);
+        return false;
+    }
+    
     do {
         std::vector<float> frame(width * height);
         uint16_t bitspersample = 8;
@@ -399,52 +407,89 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
         TIFFGetField(tif, TIFFTAG_BITSPERSAMPLE, &bitspersample);
         TIFFGetField(tif, TIFFTAG_SAMPLEFORMAT, &sampleformat);
         
-        tdata_t buf = _TIFFmalloc(TIFFScanlineSize(tif));
-        for (uint32_t row = 0; row < height; row++) {
-            TIFFReadScanline(tif, buf, row);
-            for (uint32_t col = 0; col < width; col++) {
-                float val = 0.0f;
-                if (bitspersample == 16) {
-                    val = static_cast<float>(((uint16_t*)buf)[col]);
-                } else if (bitspersample == 8) {
-                    val = static_cast<float>(((uint8_t*)buf)[col]);
-                } else if (bitspersample == 32 && sampleformat == 3) {
-                    val = ((float*)buf)[col];
-                }
-                frame[row * width + col] = val;
+        tsize_t current_scanline_size = TIFFScanlineSize(tif);
+        if (current_scanline_size > scanline_size) {
+            _TIFFfree(buf);
+            scanline_size = current_scanline_size;
+            buf = _TIFFmalloc(scanline_size);
+            if (!buf) {
+                TIFFClose(tif);
+                return false;
             }
         }
-        _TIFFfree(buf);
+        
+        if (bitspersample == 16) {
+            for (uint32_t row = 0; row < height; row++) {
+                TIFFReadScanline(tif, buf, row);
+                uint16_t* row_ptr = reinterpret_cast<uint16_t*>(buf);
+                for (uint32_t col = 0; col < width; col++) {
+                    frame[row * width + col] = static_cast<float>(row_ptr[col]);
+                }
+            }
+        } else if (bitspersample == 8) {
+            for (uint32_t row = 0; row < height; row++) {
+                TIFFReadScanline(tif, buf, row);
+                uint8_t* row_ptr = reinterpret_cast<uint8_t*>(buf);
+                for (uint32_t col = 0; col < width; col++) {
+                    frame[row * width + col] = static_cast<float>(row_ptr[col]);
+                }
+            }
+        } else if (bitspersample == 32 && sampleformat == 3) {
+            for (uint32_t row = 0; row < height; row++) {
+                TIFFReadScanline(tif, buf, row);
+                float* row_ptr = reinterpret_cast<float*>(buf);
+                for (uint32_t col = 0; col < width; col++) {
+                    frame[row * width + col] = row_ptr[col];
+                }
+            }
+        }
         frames.push_back(frame);
     } while (TIFFReadDirectory(tif));
     
+    _TIFFfree(buf);
     TIFFClose(tif);
     std::cout << "Loaded " << frames.size() << " frames (" << width << "x" << height << ")" << std::endl;
     
-    std::ifstream rois_file(rois_path);
-    if (!rois_file.is_open()) {
-        std::cerr << "Failed to open ROIs file: " << rois_path << std::endl;
-        return false;
-    }
-    
-    int n_rois = 0;
-    rois_file >> n_rois;
     std::vector<ROI> rois;
-    rois.reserve(n_rois);
-    for (int i = 0; i < n_rois; ++i) {
-        int roi_id, n_pts;
-        rois_file >> roi_id >> n_pts;
-        std::vector<std::pair<double, double>> poly(n_pts);
-        for (int j = 0; j < n_pts; ++j) {
-            rois_file >> poly[j].first >> poly[j].second;
+    if (rois_path.size() >= 4 && rois_path.compare(rois_path.size() - 4, 4, ".mat") == 0) {
+        auto raw_rois = MatParser::load_rois_from_mat(rois_path);
+        if (raw_rois.empty()) {
+            std::cerr << "Failed to load ROIs from MAT file: " << rois_path << std::endl;
+            return false;
         }
-        if (n_pts < 3) {
-            std::cout << "Skipping ROI " << roi_id + 1 << ": Not enough points for a polygon (" << n_pts << ")." << std::endl;
-            continue;
+        rois.reserve(raw_rois.size());
+        for (const auto& roi : raw_rois) {
+            if (roi.poly.size() < 3) {
+                std::cout << "Skipping ROI " << roi.id + 1 << ": Not enough points for a polygon (" << roi.poly.size() << ")." << std::endl;
+                continue;
+            }
+            rois.push_back(roi);
         }
-        rois.push_back({roi_id, poly});
+    } else {
+        std::ifstream rois_file(rois_path);
+        if (!rois_file.is_open()) {
+            std::cerr << "Failed to open ROIs file: " << rois_path << std::endl;
+            return false;
+        }
+        
+        int n_rois = 0;
+        rois_file >> n_rois;
+        rois.reserve(n_rois);
+        for (int i = 0; i < n_rois; ++i) {
+            int roi_id, n_pts;
+            rois_file >> roi_id >> n_pts;
+            std::vector<std::pair<double, double>> poly(n_pts);
+            for (int j = 0; j < n_pts; ++j) {
+                rois_file >> poly[j].first >> poly[j].second;
+            }
+            if (n_pts < 3) {
+                std::cout << "Skipping ROI " << roi_id + 1 << ": Not enough points for a polygon (" << n_pts << ")." << std::endl;
+                continue;
+            }
+            rois.push_back({roi_id, poly});
+        }
+        rois_file.close();
     }
-    rois_file.close();
     std::cout << "Loaded " << rois.size() << " ROIs" << std::endl;
     
     auto start_time = std::chrono::high_resolution_clock::now();

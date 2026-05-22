@@ -101,7 +101,7 @@ cmake -DBUILD_GUI=ON ..
 make -j4
 ./bolus_tracking_gui
 ```
-Cela lance le tableau de bord haute performance construit sur Dear ImGui et ImPlot. Vous pouvez y sélectionner des dossiers, trier les ROI par statut (PASS/WARN/FAIL), glisser les marqueurs verticaux (début du bolus, pic, fin), rogner la fenêtre de modélisation à la volée, sauvegarder et restaurer automatiquement l'état de session via des fichiers `.gui_state`, ajuster interactivement le débruitage, réinitialiser ou rétablir les états automatiques, vider le plan de travail et exporter les paramètres.
+Cela lance le tableau de bord haute performance construit sur Dear ImGui et ImPlot. Vous pouvez y sélectionner des dossiers, trier les ROI par statut (PASS/WARN/FAIL), glisser les marqueurs verticaux (début du bolus, pic, fin), rogner la fenêtre de modélisation à la volée, sauvegarder et restaurer automatiquement l'état de session via des fichiers .gui_state, ajuster interactivement le débruitage, réinitialiser ou rétablir les états automatiques, vider le plan de travail, basculer entre l'anglais canadien, le français conforme à l'OQLF et plus de 40 autres langues (y compris l'égyptien ancien, le hindi, le thaï, l'indonésien, le vietnamien, le tagalog, le tamoul et le bengali), et exporter les paramètres.
 
 ### Lancer l'interface graphique Python
 Exécuter :

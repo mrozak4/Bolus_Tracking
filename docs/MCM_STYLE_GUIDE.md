@@ -30,11 +30,17 @@ font_config.PixelSnapH = true;
 ```
 
 ### Multilingual Font Merging
+
 To support localized translations, additional font sets are merged into the primary Outfit font stack at the same sizes:
 *   **Chinese & Japanese**: Common Simplified Chinese and Japanese glyph ranges merged dynamically.
 *   **Korean**: Standard Korean glyph ranges merged dynamically.
 *   **Cyrillic (Russian, Ukrainian)**: Unicode blocks `0x0400` to `0x052F` merged.
 *   **Klingon (pIqaD)**: Standard Klingon private use area (`0xF8D0` to `0xF8FF`) merged.
+*   **Vietnamese**: Extended Latin blocks `0x0180` to `0x024F` and `0x1E00` to `0x1EFF` merged.
+*   **Devanagari (Hindi)**: System Devanagari font ranges (`0x0900` to `0x097F`) merged.
+*   **Bengali**: System Bengali font ranges (`0x0980` to `0x09FF`) merged.
+*   **Tamil**: System Tamil font ranges (`0x0B80` to `0x0BFF`) merged.
+*   **Thai**: System Thai font ranges (`0x0E00` to `0x0E7F`) merged.
 
 ---
 

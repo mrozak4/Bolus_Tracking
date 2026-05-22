@@ -8,6 +8,7 @@
 #include <cmath>
 #include <limits>
 #include <chrono>
+#include <thread>
 #include <GLFW/glfw3.h>
 
 #include "imgui.h"
@@ -45,7 +46,25 @@ enum Language {
     LANG_YODA,
     LANG_SHAKESPEARE,
     LANG_MINION,
-    LANG_GENZ
+    LANG_GENZ,
+    LANG_GENALPHA,
+    LANG_SR,
+    LANG_BG,
+    LANG_EL,
+    LANG_GRC,
+    LANG_TR,
+    LANG_CA,
+    LANG_AF,
+    LANG_EGY,
+    LANG_FI,
+    LANG_IU,
+    LANG_ID,
+    LANG_VI,
+    LANG_TL,
+    LANG_TH,
+    LANG_HI,
+    LANG_TA,
+    LANG_BN
 };
 
 struct Translation {
@@ -64,6 +83,16 @@ struct Translation {
     std::string btn_revert;
     std::string btn_reset_crop;
     std::string btn_crop_bounds;
+    std::string btn_view_roi_mip = "View ROI MIP";
+    std::string col_auc = "AUC";
+    std::string col_aucn = "AUCn";
+    std::string title_roi_mip = "ROI Mean Intensity Projection";
+    std::string text_no_mip = "No MIP texture available.";
+    std::string text_na = "N/A";
+    std::string ves_artery = "A";
+    std::string ves_vein = "V";
+    std::string ves_capillary = "C";
+    std::string ves_unknown = "U";
     std::string label_onset;
     std::string label_peak;
     std::string label_end;
@@ -215,6 +244,7 @@ struct TiffData {
     uint32_t width = 0;
     uint32_t height = 0;
     std::vector<std::vector<float>> frames;
+    std::vector<float> mip; // 2D Mean Intensity Projection
 };
 
 struct RoiCachedData {
@@ -251,7 +281,9 @@ std::string find_fallback_font(bool bold);
 std::vector<CsvRecord> read_results_csv(const std::string& path);
 void save_results_csv(const std::string& path, const std::vector<CsvRecord>& records);
 std::string find_rois_txt_file(const std::string& tiff_path);
+std::string find_rois_mat_file(const std::string& tiff_path);
 std::string find_meta_txt_file(const std::string& tiff_path);
+std::string find_egyptian_font();
 TiffData load_tiff(const std::string& path);
 std::vector<ROI> load_rois_txt(const std::string& path);
 double parse_frame_rate(const std::string& filepath);
@@ -323,6 +355,13 @@ private:
     bool m_showing_intro = true;
     double m_intro_start_time = -1.0;
 
+    // MIP popup modal state
+    GLuint m_mip_texture_id = 0;
+    bool m_show_mip_modal = false;
+    int m_mip_tex_width = 0;
+    int m_mip_tex_height = 0;
+    bool m_any_item_active_prev = false;
+
     void draw_intro_screen(float width, float height);
     void update_locale();
     void build_triage_queue();
@@ -336,6 +375,11 @@ private:
     void save_gui_state();
     void load_gui_state();
     void clear_subject_data();
+    void update_mip_texture();
+    void draw_mip_modal();
+    void trigger_minion_squeak();
+    void apply_theme_colors();
+    void ensure_minion_squeak_exists();
 
     // UI subsections
     void draw_gui();

@@ -9,3 +9,7 @@ build/
 scratch/
 *.bak
 imgui.ini
+.cache/
+.clangd
+compile_commands.json
+plots_cpp/

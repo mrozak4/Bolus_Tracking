@@ -187,7 +187,7 @@ This script compiles the GUI, builds `BolusTrackingStudio.app` in the repository
 * **Revert to Original (Autoassignments)**: Click the **Revert to Original** button to discard all manual corrections for the selected ROI, restore the baseline automatic fit parameters, and remove the manual triage marker tags.
 * **Reset All Changes**: Click the **Reset All** button in the top menu bar to restore the entire loaded dataset back to its pristine, pre-triaged automatic state. A confirmation dialog prevents accidental data loss.
 * **Clear Subject Data**: Click the **Clear Subject** button in the top menu bar to unload all datasets, ROIs, and TIFF frames, returning the visual dashboard to its empty welcome screen.
-* **Bilingual Translation (OQLF Compliant)**: Click the **EN / FR** flags in the top menu bar to toggle the user interface between Canadian English and official Quebec French (fully compliant with OQLF standardization).
+* **Multilingual Localization**: Select your preferred language from the dropdown menu in the top menu bar (supporting Canadian English, OQLF-compliant French, and over 40 other locales including Ancient Egyptian, Indonesian, Vietnamese, Tagalog, Thai, Hindi, Tamil, and Bengali) to instantly update the entire user interface.
 
 ---
 

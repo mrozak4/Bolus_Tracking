@@ -296,6 +296,108 @@ void test_physiological_bounds_filtering() {
 }
 
 // -------------------------------------------------------------
+// Test MATLAB MAT Conversion Parity
+// -------------------------------------------------------------
+#include "mat_parser.hpp"
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+
+std::vector<ROI> read_rois_from_txt(const std::string& filepath) {
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open TXT file: " << filepath << std::endl;
+        return {};
+    }
+    int num_rois = 0;
+    if (!(file >> num_rois)) {
+        return {};
+    }
+    std::vector<ROI> rois;
+    for (int i = 0; i < num_rois; ++i) {
+        int id = 0;
+        int num_pts = 0;
+        if (!(file >> id >> num_pts)) {
+            break;
+        }
+        std::vector<std::pair<double, double>> poly(num_pts);
+        for (int j = 0; j < num_pts; ++j) {
+            double x = 0, y = 0;
+            if (!(file >> x >> y)) {
+                break;
+            }
+            poly[j] = {x, y};
+        }
+        rois.push_back({id, poly});
+    }
+    return rois;
+}
+
+std::string find_project_root() {
+    std::filesystem::path p = std::filesystem::current_path();
+    // Try to find the root by looking for CMakeLists.txt and sample-subject-3554 up to 5 levels
+    for (int i = 0; i < 5; ++i) {
+        if (std::filesystem::exists(p / "CMakeLists.txt") && std::filesystem::exists(p / "sample-subject-3554")) {
+            return p.string();
+        }
+        if (p.has_parent_path()) {
+            p = p.parent_path();
+        } else {
+            break;
+        }
+    }
+    return ".";
+}
+
+void test_mat_parser_parity() {
+    std::cout << "Running test_mat_parser_parity..." << std::endl;
+    
+    std::string root = find_project_root();
+    std::vector<std::pair<std::string, std::string>> pairs = {
+        {root + "/sample-subject-3554/3554_bolus1_baseline_shifted_MaskObj.mat",
+         root + "/sample-subject-3554/3554_bolus1_baseline_shifted_MaskObj_rois.txt"},
+        {root + "/sample-subject-2259/old_masks_drawROI/2259_bolus1_baseline_maskObj.mat",
+         root + "/sample-subject-2259/old_masks_drawROI/2259_bolus1_baseline_maskObj_rois.txt"},
+        {root + "/sample-subject-2259/old_masks_drawROI/2259_bolus3_baseline_maskObj.mat",
+         root + "/sample-subject-2259/old_masks_drawROI/2259_bolus3_baseline_maskObj_rois.txt"},
+        {root + "/sample-subject-2259/old_masks_drawROI/2259_bolus5_baseline_maskObj.mat",
+         root + "/sample-subject-2259/old_masks_drawROI/2259_bolus5_baseline_maskObj_rois.txt"}
+    };
+    
+    int tested_files = 0;
+    for (const auto& [mat_path, txt_path] : pairs) {
+        if (!std::filesystem::exists(mat_path) || !std::filesystem::exists(txt_path)) {
+            std::cout << "  [Skip] Files not found:\n    MAT: " << mat_path << "\n    TXT: " << txt_path << std::endl;
+            continue;
+        }
+        std::cout << "  Comparing:\n    MAT: " << mat_path << "\n    TXT: " << txt_path << std::endl;
+        
+        auto rois_mat = MatParser::load_rois_from_mat(mat_path);
+        auto rois_txt = read_rois_from_txt(txt_path);
+        
+        std::cout << "    MAT ROIs count: " << rois_mat.size() << ", TXT ROIs count: " << rois_txt.size() << std::endl;
+        assert(rois_mat.size() == rois_txt.size());
+        
+        for (size_t i = 0; i < rois_mat.size(); ++i) {
+            const auto& poly_mat = rois_mat[i].poly;
+            const auto& poly_txt = rois_txt[i].poly;
+            
+            assert(poly_mat.size() == poly_txt.size());
+            for (size_t j = 0; j < poly_mat.size(); ++j) {
+                // Check coordinate parity
+                assert(is_approx(poly_mat[j].first, poly_txt[j].first, 1e-4));
+                assert(is_approx(poly_mat[j].second, poly_txt[j].second, 1e-4));
+            }
+        }
+        std::cout << "    -> Parity matched!" << std::endl;
+        tested_files++;
+    }
+    
+    assert(tested_files > 0 && "At least one MAT/TXT pair must be tested to ensure parity verification ran!");
+    std::cout << "  -> test_mat_parser_parity passed (" << tested_files << " files tested)!" << std::endl;
+}
+
+// -------------------------------------------------------------
 // Main execution
 // -------------------------------------------------------------
 int main() {
@@ -310,6 +412,7 @@ int main() {
     test_roi_mask_rasterizer();
     test_nice_ticks();
     test_physiological_bounds_filtering();
+    test_mat_parser_parity();
     
     std::cout << "\n=============================================" << std::endl;
     std::cout << "      All C++ Unit Tests Passed Successfully!" << std::endl;
@@ -317,4 +420,5 @@ int main() {
     
     return 0;
 }
+
 

@@ -114,27 +114,31 @@ bool BatchProcessor::run() const {
             std::string ext = entry.path().extension().string();
             std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
             
+            std::string filename = entry.path().filename().string();
+            if (filename.empty() || filename.front() == '.') continue;
+            
+            std::string identifier = extract_identifier(filename);
+            if (identifier.empty()) continue;
+            
+            std::transform(identifier.begin(), identifier.end(), identifier.begin(), ::tolower);
+            
+            std::string filename_lower = filename;
+            std::transform(filename_lower.begin(), filename_lower.end(), filename_lower.begin(), ::tolower);
+            
+            PathInfo pinfo;
+            pinfo.path = entry.path();
+            pinfo.identifier = identifier;
+            pinfo.top_dir = get_top_relative_dir(entry.path(), folder_path);
+            
             if (ext == ".txt") {
-                std::string filename = entry.path().filename().string();
-                if (filename.empty() || filename.front() == '.') continue;
-                
-                std::string identifier = extract_identifier(filename);
-                if (identifier.empty()) continue;
-                
-                std::transform(identifier.begin(), identifier.end(), identifier.begin(), ::tolower);
-                
-                std::string filename_lower = filename;
-                std::transform(filename_lower.begin(), filename_lower.end(), filename_lower.begin(), ::tolower);
-                
-                PathInfo pinfo;
-                pinfo.path = entry.path();
-                pinfo.identifier = identifier;
-                pinfo.top_dir = get_top_relative_dir(entry.path(), folder_path);
-                
                 if (filename_lower.find("_rois.txt") != std::string::npos || filename_lower.find("_rois_cpp.txt") != std::string::npos) {
                     rois_files.push_back(pinfo);
                 } else if (filename_lower.find("_rois") == std::string::npos) {
                     meta_files.push_back(pinfo);
+                }
+            } else if (ext == ".mat") {
+                if (filename_lower.find("maskobj") != std::string::npos || filename_lower.find("mask") != std::string::npos) {
+                    rois_files.push_back(pinfo);
                 }
             }
         }
@@ -179,11 +183,27 @@ bool BatchProcessor::run() const {
         std::string rois_file = "";
         std::string meta_file = "";
         
+        // 1. Try to find a .txt ROI file
         for (const auto& r : rois_files) {
-            if (r.identifier == id_lower) {
+            std::string r_ext = r.path.extension().string();
+            std::transform(r_ext.begin(), r_ext.end(), r_ext.begin(), ::tolower);
+            if (r_ext == ".txt" && r.identifier == id_lower) {
                 if (tif_subj.empty() || r.top_dir == tif_subj) {
                     rois_file = r.path.string();
                     break;
+                }
+            }
+        }
+        // 2. If not found, try to find a .mat ROI file
+        if (rois_file.empty()) {
+            for (const auto& r : rois_files) {
+                std::string r_ext = r.path.extension().string();
+                std::transform(r_ext.begin(), r_ext.end(), r_ext.begin(), ::tolower);
+                if (r_ext == ".mat" && r.identifier == id_lower) {
+                    if (tif_subj.empty() || r.top_dir == tif_subj) {
+                        rois_file = r.path.string();
+                        break;
+                    }
                 }
             }
         }
@@ -198,7 +218,7 @@ bool BatchProcessor::run() const {
         }
         
         if (rois_file.empty() || meta_file.empty()) {
-            std::cerr << "Warning: Could not find matching rois.txt or metadata.txt for " << filename 
+            std::cerr << "Warning: Could not find matching rois.txt/.mat or metadata.txt for " << filename 
                       << " (rois: " << (rois_file.empty() ? "missing" : "found")
                       << ", meta: " << (meta_file.empty() ? "missing" : "found") << "). Skipping." << std::endl;
             continue;

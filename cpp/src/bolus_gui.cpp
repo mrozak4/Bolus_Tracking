@@ -27,6 +27,7 @@
 
 #include "bolus_tracking_cpp.hpp"
 #include "bolus_gui.hpp"
+#include "mat_parser.hpp"
 
 // Inline math operators for ImVec2, since ImGui doesn't define them by default in public headers
 inline ImVec2 operator+(const ImVec2& lhs, const ImVec2& rhs) { return ImVec2(lhs.x + rhs.x, lhs.y + rhs.y); }
@@ -352,6 +353,128 @@ std::string find_korean_font() {
     return "";
 }
 
+std::string find_inuktitut_font() {
+    std::vector<std::string> paths = {
+        // macOS
+        "/System/Library/Fonts/Supplemental/EuphemiaCAS.ttc",
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        "/Library/Fonts/Arial Unicode.ttf",
+        // Windows
+        "C:\\Windows\\Fonts\\euphemia.ttf",
+        "C:\\Windows\\Fonts\\gadugi.ttf"
+    };
+    for (const auto& p : paths) {
+        if (is_valid_ttf(p)) {
+            return p;
+        }
+    }
+    return "";
+}
+
+std::string find_egyptian_font() {
+    std::vector<std::string> paths = {
+        // macOS
+        "/System/Library/Fonts/Supplemental/NotoSansEgyptianHieroglyphs-Regular.ttf",
+        "/System/Library/Fonts/Apple Symbols.ttf",
+        "/System/Library/Fonts/Symbol.ttf"
+    };
+    for (const auto& p : paths) {
+        if (is_valid_ttf(p)) {
+            return p;
+        }
+    }
+    return "";
+}
+
+std::string find_hindi_font() {
+    std::vector<std::string> paths = {
+        "/System/Library/Fonts/Supplemental/KohinoorDevanagari.ttc",
+        "/System/Library/Fonts/KohinoorDevanagari.ttc",
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        "C:\\Windows\\Fonts\\mangal.ttf"
+    };
+    for (const auto& p : paths) {
+        if (is_valid_ttf(p)) return p;
+    }
+    return "";
+}
+
+std::string find_bengali_font() {
+    std::vector<std::string> paths = {
+        "/System/Library/Fonts/Supplemental/KohinoorBangla.ttc",
+        "/System/Library/Fonts/KohinoorBangla.ttc",
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        "C:\\Windows\\Fonts\\vrinda.ttf",
+        "C:\\Windows\\Fonts\\Shonar.ttf"
+    };
+    for (const auto& p : paths) {
+        if (is_valid_ttf(p)) return p;
+    }
+    return "";
+}
+
+std::string find_tamil_font() {
+    std::vector<std::string> paths = {
+        "/System/Library/Fonts/Supplemental/KohinoorTamil.ttc",
+        "/System/Library/Fonts/KohinoorTamil.ttc",
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        "C:\\Windows\\Fonts\\latha.ttf"
+    };
+    for (const auto& p : paths) {
+        if (is_valid_ttf(p)) return p;
+    }
+    return "";
+}
+
+std::string find_thai_font() {
+    std::vector<std::string> paths = {
+        "/System/Library/Fonts/Thonburi.ttc",
+        "/System/Library/Fonts/Supplemental/Ayuthaya.ttf",
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        "C:\\Windows\\Fonts\\tahoma.ttf",
+        "C:\\Windows\\Fonts\\leelawad.ttf"
+    };
+    for (const auto& p : paths) {
+        if (is_valid_ttf(p)) return p;
+    }
+    return "";
+}
+
+void merge_asian_fonts(ImGuiIO& io, float size) {
+    std::string hindi_font = find_hindi_font();
+    if (!hindi_font.empty()) {
+        ImFontConfig merge_config;
+        merge_config.MergeMode = true;
+        merge_config.PixelSnapH = true;
+        static const ImWchar HindiRanges[] = { 0x0900, 0x097F, 0 };
+        io.Fonts->AddFontFromFileTTF(hindi_font.c_str(), size, &merge_config, HindiRanges);
+    }
+    std::string bengali_font = find_bengali_font();
+    if (!bengali_font.empty()) {
+        ImFontConfig merge_config;
+        merge_config.MergeMode = true;
+        merge_config.PixelSnapH = true;
+        static const ImWchar BengaliRanges[] = { 0x0980, 0x09FF, 0 };
+        io.Fonts->AddFontFromFileTTF(bengali_font.c_str(), size, &merge_config, BengaliRanges);
+    }
+    std::string tamil_font = find_tamil_font();
+    if (!tamil_font.empty()) {
+        ImFontConfig merge_config;
+        merge_config.MergeMode = true;
+        merge_config.PixelSnapH = true;
+        static const ImWchar TamilRanges[] = { 0x0B80, 0x0BFF, 0 };
+        io.Fonts->AddFontFromFileTTF(tamil_font.c_str(), size, &merge_config, TamilRanges);
+    }
+    std::string thai_font = find_thai_font();
+    if (!thai_font.empty()) {
+        ImFontConfig merge_config;
+        merge_config.MergeMode = true;
+        merge_config.PixelSnapH = true;
+        static const ImWchar ThaiRanges[] = { 0x0E00, 0x0E7F, 0 };
+        io.Fonts->AddFontFromFileTTF(thai_font.c_str(), size, &merge_config, ThaiRanges);
+    }
+}
+
 std::string find_fallback_font(bool bold) {
     std::vector<std::string> paths;
     if (bold) {
@@ -600,6 +723,27 @@ std::string find_rois_txt_file(const std::string& tiff_path) {
     return "";
 }
 
+std::string find_rois_mat_file(const std::string& tiff_path) {
+    std::filesystem::path tp(tiff_path);
+    std::filesystem::path parent = tp.parent_path();
+    std::string stem = tp.stem().string();
+    
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(parent)) {
+        if (entry.is_regular_file()) {
+            std::string name = entry.path().filename().string();
+            std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+            std::string l_stem = stem;
+            std::transform(l_stem.begin(), l_stem.end(), l_stem.begin(), ::tolower);
+            if (name.find(l_stem) != std::string::npos && 
+                (name.find("mask") != std::string::npos || name.find("maskobj") != std::string::npos) && 
+                name.find(".mat") != std::string::npos) {
+                return entry.path().string();
+            }
+        }
+    }
+    return "";
+}
+
 /**
  * @brief Search for the metadata text file in the same directory or subdirectories.
  */
@@ -634,6 +778,13 @@ TiffData load_tiff(const std::string& path) {
     TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &data.width);
     TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &data.height);
     
+    tsize_t scanline_size = TIFFScanlineSize(tif);
+    tdata_t buf = _TIFFmalloc(scanline_size);
+    if (!buf) {
+        TIFFClose(tif);
+        return data;
+    }
+    
     do {
         std::vector<float> frame(data.width * data.height);
         uint16_t bitspersample = 8;
@@ -641,26 +792,61 @@ TiffData load_tiff(const std::string& path) {
         TIFFGetField(tif, TIFFTAG_BITSPERSAMPLE, &bitspersample);
         TIFFGetField(tif, TIFFTAG_SAMPLEFORMAT, &sampleformat);
         
-        tdata_t buf = _TIFFmalloc(TIFFScanlineSize(tif));
-        for (uint32_t row = 0; row < data.height; row++) {
-            TIFFReadScanline(tif, buf, row);
-            for (uint32_t col = 0; col < data.width; col++) {
-                float val = 0.0f;
-                if (bitspersample == 16) {
-                    val = static_cast<float>(((uint16_t*)buf)[col]);
-                } else if (bitspersample == 8) {
-                    val = static_cast<float>(((uint8_t*)buf)[col]);
-                } else if (bitspersample == 32 && sampleformat == 3) {
-                    val = ((float*)buf)[col];
-                }
-                frame[row * data.width + col] = val;
+        tsize_t current_scanline_size = TIFFScanlineSize(tif);
+        if (current_scanline_size > scanline_size) {
+            _TIFFfree(buf);
+            scanline_size = current_scanline_size;
+            buf = _TIFFmalloc(scanline_size);
+            if (!buf) {
+                TIFFClose(tif);
+                return data;
             }
         }
-        _TIFFfree(buf);
+        
+        if (bitspersample == 16) {
+            for (uint32_t row = 0; row < data.height; row++) {
+                TIFFReadScanline(tif, buf, row);
+                uint16_t* row_ptr = reinterpret_cast<uint16_t*>(buf);
+                for (uint32_t col = 0; col < data.width; col++) {
+                    frame[row * data.width + col] = static_cast<float>(row_ptr[col]);
+                }
+            }
+        } else if (bitspersample == 8) {
+            for (uint32_t row = 0; row < data.height; row++) {
+                TIFFReadScanline(tif, buf, row);
+                uint8_t* row_ptr = reinterpret_cast<uint8_t*>(buf);
+                for (uint32_t col = 0; col < data.width; col++) {
+                    frame[row * data.width + col] = static_cast<float>(row_ptr[col]);
+                }
+            }
+        } else if (bitspersample == 32 && sampleformat == 3) {
+            for (uint32_t row = 0; row < data.height; row++) {
+                TIFFReadScanline(tif, buf, row);
+                float* row_ptr = reinterpret_cast<float*>(buf);
+                for (uint32_t col = 0; col < data.width; col++) {
+                    frame[row * data.width + col] = row_ptr[col];
+                }
+            }
+        }
         data.frames.push_back(frame);
     } while (TIFFReadDirectory(tif));
     
+    _TIFFfree(buf);
     TIFFClose(tif);
+    
+    if (!data.frames.empty()) {
+        size_t num_pixels = data.width * data.height;
+        data.mip.assign(num_pixels, 0.0f);
+        for (const auto& frame : data.frames) {
+            for (size_t i = 0; i < num_pixels; ++i) {
+                data.mip[i] += frame[i];
+            }
+        }
+        for (size_t i = 0; i < num_pixels; ++i) {
+            data.mip[i] /= data.frames.size();
+        }
+    }
+    
     return data;
 }
 
@@ -819,6 +1005,9 @@ static bool RangeSlider(const char* id_str, double* v_min, double* v_max, double
     
     float width = size.x;
     float height = size.y;
+    float handle_width = 12.0f;
+    float track_width = width - handle_width;
+    float track_start_x = pos.x + handle_width * 0.5f;
     
     double range_limit = v_max_limit - v_min_limit;
     if (range_limit <= 0.0) range_limit = 1.0;
@@ -829,16 +1018,20 @@ static bool RangeSlider(const char* id_str, double* v_min, double* v_max, double
     t_min = std::max(0.0f, std::min(1.0f, t_min));
     t_max = std::max(0.0f, std::min(1.0f, t_max));
     
-    float x_min = pos.x + t_min * width;
-    float x_max = pos.x + t_max * width;
+    float x_min = track_start_x + t_min * track_width;
+    float x_max = track_start_x + t_max * track_width;
     
-    // Check if dragging left or right handle, or middle section
-    static int dragging_handle = 0; // 0 = none, 1 = min handle, 2 = max handle, 3 = middle range
-    static float start_t_min = 0.0f;
-    static float start_t_max = 0.0f;
-    static float drag_start_x = 0.0f;
+    // Retrieve state from ImGui storage instead of static variables
+    ImGuiStorage* storage = ImGui::GetStateStorage();
+    ImGuiID dragging_handle_id = ImGui::GetID("##dragging_handle");
+    ImGuiID start_t_min_id = ImGui::GetID("##start_t_min");
+    ImGuiID start_t_max_id = ImGui::GetID("##start_t_max");
+    ImGuiID drag_start_x_id = ImGui::GetID("##drag_start_x");
     
-    float handle_width = 12.0f;
+    int dragging_handle = storage->GetInt(dragging_handle_id, 0);
+    float start_t_min = storage->GetFloat(start_t_min_id, 0.0f);
+    float start_t_max = storage->GetFloat(start_t_max_id, 0.0f);
+    float drag_start_x = storage->GetFloat(drag_start_x_id, 0.0f);
     
     if (ImGui::IsItemActivated()) {
         ImVec2 mouse_pos = ImGui::GetIO().MousePos;
@@ -860,7 +1053,7 @@ static bool RangeSlider(const char* id_str, double* v_min, double* v_max, double
             dragging_handle = 3;
         } else {
             // Click outside - jump closest handle to mouse
-            float click_t = (mx - pos.x) / width;
+            float click_t = (mx - track_start_x) / track_width;
             click_t = std::max(0.0f, std::min(1.0f, click_t));
             if (std::abs(click_t - t_min) < std::abs(click_t - t_max)) {
                 t_min = std::min(click_t, t_max - 0.01f);
@@ -874,12 +1067,17 @@ static bool RangeSlider(const char* id_str, double* v_min, double* v_max, double
             start_t_min = t_min;
             start_t_max = t_max;
         }
+        
+        storage->SetInt(dragging_handle_id, dragging_handle);
+        storage->SetFloat(start_t_min_id, start_t_min);
+        storage->SetFloat(start_t_max_id, start_t_max);
+        storage->SetFloat(drag_start_x_id, drag_start_x);
     }
     
     bool changed = false;
     if (is_active && dragging_handle != 0) {
         float dx = ImGui::GetIO().MousePos.x - drag_start_x;
-        float dt = dx / width;
+        float dt = dx / track_width;
         
         if (dragging_handle == 1) {
             float new_t = start_t_min + dt;
@@ -908,19 +1106,23 @@ static bool RangeSlider(const char* id_str, double* v_min, double* v_max, double
         }
     }
     
-    if (!is_active) {
+    if (!is_active && dragging_handle != 0) {
         dragging_handle = 0;
+        storage->SetInt(dragging_handle_id, 0);
     }
     
+    ImGuiStyle& style = ImGui::GetStyle();
     // Render slider background
     ImU32 bg_color = ImGui::GetColorU32(ImGuiCol_FrameBg);
-    ImU32 active_track_color = ImGui::GetColorU32(ImVec4(0.38f, 0.46f, 0.42f, 0.60f)); // Sage green active track
+    ImVec4 slider_grab = style.Colors[ImGuiCol_SliderGrab];
+    ImVec4 slider_grab_active = style.Colors[ImGuiCol_SliderGrabActive];
+    ImU32 active_track_color = ImGui::GetColorU32(ImVec4(slider_grab.x, slider_grab.y, slider_grab.z, 0.60f));
     ImU32 border_color = ImGui::GetColorU32(ImGuiCol_Border);
     
-    // Choose a high-contrast handle color that stands out from the blue/dark track
-    ImU32 handle_color = ImGui::GetColorU32(ImVec4(0.85f, 0.82f, 0.75f, 1.0f)); // Warm sand/beige
-    if (is_active && (dragging_handle == 1 || dragging_handle == 2)) {
-        handle_color = ImGui::GetColorU32(ImVec4(0.88f, 0.45f, 0.18f, 1.0f)); // Burnt terracotta orange active
+    // Choose a high-contrast handle color that stands out from the track
+    ImU32 handle_color = ImGui::GetColorU32(ImVec4(slider_grab.x * 0.85f + 0.15f, slider_grab.y * 0.85f + 0.15f, slider_grab.z * 0.85f + 0.15f, 1.00f));
+    if (is_active && (dragging_handle == 1 || dragging_handle == 2 || dragging_handle == 3)) {
+        handle_color = ImGui::GetColorU32(slider_grab_active);
     } else {
         ImVec2 mouse_pos = ImGui::GetIO().MousePos;
         float mx = mouse_pos.x;
@@ -928,32 +1130,32 @@ static bool RangeSlider(const char* id_str, double* v_min, double* v_max, double
         float dist_max = std::abs(mx - x_max);
         if (ImGui::IsItemHovered()) {
             if (dist_min < handle_width || dist_max < handle_width) {
-                handle_color = ImGui::GetColorU32(ImVec4(0.98f, 0.98f, 1.0f, 1.0f)); // Extremely bright white on hover
+                handle_color = ImGui::GetColorU32(ImVec4(slider_grab.x * 0.70f + 0.30f, slider_grab.y * 0.70f + 0.30f, slider_grab.z * 0.70f + 0.30f, 1.00f));
             }
         }
     }
     
     // Draw background track
-    draw_list->AddRectFilled(pos, ImVec2(pos.x + width, pos.y + height), bg_color, 4.0f);
-    draw_list->AddRect(pos, ImVec2(pos.x + width, pos.y + height), border_color, 4.0f);
+    draw_list->AddRectFilled(pos, ImVec2(pos.x + width, pos.y + height), bg_color, style.FrameRounding);
+    draw_list->AddRect(pos, ImVec2(pos.x + width, pos.y + height), border_color, style.FrameRounding);
     
-    // Draw active range track
-    ImVec2 active_min(pos.x + t_min * width, pos.y);
-    ImVec2 active_max(pos.x + t_max * width, pos.y + height);
+    // Draw active range track (goes between handle centers)
+    ImVec2 active_min(x_min, pos.y);
+    ImVec2 active_max(x_max, pos.y + height);
     draw_list->AddRectFilled(active_min, active_max, active_track_color, 0.0f);
     
     // Draw handles (rounded pills protruding by 4px on top and bottom)
     float protrude = 4.0f;
-    ImVec2 h1_min(pos.x + t_min * width - handle_width * 0.5f, pos.y - protrude);
-    ImVec2 h1_max(pos.x + t_min * width + handle_width * 0.5f, pos.y + height + protrude);
-    draw_list->AddRectFilled(h1_min, h1_max, handle_color, 4.0f);
-    draw_list->AddRect(h1_min, h1_max, border_color, 4.0f);
+    ImVec2 h1_min(x_min - handle_width * 0.5f, pos.y - protrude);
+    ImVec2 h1_max(x_min + handle_width * 0.5f, pos.y + height + protrude);
+    draw_list->AddRectFilled(h1_min, h1_max, handle_color, style.GrabRounding);
+    draw_list->AddRect(h1_min, h1_max, border_color, style.GrabRounding);
     
-    ImVec2 h2_min(pos.x + t_max * width - handle_width * 0.5f, pos.y - protrude);
-    ImVec2 h2_max(pos.x + t_max * width + handle_width * 0.5f, pos.y + height + protrude);
-    draw_list->AddRectFilled(h2_min, h2_max, handle_color, 4.0f);
-    draw_list->AddRect(h2_min, h2_max, border_color, 4.0f);
-
+    ImVec2 h2_min(x_max - handle_width * 0.5f, pos.y - protrude);
+    ImVec2 h2_max(x_max + handle_width * 0.5f, pos.y + height + protrude);
+    draw_list->AddRectFilled(h2_min, h2_max, handle_color, style.GrabRounding);
+    draw_list->AddRect(h2_min, h2_max, border_color, style.GrabRounding);
+ 
     // Draw tactile grab ridges inside handles
     auto draw_ridges = [&](float x_center) {
         float cy = pos.y + height * 0.5f;
@@ -962,8 +1164,8 @@ static bool RangeSlider(const char* id_str, double* v_min, double* v_max, double
             draw_list->AddLine(ImVec2(x_center - 3.0f, ry), ImVec2(x_center + 3.0f, ry), border_color, 1.0f);
         }
     };
-    draw_ridges(pos.x + t_min * width);
-    draw_ridges(pos.x + t_max * width);
+    draw_ridges(x_min);
+    draw_ridges(x_max);
     
     // Add text label overlay inside the slider
     char label_buf[128];
@@ -980,9 +1182,12 @@ static bool RangeSlider(const char* id_str, double* v_min, double* v_max, double
 // Main Application Class
 // ============================================================================
 
-BolusApp::BolusApp() : m_fitter(1e-6, 1023.0, 1e-6, 1e6, 0.5, 1e6), m_denoise_strength_factor(1.0f), m_showing_intro(true), m_intro_start_time(-1.0) {}
+BolusApp::BolusApp() : m_fitter(1e-6, 1023.0, 1e-6, 1e6, 0.5, 1e6), m_denoise_strength_factor(1.0f), m_showing_intro(true), m_intro_start_time(-1.0), m_any_item_active_prev(false) {}
 
 BolusApp::~BolusApp() {
+    if (m_mip_texture_id != 0) {
+        glDeleteTextures(1, &m_mip_texture_id);
+    }
     ImPlot::DestroyContext();
     ImGui::DestroyContext();
     if (m_window) {
@@ -1103,6 +1308,8 @@ bool BolusApp::init() {
         static const ImWchar LatinRanges[] = {
             0x0020, 0x00FF, // Basic Latin + Latin-1 Supplement
             0x0100, 0x017F, // Latin Extended-A (Esperanto: ĉ, ĝ, ĥ, ĵ, ŝ, ŭ)
+            0x0180, 0x024F, // Latin Extended-B
+            0x1E00, 0x1EFF, // Latin Extended Additional (Vietnamese)
             0
         };
         
@@ -1115,7 +1322,12 @@ bool BolusApp::init() {
         
         static const ImWchar FallbackRanges[] = {
             0x0100, 0x017F, // Latin Extended-A (Esperanto)
-            0x0400, 0x052F, // Cyrillic (Russian, Ukrainian)
+            0x0180, 0x024F, // Latin Extended-B
+            0x1E00, 0x1EFF, // Latin Extended Additional (Vietnamese)
+            0x0400, 0x052F, // Cyrillic (Russian, Ukrainian, Serbian, Bulgarian)
+            0x0370, 0x03FF, // Greek
+            0x1F00, 0x1FFF, // Greek Extended (Ancient Greek)
+            0x1400, 0x167F, // Canadian Aboriginal Syllabics (Inuktitut)
             0
         };
 
@@ -1126,7 +1338,7 @@ bool BolusApp::init() {
                 ImFontConfig merge_config;
                 merge_config.MergeMode = true;
                 merge_config.PixelSnapH = true;
-                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 16.0f, &merge_config, io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
+                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 16.0f, &merge_config, io.Fonts->GetGlyphRangesChineseFull());
                 io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 16.0f, &merge_config, io.Fonts->GetGlyphRangesJapanese());
             }
             if (!korean_font.empty()) {
@@ -1153,6 +1365,25 @@ bool BolusApp::init() {
                 merge_config.PixelSnapH = true;
                 io.Fonts->AddFontFromFileTTF(fallback_font.c_str(), 16.0f, &merge_config, FallbackRanges);
             }
+            std::string inuktitut_font = find_inuktitut_font();
+            if (!inuktitut_font.empty()) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                io.Fonts->AddFontFromFileTTF(inuktitut_font.c_str(), 16.0f, &merge_config, FallbackRanges);
+            }
+            std::string egyptian_font = find_egyptian_font();
+            if (!egyptian_font.empty()) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                static const ImWchar EgyptianRanges[] = {
+                    0x13000, 0x1342F,
+                    0
+                };
+                io.Fonts->AddFontFromFileTTF(egyptian_font.c_str(), 16.0f, &merge_config, EgyptianRanges);
+            }
+            merge_asian_fonts(io, 16.0f);
         }
         
         if (is_valid_ttf(font_bold_path)) {
@@ -1162,7 +1393,7 @@ bool BolusApp::init() {
                 ImFontConfig merge_config;
                 merge_config.MergeMode = true;
                 merge_config.PixelSnapH = true;
-                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 18.0f, &merge_config, io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
+                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 18.0f, &merge_config, io.Fonts->GetGlyphRangesChineseFull());
                 io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 18.0f, &merge_config, io.Fonts->GetGlyphRangesJapanese());
             }
             if (!korean_font.empty()) {
@@ -1189,6 +1420,25 @@ bool BolusApp::init() {
                 merge_config.PixelSnapH = true;
                 io.Fonts->AddFontFromFileTTF(fallback_font_bold.c_str(), 18.0f, &merge_config, FallbackRanges);
             }
+            std::string inuktitut_font = find_inuktitut_font();
+            if (!inuktitut_font.empty()) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                io.Fonts->AddFontFromFileTTF(inuktitut_font.c_str(), 18.0f, &merge_config, FallbackRanges);
+            }
+            std::string egyptian_font = find_egyptian_font();
+            if (!egyptian_font.empty()) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                static const ImWchar EgyptianRanges[] = {
+                    0x13000, 0x1342F,
+                    0
+                };
+                io.Fonts->AddFontFromFileTTF(egyptian_font.c_str(), 18.0f, &merge_config, EgyptianRanges);
+            }
+            merge_asian_fonts(io, 18.0f);
         }
         
         if (!m_font_regular) {
@@ -1197,7 +1447,7 @@ bool BolusApp::init() {
                 ImFontConfig merge_config;
                 merge_config.MergeMode = true;
                 merge_config.PixelSnapH = true;
-                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 13.0f, &merge_config, io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
+                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 13.0f, &merge_config, io.Fonts->GetGlyphRangesChineseFull());
                 io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 13.0f, &merge_config, io.Fonts->GetGlyphRangesJapanese());
             }
             if (!korean_font.empty()) {
@@ -1224,6 +1474,25 @@ bool BolusApp::init() {
                 merge_config.PixelSnapH = true;
                 io.Fonts->AddFontFromFileTTF(fallback_font.c_str(), 13.0f, &merge_config, FallbackRanges);
             }
+            std::string inuktitut_font = find_inuktitut_font();
+            if (!inuktitut_font.empty()) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                io.Fonts->AddFontFromFileTTF(inuktitut_font.c_str(), 13.0f, &merge_config, FallbackRanges);
+            }
+            std::string egyptian_font = find_egyptian_font();
+            if (!egyptian_font.empty()) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                static const ImWchar EgyptianRanges[] = {
+                    0x13000, 0x1342F,
+                    0
+                };
+                io.Fonts->AddFontFromFileTTF(egyptian_font.c_str(), 13.0f, &merge_config, EgyptianRanges);
+            }
+            merge_asian_fonts(io, 13.0f);
         }
         if (!m_font_bold) {
             m_font_bold = m_font_regular;
@@ -1232,6 +1501,8 @@ bool BolusApp::init() {
 
         // Initialize translations
         update_locale();
+        apply_theme_colors();
+        ensure_minion_squeak_exists();
         m_browser.tr = &m_tr;
 
         ImGui_ImplGlfw_InitForOpenGL(m_window, true);
@@ -1290,20 +1561,27 @@ bool BolusApp::load_dataset(const std::string& csv_path) {
         }
         
         m_rois_path = find_rois_txt_file(m_tiff_path);
+        if (m_rois_path.empty() || !std::filesystem::exists(m_rois_path)) {
+            m_rois_path = find_rois_mat_file(m_tiff_path);
+        }
         m_meta_path = find_meta_txt_file(m_tiff_path);
         
         if (!std::filesystem::exists(m_tiff_path)) {
             std::cerr << "TIFF stack not found: " << m_tiff_path << std::endl;
             return false;
         }
-        if (!std::filesystem::exists(m_rois_path)) {
-            std::cerr << "ROI points txt file not found under: " << parent << std::endl;
+        if (m_rois_path.empty() || !std::filesystem::exists(m_rois_path)) {
+            std::cerr << "ROI points txt or mat file not found under: " << parent << std::endl;
             return false;
         }
         
         m_fr = parse_frame_rate(m_meta_path);
         m_tiff = load_tiff(m_tiff_path);
-        m_rois = load_rois_txt(m_rois_path);
+        if (m_rois_path.size() >= 4 && m_rois_path.compare(m_rois_path.size() - 4, 4, ".mat") == 0) {
+            m_rois = MatParser::load_rois_from_mat(m_rois_path);
+        } else {
+            m_rois = load_rois_txt(m_rois_path);
+        }
         
         if (m_tiff.frames.empty() || m_rois.empty()) {
             std::cerr << "Error: TIFF frame list or ROI list is empty." << std::endl;
@@ -1816,6 +2094,7 @@ void BolusApp::select_record(int idx) {
                 break;
             }
         }
+        update_mip_texture();
     }
 
     /**
@@ -2113,6 +2392,173 @@ void BolusApp::save_active_roi_svg() {
         bool fit_success = !std::isnan(frec.f_amp) && !std::isnan(frec.f_t2p) && !std::isnan(frec.f_fwhm) && !std::isnan(frec.f_m);
         BolusVisualizer::save_svg_plot(frec.roi_id, m_tiff_path, c.t_raw, c.y_raw, c.y_denoised, c.t_us, c.y_us, frec, fit_success, c.drift_slope);
     }
+
+void BolusApp::update_mip_texture() {
+    if (m_mip_texture_id != 0) {
+        glDeleteTextures(1, &m_mip_texture_id);
+        m_mip_texture_id = 0;
+    }
+    
+    if (m_selected_roi_idx < 0 || m_selected_roi_idx >= static_cast<int>(m_rois.size()) || m_tiff.mip.empty()) {
+        return;
+    }
+    
+    const auto& roi = m_rois[m_selected_roi_idx];
+    if (roi.poly.empty()) return;
+    
+    double min_x = std::numeric_limits<double>::max();
+    double max_x = -std::numeric_limits<double>::max();
+    double min_y = std::numeric_limits<double>::max();
+    double max_y = -std::numeric_limits<double>::max();
+    
+    for (const auto& pt : roi.poly) {
+        if (pt.first < min_x) min_x = pt.first;
+        if (pt.first > max_x) max_x = pt.first;
+        if (pt.second < min_y) min_y = pt.second;
+        if (pt.second > max_y) max_y = pt.second;
+    }
+    
+    int pad_min_x = static_cast<int>(std::floor(min_x - 15.0));
+    int pad_max_x = static_cast<int>(std::ceil(max_x + 15.0));
+    int pad_min_y = static_cast<int>(std::floor(min_y - 15.0));
+    int pad_max_y = static_cast<int>(std::ceil(max_y + 15.0));
+    
+    pad_min_x = std::max(0, std::min(pad_min_x, static_cast<int>(m_tiff.width) - 1));
+    pad_max_x = std::max(0, std::min(pad_max_x, static_cast<int>(m_tiff.width) - 1));
+    pad_min_y = std::max(0, std::min(pad_min_y, static_cast<int>(m_tiff.height) - 1));
+    pad_max_y = std::max(0, std::min(pad_max_y, static_cast<int>(m_tiff.height) - 1));
+    
+    int crop_w = pad_max_x - pad_min_x + 1;
+    int crop_h = pad_max_y - pad_min_y + 1;
+    
+    if (crop_w <= 0 || crop_h <= 0) return;
+    
+    m_mip_tex_width = crop_w;
+    m_mip_tex_height = crop_h;
+    
+    float crop_min_val = std::numeric_limits<float>::max();
+    float crop_max_val = -std::numeric_limits<float>::max();
+    
+    for (int y = pad_min_y; y <= pad_max_y; ++y) {
+        for (int x = pad_min_x; x <= pad_max_x; ++x) {
+            float val = m_tiff.mip[y * m_tiff.width + x];
+            if (val < crop_min_val) crop_min_val = val;
+            if (val > crop_max_val) crop_max_val = val;
+        }
+    }
+    
+    std::vector<uint8_t> rgb_buf(crop_w * crop_h * 3);
+    for (int y = pad_min_y; y <= pad_max_y; ++y) {
+        for (int x = pad_min_x; x <= pad_max_x; ++x) {
+            float val = m_tiff.mip[y * m_tiff.width + x];
+            uint8_t norm_val = 0;
+            if (crop_max_val > crop_min_val) {
+                norm_val = static_cast<uint8_t>(std::clamp((val - crop_min_val) / (crop_max_val - crop_min_val) * 255.0f, 0.0f, 255.0f));
+            }
+            int dest_idx = ((y - pad_min_y) * crop_w + (x - pad_min_x)) * 3;
+            rgb_buf[dest_idx]     = norm_val;
+            rgb_buf[dest_idx + 1] = norm_val;
+            rgb_buf[dest_idx + 2] = norm_val;
+        }
+    }
+    
+    glGenTextures(1, &m_mip_texture_id);
+    glBindTexture(GL_TEXTURE_2D, m_mip_texture_id);
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, crop_w, crop_h, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb_buf.data());
+    
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void BolusApp::draw_mip_modal() {
+    if (!m_show_mip_modal) return;
+    
+    ImGui::OpenPopup(m_tr.title_roi_mip.c_str());
+    
+    ImGui::SetNextWindowSize(ImVec2(450.0f, 500.0f), ImGuiCond_FirstUseEver);
+    
+    if (ImGui::BeginPopupModal(m_tr.title_roi_mip.c_str(), &m_show_mip_modal, ImGuiWindowFlags_NoScrollbar)) {
+        if (m_mip_texture_id == 0) {
+            ImGui::Text("%s", m_tr.text_no_mip.c_str());
+            if (ImGui::Button(m_tr.btn_close_dialog.c_str())) {
+                m_show_mip_modal = false;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+            return;
+        }
+        
+        float aspect = static_cast<float>(m_mip_tex_width) / static_cast<float>(m_mip_tex_height);
+        float avail_w = ImGui::GetContentRegionAvail().x;
+        float avail_h = ImGui::GetContentRegionAvail().y - 40.0f;
+        
+        float display_w = avail_w;
+        float display_h = avail_w / aspect;
+        if (display_h > avail_h) {
+            display_h = avail_h;
+            display_w = avail_h * aspect;
+        }
+        
+        float start_x = ImGui::GetCursorScreenPos().x + (avail_w - display_w) * 0.5f;
+        float start_y = ImGui::GetCursorScreenPos().y + (avail_h - display_h) * 0.5f;
+        
+        ImGui::SetCursorScreenPos(ImVec2(start_x, start_y));
+        
+        ImGui::Image((void*)(intptr_t)m_mip_texture_id, ImVec2(display_w, display_h));
+        
+        if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_rois.size())) {
+            const auto& roi = m_rois[m_selected_roi_idx];
+            if (!roi.poly.empty()) {
+                double min_x = std::numeric_limits<double>::max();
+                double max_x = -std::numeric_limits<double>::max();
+                double min_y = std::numeric_limits<double>::max();
+                double max_y = -std::numeric_limits<double>::max();
+                
+                for (const auto& pt : roi.poly) {
+                    if (pt.first < min_x) min_x = pt.first;
+                    if (pt.first > max_x) max_x = pt.first;
+                    if (pt.second < min_y) min_y = pt.second;
+                    if (pt.second > max_y) max_y = pt.second;
+                }
+                
+                int pad_min_x = static_cast<int>(std::floor(min_x - 15.0));
+                int pad_min_y = static_cast<int>(std::floor(min_y - 15.0));
+                
+                pad_min_x = std::max(0, std::min(pad_min_x, static_cast<int>(m_tiff.width) - 1));
+                pad_min_y = std::max(0, std::min(pad_min_y, static_cast<int>(m_tiff.height) - 1));
+                
+                float rel_min_x = static_cast<float>(min_x - pad_min_x);
+                float rel_max_x = static_cast<float>(max_x - pad_min_x);
+                float rel_min_y = static_cast<float>(min_y - pad_min_y);
+                float rel_max_y = static_cast<float>(max_y - pad_min_y);
+                
+                float scale_x = display_w / static_cast<float>(m_mip_tex_width);
+                float scale_y = display_h / static_cast<float>(m_mip_tex_height);
+                
+                float draw_min_x = start_x + rel_min_x * scale_x;
+                float draw_max_x = start_x + rel_max_x * scale_x;
+                float draw_min_y = start_y + rel_min_y * scale_y;
+                float draw_max_y = start_y + rel_max_y * scale_y;
+                
+                ImDrawList* draw_list = ImGui::GetWindowDrawList();
+                draw_list->AddRect(ImVec2(draw_min_x, draw_min_y), ImVec2(draw_max_x, draw_max_y), ImColor(255, 0, 0, 255), 0.0f, 0, 2.0f);
+            }
+        }
+        
+        ImGui::SetCursorScreenPos(ImVec2(ImGui::GetWindowPos().x + 20.0f, ImGui::GetWindowPos().y + ImGui::GetWindowSize().y - 35.0f));
+        if (ImGui::Button(m_tr.btn_close_dialog.c_str(), ImVec2(avail_w, 25.0f))) {
+            m_show_mip_modal = false;
+            ImGui::CloseCurrentPopup();
+        }
+        
+        ImGui::EndPopup();
+    }
+}
 
 void BolusApp::draw_intro_screen(float width, float height) {
     ImGui::SetNextWindowPos(ImVec2(0, 0));
@@ -2431,6 +2877,15 @@ void BolusApp::draw_gui() {
         
         // Draw file browser modal
         m_browser.draw("Open Folder or File");
+        draw_mip_modal();
+        
+        static bool last_item_active = false;
+        bool any_item_active = ImGui::IsAnyItemActive();
+        if (any_item_active && !last_item_active) {
+            trigger_minion_squeak();
+        }
+        last_item_active = any_item_active;
+        
         ImGui::PopFont();
     }
 
@@ -2457,29 +2912,47 @@ void BolusApp::draw_top_bar() {
     };
     
     std::vector<LangOption> options = {
+        { LANG_AF, "AF (Suid-Afrika)", false },
+        { LANG_BN, "বাংলা (Bengali)", false },
+        { LANG_BG, "BG (България)", false },
+        { LANG_CA, "CA (Catalunya)", false },
+        { LANG_ZH_CN, "简体中文", false },
         { LANG_DA, "DA (Danmark)", false },
-        { LANG_DE_CH, "DE (Schweiz)", false },
+        { LANG_NL, "NL (Nederland)", false },
         { LANG_EN, "EN (Canada)", false },
-        { LANG_ES, "ES (España)", false },
+        { LANG_FI, "FI (Suomi)", false },
         { LANG_FR, "FR (Québec)", false },
-        { LANG_GA, "Gaeilge", false },
-        { LANG_IT, "IT (Italia)", false },
+        { LANG_DE_CH, "DE (Schweiz)", false },
+        { LANG_EL, "EL (Ελλάδα)", false },
         { LANG_GL, "Kalaallisut", false },
         { LANG_HT, "Kreyòl (Ayiti)", false },
-        { LANG_LA, "LA (Latina)", false },
-        { LANG_NL, "NL (Nederland)", false },
+        { LANG_HI, "हिन्दी (Hindi)", false },
+        { LANG_ID, "ID (Indonesia)", false },
+        { LANG_IU, "IU (ᐃᓄᒃᑎᑐᑦ)", false },
+        { LANG_GA, "Gaeilge", false },
+        { LANG_IT, "IT (Italia)", false },
+        { LANG_JA, "日本語", false },
+        { LANG_KO, "한국어", false },
+        { LANG_LA, "LA (Vatican City)", false },
         { LANG_NO, "NO (Norge)", false },
         { LANG_RU, "RU (Россия)", false },
         { LANG_SCOTS, "Scots", false },
+        { LANG_SR, "SR (Србија)", false },
+        { LANG_ES, "ES (España)", false },
         { LANG_SV, "SV (Sverige)", false },
+        { LANG_TL, "TL (Pilipinas)", false },
+        { LANG_TA, "தமிழ் (Tamil)", false },
+        { LANG_TH, "ไทย (Thai)", false },
+        { LANG_TR, "TR (Türkiye)", false },
         { LANG_UK, "UK (Україна)", false },
-        { LANG_KO, "한국어", false },
-        { LANG_JA, "日本語", false },
-        { LANG_ZH_CN, "简体中文", false },
+        { LANG_VI, "VI (Việt Nam)", false },
         
         { LANG_EN, "", true }, // Separator
         
+        { LANG_EGY, "𓏞𓏝𓆎𓅓𓏏𓊖", false },
+        { LANG_GRC, "Ancient Greek", false },
         { LANG_EO, "Esperanto", false },
+        { LANG_GENALPHA, "Gen Alpha English", false },
         { LANG_GENZ, "Gen Z English", false },
         { LANG_KL, kl_label, false },
         { LANG_LEET, "Leet Speak", false },
@@ -2507,6 +2980,7 @@ void BolusApp::draw_top_bar() {
                 if (ImGui::Selectable(opt.name.c_str(), is_selected)) {
                     m_lang = opt.lang;
                     update_locale();
+                    trigger_minion_squeak();
                 }
                 if (is_selected) {
                     ImGui::SetItemDefaultFocus();
@@ -3038,15 +3512,28 @@ void BolusApp::draw_main_area() {
             ImGui::SetTooltip("%s", m_tr.text_slider_desc.c_str());
         }
         ImGui::Dummy(ImVec2(0.0f, 2.0f));
-        if (ImGui::Button(m_tr.btn_reset_crop.c_str(), ImVec2(150, 26))) {
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 10.0f);
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.38f, 0.42f, 0.35f, 1.00f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.46f, 0.52f, 0.42f, 1.00f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.88f, 0.55f, 0.25f, 1.00f));
+
+        if (ImGui::Button(m_tr.btn_reset_crop.c_str(), ImVec2(180, 26))) {
             m_crop_min = 0.0;
             m_crop_max = c.t_raw.back();
         }
-        ImGui::SameLine();
-        if (ImGui::Button(m_tr.btn_crop_bounds.c_str(), ImVec2(150, 26))) {
+        ImGui::Dummy(ImVec2(0.0f, 4.0f));
+        if (ImGui::Button(m_tr.btn_crop_bounds.c_str(), ImVec2(180, 26))) {
             m_crop_min = std::max(0.0, m_onset_marker - 5.0);
             m_crop_max = std::min(c.t_raw.back(), m_end_marker + 10.0);
         }
+        ImGui::Dummy(ImVec2(0.0f, 4.0f));
+        if (ImGui::Button(m_tr.btn_view_roi_mip.c_str(), ImVec2(180, 26))) {
+            update_mip_texture();
+            m_show_mip_modal = true;
+        }
+
+        ImGui::PopStyleColor(3);
+        ImGui::PopStyleVar();
         
         ImGui::Dummy(ImVec2(0.0f, 4.0f));
         ImGui::PushFont(m_font_bold);
@@ -3118,8 +3605,8 @@ void BolusApp::draw_main_area() {
             ImGui::TableSetupColumn(m_tr.col_onset.c_str());
             ImGui::TableHeadersRow();
             
-            auto display_val = [](double val) {
-                if (std::isnan(val)) ImGui::Text("N/A");
+            auto display_val = [this](double val) {
+                if (std::isnan(val)) ImGui::Text("%s", m_tr.text_na.c_str());
                 else ImGui::Text("%.4f", val);
             };
             
@@ -3153,8 +3640,8 @@ void BolusApp::draw_main_area() {
         ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", m_tr.text_kinetics_title.c_str());
         ImGui::PopFont();
         if (ImGui::BeginTable("KineticsTable", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-            ImGui::TableSetupColumn("AUC");
-            ImGui::TableSetupColumn("AUCn");
+            ImGui::TableSetupColumn(m_tr.col_auc.c_str());
+            ImGui::TableSetupColumn(m_tr.col_aucn.c_str());
             ImGui::TableSetupColumn(m_tr.col_onset_scan.c_str());
             ImGui::TableSetupColumn(m_tr.col_tt_lower.c_str());
             ImGui::TableSetupColumn(m_tr.col_tt_peak.c_str());
@@ -3162,8 +3649,8 @@ void BolusApp::draw_main_area() {
             ImGui::TableSetupColumn(m_tr.col_vessel_type.c_str());
             ImGui::TableHeadersRow();
             
-            auto display_val = [](double val) {
-                if (std::isnan(val)) ImGui::Text("N/A");
+            auto display_val = [this](double val) {
+                if (std::isnan(val)) ImGui::Text("%s", m_tr.text_na.c_str());
                 else ImGui::Text("%.4f", val);
             };
             
@@ -3176,7 +3663,12 @@ void BolusApp::draw_main_area() {
             ImGui::TableNextColumn(); display_val(rec.tthb);
             
             ImGui::TableNextColumn();
-            ImGui::Text("%s", rec.ves_type.c_str());
+            std::string ves_label;
+            if (rec.ves_type == "A") ves_label = m_tr.ves_artery;
+            else if (rec.ves_type == "V") ves_label = m_tr.ves_vein;
+            else if (rec.ves_type == "C") ves_label = m_tr.ves_capillary;
+            else ves_label = m_tr.ves_unknown;
+            ImGui::Text("%s", ves_label.c_str());
             
             ImGui::EndTable();
         }
@@ -3202,6 +3694,190 @@ void BolusApp::clear_subject_data() {
     m_rois.clear();
     m_tiff = TiffData();
     m_denoise_strength_factor = 1.0f;
+}
+
+void BolusApp::apply_theme_colors() {
+    ImGuiStyle& style = ImGui::GetStyle();
+    ImVec4* colors = style.Colors;
+    
+    if (m_lang == LANG_MINION) {
+        // Minion Theme: Denim Blue and Minion Yellow
+        colors[ImGuiCol_Text]                   = ImVec4(0.95f, 0.95f, 0.90f, 1.00f);
+        colors[ImGuiCol_TextDisabled]           = ImVec4(0.50f, 0.55f, 0.65f, 1.00f);
+        colors[ImGuiCol_WindowBg]               = ImVec4(0.9843f, 0.8510f, 0.1098f, 1.00f); // Minion Yellow far background
+        colors[ImGuiCol_ChildBg]                = ImVec4(0.08f, 0.17f, 0.38f, 0.95f);       // Denim Blue child panels
+        colors[ImGuiCol_PopupBg]                = ImVec4(0.08f, 0.17f, 0.38f, 0.98f);
+        colors[ImGuiCol_Border]                 = ImVec4(0.9843f, 0.8510f, 0.1098f, 0.80f); // Vibrant Yellow border
+        colors[ImGuiCol_BorderShadow]           = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        colors[ImGuiCol_FrameBg]                = ImVec4(0.05f, 0.10f, 0.22f, 1.00f);
+        colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.08f, 0.16f, 0.34f, 1.00f);
+        colors[ImGuiCol_FrameBgActive]          = ImVec4(0.12f, 0.22f, 0.44f, 1.00f);
+        colors[ImGuiCol_TitleBg]                = ImVec4(0.08f, 0.17f, 0.38f, 1.00f);
+        colors[ImGuiCol_TitleBgActive]          = ImVec4(0.08f, 0.17f, 0.38f, 1.00f);
+        colors[ImGuiCol_TitleBgCollapsed]       = ImVec4(0.05f, 0.10f, 0.22f, 1.00f);
+        colors[ImGuiCol_MenuBarBg]              = ImVec4(0.08f, 0.17f, 0.38f, 1.00f);
+        colors[ImGuiCol_ScrollbarBg]            = ImVec4(0.05f, 0.10f, 0.22f, 1.00f);
+        colors[ImGuiCol_ScrollbarGrab]          = ImVec4(0.80f, 0.60f, 0.00f, 1.00f);       // Gold scrollbar
+        colors[ImGuiCol_ScrollbarGrabHovered]   = ImVec4(0.90f, 0.70f, 0.10f, 1.00f);
+        colors[ImGuiCol_ScrollbarGrabActive]    = ImVec4(0.9843f, 0.8510f, 0.1098f, 1.00f);
+        colors[ImGuiCol_CheckMark]              = ImVec4(0.9843f, 0.8510f, 0.1098f, 1.00f);
+        colors[ImGuiCol_SliderGrab]             = ImVec4(0.9843f, 0.8510f, 0.1098f, 1.00f);
+        colors[ImGuiCol_SliderGrabActive]      = ImVec4(1.00f, 0.90f, 0.25f, 1.00f);
+        colors[ImGuiCol_Button]                 = ImVec4(0.80f, 0.60f, 0.00f, 1.00f);       // Rich Gold buttons
+        colors[ImGuiCol_ButtonHovered]          = ImVec4(0.90f, 0.70f, 0.10f, 1.00f);
+        colors[ImGuiCol_ButtonActive]           = ImVec4(1.00f, 0.85f, 0.20f, 1.00f);
+        colors[ImGuiCol_Header]                 = ImVec4(0.08f, 0.17f, 0.38f, 1.00f);
+        colors[ImGuiCol_HeaderHovered]          = ImVec4(0.80f, 0.60f, 0.00f, 0.80f);
+        colors[ImGuiCol_HeaderActive]           = ImVec4(0.80f, 0.60f, 0.00f, 1.00f);
+        colors[ImGuiCol_Separator]              = ImVec4(0.9843f, 0.8510f, 0.1098f, 0.50f);
+        colors[ImGuiCol_SeparatorHovered]       = ImVec4(0.9843f, 0.8510f, 0.1098f, 0.80f);
+        colors[ImGuiCol_SeparatorActive]        = ImVec4(0.9843f, 0.8510f, 0.1098f, 1.00f);
+        colors[ImGuiCol_ResizeGrip]             = ImVec4(0.80f, 0.60f, 0.00f, 0.20f);
+        colors[ImGuiCol_ResizeGripHovered]      = ImVec4(0.80f, 0.60f, 0.00f, 0.67f);
+        colors[ImGuiCol_ResizeGripActive]       = ImVec4(0.9843f, 0.8510f, 0.1098f, 0.95f);
+        colors[ImGuiCol_Tab]                    = ImVec4(0.08f, 0.17f, 0.38f, 0.86f);
+        colors[ImGuiCol_TabHovered]             = ImVec4(0.80f, 0.60f, 0.00f, 0.80f);
+        colors[ImGuiCol_TabActive]              = ImVec4(0.80f, 0.60f, 0.00f, 1.00f);
+        colors[ImGuiCol_TabUnfocused]           = ImVec4(0.05f, 0.10f, 0.22f, 0.97f);
+        colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(0.08f, 0.17f, 0.38f, 1.00f);
+        colors[ImGuiCol_PlotLines]              = ImVec4(0.95f, 0.95f, 0.90f, 1.00f);
+        colors[ImGuiCol_PlotLinesHovered]       = ImVec4(0.9843f, 0.8510f, 0.1098f, 1.00f);
+        colors[ImGuiCol_PlotHistogram]          = ImVec4(0.9843f, 0.8510f, 0.1098f, 1.00f);
+        colors[ImGuiCol_PlotHistogramHovered]   = ImVec4(1.00f, 0.90f, 0.25f, 1.00f);
+        colors[ImGuiCol_TableHeaderBg]          = ImVec4(0.08f, 0.17f, 0.38f, 1.00f);
+        colors[ImGuiCol_TableBorderStrong]      = ImVec4(0.9843f, 0.8510f, 0.1098f, 0.35f);
+        colors[ImGuiCol_TableBorderLight]       = ImVec4(0.08f, 0.17f, 0.38f, 0.35f);
+        colors[ImGuiCol_TableRowBg]             = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        colors[ImGuiCol_TableRowBgAlt]          = ImVec4(1.00f, 1.00f, 1.00f, 0.03f);
+        colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.9843f, 0.8510f, 0.1098f, 0.35f);
+        colors[ImGuiCol_DragDropTarget]         = ImVec4(0.9843f, 0.8510f, 0.1098f, 0.90f);
+        colors[ImGuiCol_NavHighlight]           = ImVec4(0.9843f, 0.8510f, 0.1098f, 1.00f);
+        colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
+        colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
+        colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.05f, 0.10f, 0.22f, 0.60f);
+    } else {
+        // Restore Premium Mid-Century Modern Theme
+        colors[ImGuiCol_Text]                   = ImVec4(0.95f, 0.94f, 0.90f, 1.00f);
+        colors[ImGuiCol_TextDisabled]           = ImVec4(0.60f, 0.58f, 0.55f, 1.00f);
+        colors[ImGuiCol_WindowBg]               = ImVec4(0.18f, 0.18f, 0.17f, 1.00f);
+        colors[ImGuiCol_ChildBg]                = ImVec4(0.22f, 0.22f, 0.20f, 0.95f);
+        colors[ImGuiCol_PopupBg]                = ImVec4(0.20f, 0.20f, 0.19f, 0.98f);
+        colors[ImGuiCol_Border]                 = ImVec4(0.35f, 0.32f, 0.28f, 0.50f);
+        colors[ImGuiCol_BorderShadow]           = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        colors[ImGuiCol_FrameBg]                = ImVec4(0.26f, 0.25f, 0.23f, 1.00f);
+        colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.32f, 0.30f, 0.28f, 1.00f);
+        colors[ImGuiCol_FrameBgActive]          = ImVec4(0.38f, 0.35f, 0.32f, 1.00f);
+        colors[ImGuiCol_TitleBg]                = ImVec4(0.28f, 0.25f, 0.22f, 1.00f);
+        colors[ImGuiCol_TitleBgActive]          = ImVec4(0.32f, 0.28f, 0.24f, 1.00f);
+        colors[ImGuiCol_TitleBgCollapsed]       = ImVec4(0.20f, 0.18f, 0.16f, 1.00f);
+        colors[ImGuiCol_MenuBarBg]              = ImVec4(0.22f, 0.22f, 0.20f, 1.00f);
+        colors[ImGuiCol_ScrollbarBg]            = ImVec4(0.18f, 0.18f, 0.17f, 1.00f);
+        colors[ImGuiCol_ScrollbarGrab]          = ImVec4(0.40f, 0.38f, 0.34f, 1.00f);
+        colors[ImGuiCol_ScrollbarGrabHovered]   = ImVec4(0.50f, 0.46f, 0.42f, 1.00f);
+        colors[ImGuiCol_ScrollbarGrabActive]    = ImVec4(0.60f, 0.55f, 0.50f, 1.00f);
+        colors[ImGuiCol_CheckMark]              = ImVec4(0.88f, 0.55f, 0.25f, 1.00f);
+        colors[ImGuiCol_SliderGrab]             = ImVec4(0.50f, 0.58f, 0.45f, 1.00f);
+        colors[ImGuiCol_SliderGrabActive]      = ImVec4(0.88f, 0.55f, 0.25f, 1.00f);
+        colors[ImGuiCol_Button]                 = ImVec4(0.38f, 0.42f, 0.35f, 1.00f);
+        colors[ImGuiCol_ButtonHovered]          = ImVec4(0.46f, 0.52f, 0.42f, 1.00f);
+        colors[ImGuiCol_ButtonActive]           = ImVec4(0.88f, 0.55f, 0.25f, 1.00f);
+        colors[ImGuiCol_Header]                 = ImVec4(0.35f, 0.38f, 0.32f, 1.00f);
+        colors[ImGuiCol_HeaderHovered]          = ImVec4(0.42f, 0.46f, 0.38f, 1.00f);
+        colors[ImGuiCol_HeaderActive]           = ImVec4(0.50f, 0.55f, 0.45f, 1.00f);
+        colors[ImGuiCol_Separator]              = ImVec4(0.35f, 0.32f, 0.28f, 0.50f);
+        colors[ImGuiCol_SeparatorHovered]       = ImVec4(0.88f, 0.55f, 0.25f, 0.78f);
+        colors[ImGuiCol_SeparatorActive]        = ImVec4(0.88f, 0.55f, 0.25f, 1.00f);
+        colors[ImGuiCol_ResizeGrip]             = ImVec4(0.38f, 0.42f, 0.35f, 0.20f);
+        colors[ImGuiCol_ResizeGripHovered]      = ImVec4(0.38f, 0.42f, 0.35f, 0.67f);
+        colors[ImGuiCol_ResizeGripActive]       = ImVec4(0.88f, 0.55f, 0.25f, 0.95f);
+        colors[ImGuiCol_Tab]                    = ImVec4(0.28f, 0.30f, 0.26f, 0.86f);
+        colors[ImGuiCol_TabHovered]             = ImVec4(0.38f, 0.42f, 0.35f, 0.80f);
+        colors[ImGuiCol_TabActive]              = ImVec4(0.38f, 0.42f, 0.35f, 1.00f);
+        colors[ImGuiCol_TabUnfocused]           = ImVec4(0.20f, 0.22f, 0.18f, 0.97f);
+        colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(0.28f, 0.30f, 0.26f, 1.00f);
+        colors[ImGuiCol_PlotLines]              = ImVec4(0.85f, 0.80f, 0.70f, 1.00f);
+        colors[ImGuiCol_PlotLinesHovered]       = ImVec4(0.88f, 0.55f, 0.25f, 1.00f);
+        colors[ImGuiCol_PlotHistogram]          = ImVec4(0.88f, 0.55f, 0.25f, 1.00f);
+        colors[ImGuiCol_PlotHistogramHovered]   = ImVec4(0.95f, 0.65f, 0.35f, 1.00f);
+        colors[ImGuiCol_TableHeaderBg]          = ImVec4(0.26f, 0.26f, 0.24f, 1.00f);
+        colors[ImGuiCol_TableBorderStrong]      = ImVec4(0.35f, 0.35f, 0.32f, 1.00f);
+        colors[ImGuiCol_TableBorderLight]       = ImVec4(0.28f, 0.28f, 0.26f, 1.00f);
+        colors[ImGuiCol_TableRowBg]             = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        colors[ImGuiCol_TableRowBgAlt]          = ImVec4(1.00f, 1.00f, 1.00f, 0.03f);
+        colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.88f, 0.55f, 0.25f, 0.35f);
+        colors[ImGuiCol_DragDropTarget]         = ImVec4(0.88f, 0.55f, 0.25f, 0.90f);
+        colors[ImGuiCol_NavHighlight]           = ImVec4(0.88f, 0.55f, 0.25f, 1.00f);
+        colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
+        colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
+        colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.12f, 0.12f, 0.11f, 0.60f);
+    }
+}
+
+void BolusApp::ensure_minion_squeak_exists() {
+    std::string path = get_resource_path("resources/minion_squeak.wav");
+    std::filesystem::path p(path);
+    if (std::filesystem::exists(p)) {
+        return;
+    }
+    if (!p.parent_path().empty()) {
+        std::filesystem::create_directories(p.parent_path());
+    }
+    
+    std::ofstream out(p, std::ios::binary);
+    if (!out) return;
+    
+    struct WavHeader {
+        char riff_header[4] = {'R', 'I', 'F', 'F'};
+        int32_t wav_size;
+        char wave_header[4] = {'W', 'A', 'V', 'E'};
+        char fmt_header[4] = {'f', 'm', 't', ' '};
+        int32_t fmt_chunk_size = 16;
+        int16_t audio_format = 1;
+        int16_t num_channels = 1;
+        int32_t sample_rate = 44100;
+        int32_t byte_rate = 44100 * 2;
+        int16_t sample_alignment = 2;
+        int16_t bit_depth = 16;
+        char data_header[4] = {'d', 'a', 't', 'a'};
+        int32_t data_size;
+    } header;
+    
+    double duration = 0.18;
+    int sample_rate = 44100;
+    int total_samples = static_cast<int>(duration * sample_rate);
+    int data_size = total_samples * 2;
+    
+    header.data_size = data_size;
+    header.wav_size = 36 + data_size;
+    
+    out.write(reinterpret_cast<const char*>(&header), sizeof(header));
+    
+    double phase = 0.0;
+    const double pi_val = 3.14159265358979323846;
+    for (int i = 0; i < total_samples; ++i) {
+        double t = static_cast<double>(i) / sample_rate;
+        double f = 750.0 + 650.0 * (t / 0.18) + 80.0 * std::sin(2.0 * pi_val * 25.0 * t);
+        phase += 2.0 * pi_val * f / sample_rate;
+        double val = std::sin(phase);
+        
+        double env = 1.0;
+        if (t < 0.02) {
+            env = t / 0.02;
+        } else if (t > 0.14) {
+            env = (0.18 - t) / 0.04;
+            if (env < 0.0) env = 0.0;
+        }
+        
+        double amp = 0.5 * env;
+        int16_t sample = static_cast<int16_t>(val * amp * 32767.0);
+        out.write(reinterpret_cast<const char*>(&sample), sizeof(sample));
+    }
+}
+
+void BolusApp::trigger_minion_squeak() {
+    if (m_lang == LANG_MINION) {
+        play_sound_cross_platform(get_resource_path("resources/minion_squeak.wav"));
+    }
 }
 
 // ============================================================================

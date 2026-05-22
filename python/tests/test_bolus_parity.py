@@ -51,9 +51,13 @@ def test_matlab_parity():
         y_us = spline_interp(tl_us)
         
         # Test 1: Auto Estimation Parity
+        start_idx = 0
+        end_idx = len(y_us)
+        matlab_init = [0.0, 0.0, 0.0, 0.0]
+
         if "InitAmp" in roi_data:
             matlab_init = [roi_data["InitAmp"], roi_data["InitT2p"], roi_data["InitFWHM"], roi_data["InitM"]]
-            py_init, start_idx, end_idx = auto_estimate_params(y_us, tl_us, fr, up_f)
+            py_init, start_idx, end_idx, _, _ = auto_estimate_params(y_us, tl_us, fr, up_f)
             
             # Assert initial parameters match
             np.testing.assert_allclose(py_init, matlab_init, rtol=1e-2, err_msg=f"Auto-estimation failed parity for {roi_key}")
@@ -187,8 +191,8 @@ def test_cpp_vs_python_parity():
             ("Click4_End_T", "Click4_End_T", 2e-1),
         ]
         for py_col, cpp_col, tol in init_cols:
-            val_py = df_py.loc[idx, py_col]
-            val_cpp = df_cpp.loc[idx, cpp_col]
+            val_py = float(df_py.loc[idx, py_col])
+            val_cpp = float(df_cpp.loc[idx, cpp_col])
             if np.isnan(val_py) and np.isnan(val_cpp):
                 continue
             assert not np.isnan(val_py), f"Python has NaN but C++ has {val_cpp} for {py_col} at ROI {idx+1}"
@@ -212,8 +216,8 @@ def test_cpp_vs_python_parity():
                 ("F_M", "F_M", 3.5e-1),
             ]
             for py_col, cpp_col, tol in fit_cols:
-                val_py = df_py.loc[idx, py_col]
-                val_cpp = df_cpp.loc[idx, cpp_col]
+                val_py = float(df_py.loc[idx, py_col])
+                val_cpp = float(df_cpp.loc[idx, cpp_col])
                 if np.isnan(val_py) and np.isnan(val_cpp):
                     continue
                 assert not np.isnan(val_py), f"Python has NaN but C++ has {val_cpp} for {py_col} at ROI {idx+1}"
