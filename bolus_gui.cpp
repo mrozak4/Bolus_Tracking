@@ -895,6 +895,7 @@ void BolusApp::update_locale() {
         m_tr.filter_review = "REVIEW Only";
         m_tr.label_auto_fit = "Original Auto Fit";
         m_tr.section_denoise = "DENOISING OPTIONS";
+        m_tr.label_denoise_strength = "Denoise Strength";
         m_tr.section_actions = "FITTING ACTIONS";
         m_tr.text_sidebar_counts = "ROIs: %d  |  Active: %d  |  Manual: %d";
         m_tr.text_kinetics_title = "BOLUS KINETICS & CLASSIFICATION";
@@ -999,6 +1000,7 @@ void BolusApp::update_locale() {
         m_tr.filter_review = "À RÉVISER uniquement";
         m_tr.label_auto_fit = "Ajustement auto initial";
         m_tr.section_denoise = "OPTIONS DE DÉBRUITAGE";
+        m_tr.label_denoise_strength = "Force du débruitage";
         m_tr.section_actions = "ACTIONS D'AJUSTEMENT";
         m_tr.text_sidebar_counts = "ROI : %d  |  Actives : %d  |  Manuelles : %d";
         m_tr.text_kinetics_title = "CINÉTIQUE DU BOLUS ET CLASSIFICATION";
@@ -1103,6 +1105,7 @@ void BolusApp::update_locale() {
         m_tr.filter_review = "Nur PRÜFEN";
         m_tr.label_auto_fit = "Originale Auto-Anpassung";
         m_tr.section_denoise = "ENTRAUSCHUNGS-OPTIONEN";
+        m_tr.label_denoise_strength = "Rauschminderungsstärke";
         m_tr.section_actions = "AKTIONEN";
         m_tr.text_sidebar_counts = "ROIs: %d  |  Aktiv: %d  |  Manuell: %d";
         m_tr.text_kinetics_title = "BOLUSKINETIK & KLASSIFIZIERUNG";
@@ -1207,6 +1210,7 @@ void BolusApp::update_locale() {
         m_tr.filter_review = "REVIEW のみ";
         m_tr.label_auto_fit = "初期自動フィット";
         m_tr.section_denoise = "ノイズ除去オプション";
+        m_tr.label_denoise_strength = "ノイズ除去強度";
         m_tr.section_actions = "フィッティング操作";
         m_tr.text_sidebar_counts = "ROI総数: %d  |  アクティブ: %d  |  手動: %d";
         m_tr.text_kinetics_title = "ボラス速度論と分類";
@@ -1416,6 +1420,7 @@ void BolusApp::update_locale() {
         m_tr.filter_review = to_klingon_piqad("tob neH");
         m_tr.label_auto_fit = to_klingon_piqad("auto fit");
         m_tr.section_denoise = to_klingon_piqad("denoising");
+        m_tr.label_denoise_strength = to_klingon_piqad("Denoise Strength");
         m_tr.section_actions = to_klingon_piqad("fit actions");
         m_tr.text_sidebar_counts = to_klingon_piqad("ROIs: %d | taH: %d | ghob: %d");
         m_tr.text_kinetics_title = to_klingon_piqad("bolus kinetics & classification");
