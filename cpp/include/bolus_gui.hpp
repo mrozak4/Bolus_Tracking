@@ -1,18 +1,13 @@
 #ifndef BOLUS_GUI_HPP
 #define BOLUS_GUI_HPP
 
-#include <iostream>
 #include <vector>
 #include <string>
 #include <filesystem>
-#include <cmath>
 #include <limits>
-#include <chrono>
-#include <thread>
 #include <GLFW/glfw3.h>
 
 #include "imgui.h"
-#include "implot.h"
 #include "bolus_tracking_cpp.hpp"
 
 // ============================================================================
