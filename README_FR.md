@@ -28,12 +28,12 @@ Ce dépôt fournit des outils pour :
 
 Nous fournissons une documentation détaillée pour chaque partie du code. Veuillez vous référer aux fichiers ci-dessous selon votre flux de travail :
 
-* **[RUNNING_GUIDE.md](RUNNING_GUIDE_FR.md)** : **Commencez ici.** Un guide complet et accessible pour configurer et exécuter la chaîne de traitement C++ et lancer l'interface graphique interactive. Couvre macOS, Linux, Windows et Docker.
-* **[INSTALL.md](INSTALL_FR.md)** : **Instructions d'installation.** Configuration, compilation, empaquetage et installation de l'application graphique (incluant les paquets d'application macOS `.app` et les icônes personnalisées).
-* **[PARITY_REPORT.md](PARITY_REPORT_FR.md)** : **Rapport de performance et de parité.** Compare les vitesses d'exécution et les résultats numériques des implémentations Python et C++, et fournit des recommandations.
-* **[README_Python_Pipeline.md](README_Python_Pipeline_FR.md)** : **Guide de référence Python.** Détaille l'implémentation Python, les fonctions de perte personnalisées (pondérations de Cauchy), l'interface graphique Python et les paramètres d'optimisation numérique.
-* **[README_BolusAnalysis.md](README_BolusAnalysis_FR.md)** : Aperçu général de la cinétique des bolus et des modèles mathématiques associés.
-* **[README_ApplyRegistrationToMask.md](README_ApplyRegistrationToMask_FR.md)** : Décrit le script MATLAB d'alignement d'images (`ApplyRegistrationToMask.m`) utilisé pour déformer les masques de ROI afin de suivre les mouvements spatiaux au fil du temps.
+* **[RUNNING_GUIDE.md](docs/RUNNING_GUIDE_FR.md)** : **Commencez ici.** Un guide complet et accessible pour configurer et exécuter la chaîne de traitement C++ et lancer l'interface graphique interactive. Couvre macOS, Linux, Windows et Docker.
+* **[INSTALL.md](docs/INSTALL_FR.md)** : **Instructions d'installation.** Configuration, compilation, empaquetage et installation de l'application graphique (incluant les paquets d'application macOS `.app` et les icônes personnalisées).
+* **[PARITY_REPORT.md](docs/PARITY_REPORT_FR.md)** : **Rapport de performance et de parité.** Compare les vitesses d'exécution et les résultats numériques des implémentations Python et C++, et fournit des recommandations.
+* **[README_Python_Pipeline.md](docs/README_Python_Pipeline_FR.md)** : **Guide de référence Python.** Détaille l'implémentation Python, les fonctions de perte personnalisées (pondérations de Cauchy), l'interface graphique Python et les paramètres d'optimisation numérique.
+* **[README_BolusAnalysis.md](docs/README_BolusAnalysis_FR.md)** : Aperçu général de la cinétique des bolus et des modèles mathématiques associés.
+* **[README_ApplyRegistrationToMask.md](docs/README_ApplyRegistrationToMask_FR.md)** : Décrit le script MATLAB d'alignement d'images (`ApplyRegistrationToMask.m`) utilisé pour déformer les masques de ROI afin de suivre les mouvements spatiaux au fil du temps.
 
 ---
 
@@ -72,7 +72,7 @@ Nous fournissons une documentation détaillée pour chaque partie du code. Veuil
 
 ## 4. Résumé de démarrage rapide
 
-Pour des instructions détaillées, veuillez consulter le **[RUNNING_GUIDE.md](RUNNING_GUIDE_FR.md)**.
+Pour des instructions détaillées, veuillez consulter le **[RUNNING_GUIDE.md](docs/RUNNING_GUIDE_FR.md)**.
 
 ### Exécuter le traitement automatique par lots (C++ parallélisé recommandé)
 Pour compiler et exécuter le pipeline C++ haute performance via Docker :

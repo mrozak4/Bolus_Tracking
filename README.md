@@ -28,12 +28,12 @@ This repository provides tools to:
 
 We provide detailed documentation for each part of the codebase. Please refer to the files below depending on your workflow:
 
-* **[RUNNING_GUIDE.md](RUNNING_GUIDE.md)**: **Start Here.** A complete, beginner-friendly guide for setting up and running the parallel C++ batch pipeline and launching the interactive C++ GUI. Covers macOS, Linux, Windows, and Docker.
-* **[INSTALL.md](INSTALL.md)**: **Installation Instructions.** Setup, building, packaging, and installing the GUI application (including macOS app bundles and custom icons).
-* **[PARITY_REPORT.md](PARITY_REPORT.md)**: **Performance & Parity Report.** Compares Python vs. C++ implementation execution speeds, numerical outcomes, and provides recommendations.
-* **[README_Python_Pipeline.md](README_Python_Pipeline.md)**: **Python Reference Guide.** Details the Python implementation, custom loss functions (Cauchy robust weightings), Python GUI, local Python running instructions, and numerical optimization settings.
-* **[README_BolusAnalysis.md](README_BolusAnalysis.md)**: Standard overview of the bolus analysis workflow and math models.
-* **[README_ApplyRegistrationToMask.md](README_ApplyRegistrationToMask.md)**: Describes the MATLAB image registration script (`ApplyRegistrationToMask.m`) used to warp ROI masks to match moving spatial coords over time.
+* **[RUNNING_GUIDE.md](docs/RUNNING_GUIDE.md)**: **Start Here.** A complete, beginner-friendly guide for setting up and running the parallel C++ batch pipeline and launching the interactive C++ GUI. Covers macOS, Linux, Windows, and Docker.
+* **[INSTALL.md](docs/INSTALL.md)**: **Installation Instructions.** Setup, building, packaging, and installing the GUI application (including macOS app bundles and custom icons).
+* **[PARITY_REPORT.md](docs/PARITY_REPORT.md)**: **Performance & Parity Report.** Compares Python vs. C++ implementation execution speeds, numerical outcomes, and provides recommendations.
+* **[README_Python_Pipeline.md](docs/README_Python_Pipeline.md)**: **Python Reference Guide.** Details the Python implementation, custom loss functions (Cauchy robust weightings), Python GUI, local Python running instructions, and numerical optimization settings.
+* **[README_BolusAnalysis.md](docs/README_BolusAnalysis.md)**: Standard overview of the bolus analysis workflow and math models.
+* **[README_ApplyRegistrationToMask.md](docs/README_ApplyRegistrationToMask.md)**: Describes the MATLAB image registration script (`ApplyRegistrationToMask.m`) used to warp ROI masks to match moving spatial coords over time.
 
 ---
 
@@ -72,7 +72,7 @@ We provide detailed documentation for each part of the codebase. Please refer to
 
 ## 4. Quick Start Summary
 
-For detailed instructions, see the **[RUNNING_GUIDE.md](RUNNING_GUIDE.md)**.
+For detailed instructions, see the **[RUNNING_GUIDE.md](docs/RUNNING_GUIDE.md)**.
 
 ### Run Automated Batch Pipeline (Preferred: C++ Parallel Solver)
 To build and run the high-performance parallelized C++ pipeline via Docker:
