@@ -7,3 +7,5 @@ build/
 *.app/
 *.icns
 scratch/
+*.bak
+imgui.ini
