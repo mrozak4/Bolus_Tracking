@@ -2438,7 +2438,16 @@ void BolusApp::draw_top_bar() {
     ImGui::PushFont(m_font_bold);
     ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", m_tr.title_app.c_str());
     ImGui::PopFont();
-    ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 955.0f);
+    
+    // Align controls to the right dynamically on the same line as the title to eliminate vertical dead space
+    float title_w = ImGui::CalcTextSize(m_tr.title_app.c_str()).x;
+    float right_margin = 16.0f;
+    float buttons_width = 140.0f + 145.0f + 145.0f + 100.0f + 100.0f + 100.0f + 120.0f + ImGui::GetStyle().ItemSpacing.x * 7.0f;
+    float start_x = ImGui::GetWindowWidth() - buttons_width - right_margin;
+    if (start_x < title_w + 20.0f) {
+        start_x = title_w + 20.0f; // Prevent overlapping
+    }
+    ImGui::SameLine(start_x);
     
     std::string kl_label = to_klingon_piqad("tlhIngan Hol");
     struct LangOption {
@@ -2960,6 +2969,8 @@ void BolusApp::draw_main_area() {
         
         // Parameters & Controls Panel
         ImGui::BeginChild("ParamsPane", ImVec2(0, 0), true);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 4.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(4.0f, 2.0f));
         
         // Manual fitting and cropping
         ImGui::Columns(3, "ControlsGrid", false);
@@ -3155,6 +3166,7 @@ void BolusApp::draw_main_area() {
         }
         
         ImGui::Columns(1);
+        ImGui::PopStyleVar(2);
         ImGui::EndChild();
     }
 
