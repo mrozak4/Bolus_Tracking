@@ -77,6 +77,121 @@ bool is_valid_ttf(const std::string& path) {
     return is_ttf || is_otf || is_ttc;
 }
 
+struct WAVHeader {
+    char riff[4] = {'R', 'I', 'F', 'F'};
+    int32_t overall_size = 0;
+    char wave[4] = {'W', 'A', 'V', 'E'};
+    char fmt_chunk_marker[4] = {'f', 'm', 't', ' '};
+    int32_t length_of_fmt = 16;
+    int16_t format_type = 1; // PCM
+    int16_t channels = 1; // Mono
+    int32_t sample_rate = 44100;
+    int32_t byterate = 44100 * 2;
+    int16_t block_align = 2;
+    int16_t bits_per_sample = 16;
+    char data_chunk_header[4] = {'d', 'a', 't', 'a'};
+    int32_t data_size = 0;
+};
+
+void ensure_thx_sound_exists(const std::string& path) {
+    if (std::filesystem::exists(path)) {
+        return;
+    }
+    // Create directory if not exists
+    std::filesystem::path p(path);
+    if (p.has_parent_path() && !std::filesystem::exists(p.parent_path())) {
+        std::filesystem::create_directories(p.parent_path());
+    }
+
+    std::ofstream file(path, std::ios::binary);
+    if (!file) return;
+
+    const int sample_rate = 44100;
+    const float duration = 6.5f;
+    const int num_samples = (int)(sample_rate * duration);
+
+    WAVHeader header;
+    header.data_size = num_samples * sizeof(int16_t);
+    header.overall_size = header.data_size + 36;
+    header.byterate = sample_rate * sizeof(int16_t);
+
+    file.write(reinterpret_cast<const char*>(&header), sizeof(header));
+
+    // 12 oscillator voices for custom THX-style chord resolution
+    const int num_voices = 12;
+    float start_f[num_voices] = {
+        220.0f, 240.0f, 260.0f, 280.0f, 300.0f, 320.0f, 340.0f, 360.0f, 380.0f, 400.0f, 420.0f, 440.0f
+    };
+    float target_f[num_voices] = {
+        36.71f,   // D1 (deep bass foundation)
+        73.42f,   // D2
+        110.00f,  // A2
+        146.83f,  // D3
+        220.00f,  // A3
+        293.66f,  // D4
+        369.99f,  // F#4 (bright major third)
+        440.00f,  // A4
+        587.33f,  // D5
+        739.99f,  // F#5
+        880.00f,  // A5
+        1174.66f  // D6 (high resolution peak)
+    };
+
+    std::vector<double> phase(num_voices, 0.0);
+    const double dt = 1.0 / sample_rate;
+    const double pi = 3.14159265358979323846;
+
+    for (int i = 0; i < num_samples; ++i) {
+        float t = i * (float)dt;
+
+        // Sound crescendo volume envelope:
+        // - t=0s to 4.5s: rises from 0.0 to 0.85
+        // - t=4.5s to 5.7s: stays at peak
+        // - t=5.7s to 6.5s: fades out
+        float vol = 0.0f;
+        if (t < 4.5f) {
+            vol = 0.85f * (t / 4.5f);
+        } else if (t < 5.7f) {
+            vol = 0.85f;
+        } else {
+            vol = 0.85f * (1.0f - (t - 5.7f) / 0.8f);
+            if (vol < 0.0f) vol = 0.0f;
+        }
+
+        // Glide factor (smoothstep)
+        float ratio = t / 4.0f;
+        if (ratio > 1.0f) ratio = 1.0f;
+        float glide = ratio * ratio * (3.0f - 2.0f * ratio);
+
+        float mixed_sample = 0.0f;
+
+        for (int v = 0; v < num_voices; ++v) {
+            // Frequency glide with analog LFO wobble
+            float f_base = start_f[v] + (target_f[v] - start_f[v]) * glide;
+            float lfo = 2.0f * sinf((float)(v * 3.14159f + t * 5.5f)) * (1.0f - glide) 
+                      + 0.5f * sinf((float)(v * 1.5f + t * 3.5f)) * glide;
+            float freq = f_base + lfo;
+
+            // Integrate phase
+            phase[v] += 2.0 * pi * freq * dt;
+
+            // Synthesis: Fund + 2nd harmonic that opens up with glide for brightness
+            float voice_val = sin(phase[v]) + 0.3f * sin(2.0 * phase[v]) * glide;
+            mixed_sample += voice_val;
+        }
+
+        mixed_sample /= num_voices;
+        mixed_sample *= vol;
+
+        // Clip-limiting
+        if (mixed_sample > 1.0f) mixed_sample = 1.0f;
+        if (mixed_sample < -1.0f) mixed_sample = -1.0f;
+
+        int16_t out_val = (int16_t)(mixed_sample * 32767.0f);
+        file.write(reinterpret_cast<const char*>(&out_val), sizeof(int16_t));
+    }
+}
+
 void play_sound_cross_platform(const std::string& audio_path) {
 #if defined(_WIN32)
     std::string win_cmd = "powershell -WindowStyle Hidden -Command \"Add-Type -AssemblyName PresentationCore; $player = New-Object system.windows.media.mediaplayer; $player.Open('" + audio_path + "'); $player.Play(); Start-Sleep -s 8\" &";
@@ -1949,7 +2064,7 @@ void BolusApp::draw_intro_screen(float width, float height) {
     draw_list->AddRectFilled(ImVec2(0, 0), ImVec2(width, height), bg_color);
     
     float elapsed = (float)(glfwGetTime() - m_intro_start_time);
-    if (elapsed > 5.0f) {
+    if (elapsed > 6.5f) {
         m_showing_intro = false;
         ImGui::End();
         return;
@@ -1963,10 +2078,10 @@ void BolusApp::draw_intro_screen(float width, float height) {
     ImU32 col_teal       = IM_COL32(58, 96, 115, 255);  // #3A6073
     ImU32 col_teal_light = IM_COL32(82, 132, 155, 255); // #52849B
     
-    // Overall fade out in the last 0.5s of the 5.0s intro
+    // Overall fade out in the last 0.5s of the 6.5s intro
     float global_alpha = 1.0f;
-    if (elapsed > 4.5f) {
-        global_alpha = (5.0f - elapsed) / 0.5f;
+    if (elapsed > 6.0f) {
+        global_alpha = (6.5f - elapsed) / 0.5f;
     }
     
     auto fade = [global_alpha](ImU32 color) -> ImU32 {
@@ -2064,8 +2179,8 @@ void BolusApp::draw_intro_screen(float width, float height) {
     
     // --- 4. THE MAIN ACTIVE RED BLOOD CELL ---
     float cell_t = 0.0f;
-    if (elapsed < 2.5f) {
-        cell_t = elapsed / 2.5f;
+    if (elapsed < 2.0f) {
+        cell_t = elapsed / 2.0f;
     } else {
         cell_t = 1.0f;
     }
@@ -2091,11 +2206,11 @@ void BolusApp::draw_intro_screen(float width, float height) {
     float pulse_scale = 1.0f;
     float crescendo_intensity = 0.0f;
     
-    if (elapsed >= 1.5f && elapsed < 4.2f) {
+    if (elapsed >= 1.5f && elapsed < 5.5f) {
         if (elapsed < 3.5f) {
             crescendo_intensity = (elapsed - 1.5f) / 2.0f;
         } else {
-            crescendo_intensity = 1.0f - (elapsed - 3.5f) / 0.7f;
+            crescendo_intensity = 1.0f - (elapsed - 3.5f) / 2.0f;
             if (crescendo_intensity < 0.0f) crescendo_intensity = 0.0f;
         }
         
@@ -2126,8 +2241,8 @@ void BolusApp::draw_intro_screen(float width, float height) {
     
     // --- 5. THE THX-STYLE LOGO ---
     float logo_alpha = 0.0f;
-    if (elapsed > 1.5f) {
-        logo_alpha = (elapsed - 1.5f) / 1.3f;
+    if (elapsed > 1.2f) {
+        logo_alpha = (elapsed - 1.2f) / 1.0f;
         if (logo_alpha > 1.0f) logo_alpha = 1.0f;
     }
     
@@ -2156,8 +2271,8 @@ void BolusApp::draw_intro_screen(float width, float height) {
         
         // --- 6. "MADE BY MATT" BADGE ---
         float matt_alpha = 0.0f;
-        if (elapsed > 2.5f) {
-            matt_alpha = (elapsed - 2.5f) / 1.0f;
+        if (elapsed > 1.8f) {
+            matt_alpha = (elapsed - 1.8f) / 0.8f;
             if (matt_alpha > 1.0f) matt_alpha = 1.0f;
         }
         
@@ -2165,33 +2280,36 @@ void BolusApp::draw_intro_screen(float width, float height) {
             float sub_y = height * 0.65f;
             std::string sub_str = "MADE BY MATT";
             
-            ImGui::PushFont(m_font_regular);
-            ImVec2 sub_size = ImGui::CalcTextSize(sub_str.c_str());
+            // Visual crescendo: starts at 30% scale and swells dramatically to 130% scale (bold 28px base font size)
+            float scale = 0.30f + 1.00f * matt_alpha;
+            float font_size = 28.0f * scale;
+            
+            ImVec2 sub_size = m_font_bold->CalcTextSizeA(font_size, FLT_MAX, 0.0f, sub_str.c_str());
             ImVec2 badge_pos_center(width * 0.5f, sub_y);
-            float pad_x = 24.0f;
-            float pad_y = 8.0f;
+            float pad_x = 28.0f * scale;
+            float pad_y = 10.0f * scale;
+            float corner_radius = 24.0f * scale;
             
             ImVec2 min_pt = badge_pos_center - ImVec2(sub_size.x * 0.5f + pad_x, sub_size.y * 0.5f + pad_y);
             ImVec2 max_pt = badge_pos_center + ImVec2(sub_size.x * 0.5f + pad_x, sub_size.y * 0.5f + pad_y);
             
             ImVec4 bgc = ImGui::ColorConvertU32ToFloat4(col_teal);
             bgc.w *= matt_alpha * global_alpha * 0.9f;
-            draw_list->AddRectFilled(min_pt, max_pt, ImGui::ColorConvertFloat4ToU32(bgc), 20.0f);
+            draw_list->AddRectFilled(min_pt, max_pt, ImGui::ColorConvertFloat4ToU32(bgc), corner_radius);
             
             ImVec4 bdc = ImGui::ColorConvertU32ToFloat4(col_cream);
             bdc.w *= matt_alpha * global_alpha;
-            draw_list->AddRect(min_pt, max_pt, ImGui::ColorConvertFloat4ToU32(bdc), 20.0f, 0, 2.0f);
+            draw_list->AddRect(min_pt, max_pt, ImGui::ColorConvertFloat4ToU32(bdc), corner_radius, 0, 2.0f * scale);
             
             ImVec4 mc = ImGui::ColorConvertU32ToFloat4(col_cream);
             mc.w *= matt_alpha * global_alpha;
-            draw_list->AddText(badge_pos_center - ImVec2(sub_size.x * 0.5f, sub_size.y * 0.5f), ImGui::ColorConvertFloat4ToU32(mc), sub_str.c_str());
-            ImGui::PopFont();
+            draw_list->AddText(m_font_bold, font_size, badge_pos_center - ImVec2(sub_size.x * 0.5f, sub_size.y * 0.5f), ImGui::ColorConvertFloat4ToU32(mc), sub_str.c_str());
         }
     }
     
     float skip_alpha = 0.5f;
-    if (elapsed > 4.5f) {
-        skip_alpha *= (5.0f - elapsed) / 0.5f;
+    if (elapsed > 6.0f) {
+        skip_alpha *= (6.5f - elapsed) / 0.5f;
     }
     ImVec4 skc = ImGui::ColorConvertU32ToFloat4(col_cream);
     skc.w *= skip_alpha;
@@ -2211,6 +2329,9 @@ void BolusApp::draw_gui() {
         if (m_showing_intro) {
             if (m_intro_start_time < 0.0) {
                 m_intro_start_time = glfwGetTime();
+                std::string wav_path = get_resource_path("resources/thx_crescendo.wav");
+                ensure_thx_sound_exists(wav_path);
+                play_sound_cross_platform(wav_path);
             }
             ImGuiViewport* viewport = ImGui::GetMainViewport();
             draw_intro_screen(viewport->Size.x, viewport->Size.y);
