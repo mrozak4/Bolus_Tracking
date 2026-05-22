@@ -205,6 +205,31 @@ std::string find_cjk_font() {
     return "";
 }
 
+std::string find_korean_font() {
+    std::vector<std::string> paths = {
+        // macOS
+        "/System/Library/Fonts/AppleSDGothicNeo.ttc",
+        "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        "/System/Library/Fonts/STHeiti Light.ttc",
+        // Windows
+        "C:\\Windows\\Fonts\\malgun.ttf",
+        "C:\\Windows\\Fonts\\malgunbd.ttf",
+        // Linux
+        "/usr/share/fonts/truetype/nanum/NanumBarunGothic.ttf",
+        "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
+        "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/droid/DroidSansFallback.ttf"
+    };
+    for (const auto& p : paths) {
+        if (is_valid_ttf(p)) {
+            return p;
+        }
+    }
+    return "";
+}
+
 
 
 
@@ -921,28 +946,34 @@ bool BolusApp::init() {
         font_config.OversampleV = 3;
         font_config.PixelSnapH = true;
         
+        static const ImWchar LatinRanges[] = {
+            0x0020, 0x00FF, // Basic Latin + Latin-1 Supplement
+            0x0100, 0x017F, // Latin Extended-A (Esperanto: ĉ, ĝ, ĥ, ĵ, ŝ, ŭ)
+            0
+        };
+        
         std::string font_reg_path = get_resource_path("resources/fonts/Outfit-Medium.ttf");
         std::string font_bold_path = get_resource_path("resources/fonts/Outfit-Bold.ttf");
         
         std::string cjk_font = find_cjk_font();
+        std::string korean_font = find_korean_font();
         std::string klingon_font = get_resource_path("resources/fonts/Klingon-pIqaD.ttf");
         
         if (is_valid_ttf(font_reg_path)) {
-            m_font_regular = io.Fonts->AddFontFromFileTTF(font_reg_path.c_str(), 16.0f, &font_config);
+            m_font_regular = io.Fonts->AddFontFromFileTTF(font_reg_path.c_str(), 16.0f, &font_config, LatinRanges);
             
             if (!cjk_font.empty()) {
                 ImFontConfig merge_config;
                 merge_config.MergeMode = true;
                 merge_config.PixelSnapH = true;
-                static const ImWchar ChineseSimplifiedRanges[] = {
-                    0x0020, 0x00FF,
-                    0x2000, 0x206F,
-                    0x3000, 0x30FF,
-                    0x4E00, 0x9FAF,
-                    0xFF00, 0xFFEF,
-                    0
-                };
-                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 16.0f, &merge_config, ChineseSimplifiedRanges);
+                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 16.0f, &merge_config, io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
+                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 16.0f, &merge_config, io.Fonts->GetGlyphRangesJapanese());
+            }
+            if (!korean_font.empty()) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                io.Fonts->AddFontFromFileTTF(korean_font.c_str(), 16.0f, &merge_config, io.Fonts->GetGlyphRangesKorean());
             }
             if (is_valid_ttf(klingon_font)) {
                 ImFontConfig merge_config;
@@ -957,21 +988,20 @@ bool BolusApp::init() {
         }
         
         if (is_valid_ttf(font_bold_path)) {
-            m_font_bold = io.Fonts->AddFontFromFileTTF(font_bold_path.c_str(), 18.0f, &font_config);
+            m_font_bold = io.Fonts->AddFontFromFileTTF(font_bold_path.c_str(), 18.0f, &font_config, LatinRanges);
             
             if (!cjk_font.empty()) {
                 ImFontConfig merge_config;
                 merge_config.MergeMode = true;
                 merge_config.PixelSnapH = true;
-                static const ImWchar ChineseSimplifiedRanges[] = {
-                    0x0020, 0x00FF,
-                    0x2000, 0x206F,
-                    0x3000, 0x30FF,
-                    0x4E00, 0x9FAF,
-                    0xFF00, 0xFFEF,
-                    0
-                };
-                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 18.0f, &merge_config, ChineseSimplifiedRanges);
+                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 18.0f, &merge_config, io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
+                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 18.0f, &merge_config, io.Fonts->GetGlyphRangesJapanese());
+            }
+            if (!korean_font.empty()) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                io.Fonts->AddFontFromFileTTF(korean_font.c_str(), 18.0f, &merge_config, io.Fonts->GetGlyphRangesKorean());
             }
             if (is_valid_ttf(klingon_font)) {
                 ImFontConfig merge_config;
@@ -991,15 +1021,14 @@ bool BolusApp::init() {
                 ImFontConfig merge_config;
                 merge_config.MergeMode = true;
                 merge_config.PixelSnapH = true;
-                static const ImWchar ChineseSimplifiedRanges[] = {
-                    0x0020, 0x00FF,
-                    0x2000, 0x206F,
-                    0x3000, 0x30FF,
-                    0x4E00, 0x9FAF,
-                    0xFF00, 0xFFEF,
-                    0
-                };
-                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 13.0f, &merge_config, ChineseSimplifiedRanges);
+                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 13.0f, &merge_config, io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
+                io.Fonts->AddFontFromFileTTF(cjk_font.c_str(), 13.0f, &merge_config, io.Fonts->GetGlyphRangesJapanese());
+            }
+            if (!korean_font.empty()) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                io.Fonts->AddFontFromFileTTF(korean_font.c_str(), 13.0f, &merge_config, io.Fonts->GetGlyphRangesKorean());
             }
             if (is_valid_ttf(klingon_font)) {
                 ImFontConfig merge_config;

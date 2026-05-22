@@ -238,6 +238,7 @@ std::string get_resource_path(const std::string& rel_path);
 bool is_valid_ttf(const std::string& path);
 std::string to_klingon_piqad(const std::string& input);
 std::string find_cjk_font();
+std::string find_korean_font();
 std::vector<CsvRecord> read_results_csv(const std::string& path);
 void save_results_csv(const std::string& path, const std::vector<CsvRecord>& records);
 std::string find_rois_txt_file(const std::string& tiff_path);
