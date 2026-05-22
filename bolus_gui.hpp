@@ -27,7 +27,17 @@ enum Language {
     LANG_KL,
     LANG_HT,
     LANG_DA,
-    LANG_NL
+    LANG_NL,
+    LANG_ES,
+    LANG_IT,
+    LANG_KO,
+    LANG_SV,
+    LANG_PIRATE,
+    LANG_LEET,
+    LANG_SCOTS,
+    LANG_GL,
+    LANG_EO,
+    LANG_GA
 };
 
 struct Translation {
@@ -326,5 +336,7 @@ public:
     void run();
     bool load_dataset(const std::string& csv_path);
 };
+
+std::string to_klingon_piqad(const std::string& input);
 
 #endif // BOLUS_GUI_HPP
