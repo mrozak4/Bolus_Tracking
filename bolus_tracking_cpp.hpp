@@ -105,6 +105,21 @@ public:
 };
 
 /**
+ * @brief Evaluates the Gamma function model at a given time point.
+ */
+static inline double evaluate_gamma_model(double t, double amp, double t2p, double fwhm, double m) {
+    if (t <= 0.0) return m;
+    if (fwhm <= 1e-9 || t2p <= 1e-9) return m;
+    double alpha = ((t2p * t2p) / (fwhm * fwhm)) * 8.0 * std::log(2.0);
+    double beta = ((fwhm * fwhm) / t2p) / (8.0 * std::log(2.0));
+    double L_val = alpha * std::log(t / t2p) - (t - t2p) / beta;
+    if (L_val > -700.0) {
+        return m + amp * std::exp(L_val);
+    }
+    return m;
+}
+
+/**
  * @brief Functor representing the non-linear Gamma function model for Eigen's Levenberg-Marquardt solver.
  */
 struct GammaFunctor {

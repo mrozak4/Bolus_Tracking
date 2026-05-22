@@ -3,6 +3,7 @@ Object-Oriented Bolus Tracking Core Pipeline Module.
 Contains SignalProcessor, BolusModel, and BolusFitter classes, along with backward-compatible function wrappers.
 """
 
+from typing import Union, Dict, Tuple, List, Optional
 import numpy as np
 from scipy.optimize import curve_fit
 
@@ -14,14 +15,14 @@ class SignalProcessor:
     """
     
     @staticmethod
-    def denoise_trace(trace, denoise_sd=2.0, half_win=5):
+    def denoise_trace(trace: np.ndarray, denoise_sd: float = 2.0, half_win: int = 5) -> np.ndarray:
         """
         Applies temporal denoising identical to MATLAB's implementation.
         Compares each data point to the median of a surrounding local window
         and replaces statistical outliers with the local median.
         
         Args:
-            trace (array_like): The input raw signal trace.
+            trace (np.ndarray): The input raw signal trace.
             denoise_sd (float): Standard deviation multiplier threshold.
             half_win (int): Half-width of the sliding local window.
             
@@ -55,7 +56,7 @@ class BolusModel:
     """
     
     @staticmethod
-    def evaluate(t, a1, peak1, fwhm1, m):
+    def evaluate(t: Union[np.ndarray, float, List[float]], a1: float, peak1: float, fwhm1: float, m: float) -> np.ndarray:
         """
         Evaluates the Gamma function at time(s) t.
         
@@ -63,7 +64,7 @@ class BolusModel:
             f(t) = a1 * (t / peak1) ^ alpha1 * exp(-(t - peak1) / beta1) + m
         
         Args:
-            t (array_like): Time points to evaluate.
+            t (np.ndarray or float or list): Time points to evaluate.
             a1 (float): Amplitude of the peak above baseline.
             peak1 (float): Time-to-peak (T2P).
             fwhm1 (float): Full Width at Half Maximum (FWHM).
@@ -72,11 +73,11 @@ class BolusModel:
         Returns:
             np.ndarray: The evaluated model values.
         """
-        t = np.asarray(t)
-        out_f = np.full_like(t, m, dtype=float)
+        t_arr = np.asarray(t)
+        out_f = np.full_like(t_arr, m, dtype=float)
         
-        pos_mask = t > 0
-        t_pos = t[pos_mask]
+        pos_mask = t_arr > 0
+        t_pos = t_arr[pos_mask]
         
         if len(t_pos) > 0:
             # Prevent division by zero or negative values for fractional power
@@ -100,7 +101,7 @@ class BolusFitter:
     """
     
     @staticmethod
-    def is_near_bounds(val, low, high):
+    def is_near_bounds(val: float, low: float, high: float) -> bool:
         if np.isnan(val):
             return True
         if np.abs(val - low) < 1e-4:
@@ -115,7 +116,11 @@ class BolusFitter:
         return False
 
     @staticmethod
-    def determine_qc_flag(f_amp, f_t2p, f_fwhm, f_m, f_cnr, min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm, fit_success, pass2_run=False):
+    def determine_qc_flag(
+        f_amp: float, f_t2p: float, f_fwhm: float, f_m: float, f_cnr: float,
+        min_amp: float, max_amp: float, min_t2p: float, max_t2p: float,
+        min_fwhm: float, max_fwhm: float, fit_success: bool, pass2_run: bool = False
+    ) -> str:
         if not fit_success or np.isnan([f_amp, f_t2p, f_fwhm, f_m, f_cnr]).any():
             return "FAIL"
         if f_cnr < 3.0:
@@ -135,7 +140,7 @@ class BolusFitter:
         return "WARN"
 
     @staticmethod
-    def suggest_vessel_type(ont, t2p, fwhm, amp, qc_flag):
+    def suggest_vessel_type(ont: float, t2p: float, fwhm: float, amp: float, qc_flag: str) -> str:
         if qc_flag == "FAIL" or np.isnan(ont) or np.isnan(t2p):
             return "U"
         ttm = np.abs(t2p - ont)
@@ -145,7 +150,7 @@ class BolusFitter:
             return "V"
         return "C"
 
-    def __init__(self, min_amp=1e-6, max_amp=1023.0, min_t2p=1e-6, min_fwhm=0.5):
+    def __init__(self, min_amp: float = 1e-6, max_amp: float = 1023.0, min_t2p: float = 1e-6, min_fwhm: float = 0.5):
         """
         Initializes the BolusFitter with constraints.
         
@@ -160,29 +165,27 @@ class BolusFitter:
         self.min_t2p = min_t2p
         self.min_fwhm = min_fwhm
 
-    def auto_estimate_params(self, tr, t_us, fr, up_f=20, low_cnr=False):
+    def auto_estimate_params(
+        self, tr: np.ndarray, t_us: np.ndarray, fr: float, up_f: int = 20, low_cnr: bool = False
+    ) -> Tuple[List[float], int, int, float, Dict[str, Tuple[float, float]]]:
         """
         Auto-estimates initial guess parameters and search boundaries from the upsampled trace.
         
         Args:
-            tr (array_like): The upsampled raw trace.
-            t_us (array_like): The upsampled time points.
+            tr (np.ndarray): The upsampled raw trace.
+            t_us (np.ndarray): The upsampled time points.
             fr (float): Camera frame rate.
             up_f (int): Upsampling factor.
             low_cnr (bool): Flag indicating if trace has low CNR to use wider pre-smoothing.
             
         Returns:
-            list: [amp, t2p, fwhm, baseline_shift] initial guesses.
-            int: start index for the fitting window.
-            int: end index for the fitting window.
-            float: standard deviation of baseline frames.
-            dict: Dictionary of marked points/events (onset, peak, end, baseline_start).
+            tuple: (init_params, start_idx, end_idx, sd_base, clicks)
         """
         n_base_frames = min(round(2 * fr * up_f), round(len(tr) * 0.1))
         n_base_frames = max(1, int(n_base_frames))
         
         baseline = np.median(tr[:n_base_frames])
-        sd_base = np.std(tr[:n_base_frames], ddof=1) if n_base_frames > 1 else 0
+        sd_base = float(np.std(tr[:n_base_frames], ddof=1)) if n_base_frames > 1 else 0.0
         
         # Ignore points for boundary spline overshoot
         ignore_points = min(int(3.0 * fr * up_f), int(0.05 * len(tr)))
@@ -320,15 +323,18 @@ class BolusFitter:
         bsln_shift = baseline
         
         clicks = {
-            'baseline_start': (t_us[0], tr[0]),
-            'onset': (t_start, start_amp),
-            'peak': (t_us[max_idx], max_val),
-            'end': (t_end, end_amp)
+            'baseline_start': (float(t_us[0]), float(tr[0])),
+            'onset': (float(t_start), float(start_amp)),
+            'peak': (float(t_us[max_idx]), float(max_val)),
+            'end': (float(t_end), float(end_amp))
         }
         
-        return [amp, t2p, fwhm, bsln_shift], start_idx, end_idx, sd_base, clicks
+        return [float(amp), float(t2p), float(fwhm), float(bsln_shift)], start_idx, end_idx, sd_base, clicks
 
-    def fit(self, t, y, params_init, sd_base=1.0, bounds_override=None, single_pass=None):
+    def fit(
+        self, t: np.ndarray, y: np.ndarray, params_init: List[float], sd_base: float = 1.0,
+        bounds_override: Optional[Tuple[List[float], List[float]]] = None, single_pass: Optional[bool] = None
+    ) -> Tuple[np.ndarray, np.ndarray, Dict[str, bool]]:
         """
         Fits the gamma function to the raw trace using a 2-pass optimization.
         - Pass 1: Linear Least Squares to fit raw signal and estimate outlier MAD.
@@ -341,7 +347,7 @@ class BolusFitter:
         if single_pass is None:
             single_pass = (bounds_override is not None)
             
-        def fit_once(b_min_amp, b_max_amp, b_min_t2p, b_max_t2p, b_min_fwhm, b_max_fwhm):
+        def fit_once(b_min_amp: float, b_max_amp: float, b_min_t2p: float, b_max_t2p: float, b_min_fwhm: float, b_max_fwhm: float) -> Tuple[np.ndarray, np.ndarray]:
             m_init = params_init[3]
             m_bound = max(0.5 * sd_base, 0.005 * m_init, 0.2)
             bounds = (
@@ -381,11 +387,11 @@ class BolusFitter:
             except Exception:
                 return np.full(4, np.nan), np.full((4, 4), np.nan)
 
-        def compute_rss(p):
+        def compute_rss(p: np.ndarray) -> float:
             if np.isnan(p).any():
                 return 1e30
             y_fit = BolusModel.evaluate(t, *p)
-            return np.sum((y - y_fit) ** 2)
+            return float(np.sum((y - y_fit) ** 2))
 
         # Get default limits
         t_duration = t[-1] if len(t) > 0 else 1.0
@@ -441,23 +447,28 @@ class BolusFitter:
 # Backward-Compatible Function Wrappers (Procedural Interface)
 # ---------------------------------------------------------------------------
 
-def gamma_fun(t, a1, peak1, fwhm1, m):
+def gamma_fun(t: Union[np.ndarray, float, List[float]], a1: float, peak1: float, fwhm1: float, m: float) -> np.ndarray:
     """Procedural wrapper for BolusModel.evaluate."""
     return BolusModel.evaluate(t, a1, peak1, fwhm1, m)
 
 
-def denoise_trace(trace, denoise_sd=2.0, half_win=5):
+def denoise_trace(trace: np.ndarray, denoise_sd: float = 2.0, half_win: int = 5) -> np.ndarray:
     """Procedural wrapper for SignalProcessor.denoise_trace."""
     return SignalProcessor.denoise_trace(trace, denoise_sd, half_win)
 
 
-def auto_estimate_params(tr, t_us, fr, up_f=20, low_cnr=False):
+def auto_estimate_params(
+    tr: np.ndarray, t_us: np.ndarray, fr: float, up_f: int = 20, low_cnr: bool = False
+) -> Tuple[List[float], int, int, float, Dict[str, Tuple[float, float]]]:
     """Procedural wrapper for BolusFitter.auto_estimate_params."""
     fitter = BolusFitter()
     return fitter.auto_estimate_params(tr, t_us, fr, up_f, low_cnr)
 
 
-def fit_bolus(t, y, params_init, sd_base=1.0, bounds_override=None):
+def fit_bolus(
+    t: np.ndarray, y: np.ndarray, params_init: List[float], sd_base: float = 1.0,
+    bounds_override: Optional[Tuple[List[float], List[float]]] = None
+) -> Tuple[np.ndarray, np.ndarray]:
     """Procedural wrapper for BolusFitter.fit."""
     fitter = BolusFitter()
     popt, pcov, _ = fitter.fit(t, y, params_init, sd_base, bounds_override)

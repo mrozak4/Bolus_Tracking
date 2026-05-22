@@ -41,8 +41,15 @@ Nous fournissons une documentation détaillée pour chaque partie du code. Veuil
 
 ### Outils parallèles et d'interface graphique en C++ (Recommandé)
 * **`run_pipeline_cpp.sh`** : Script enveloppe en ligne de commande pour compiler et exécuter le pipeline C++ en parallèle avec Docker ou localement.
-* **`bolus_tracking_cpp.cpp`** : Code source C++ principal implémentant le suréchantillonner par spline, l'ajustement de courbe de Levenberg-Marquardt (via Eigen) et le traitement multithread.
-* **`bolus_tracking_cpp.hpp`** : Fichier d'en-tête C++ contenant les structures de données.
+* **Fichiers d'implémentation du pipeline C++** :
+  * **`signal_processing.cpp`** : Interpolation par spline, lissage gaussien et détection de valeurs aberrantes.
+  * **`bolus_fitting.cpp`** : Ajustement de courbe non linéaire de Levenberg-Marquardt (via Eigen) et estimation automatique des paramètres.
+  * **`roi_rasterizer.cpp`** : Rastérisation de polygones pour les masques de ROI capillaires.
+  * **`bolus_visualizer.cpp`** : Fonctions de traçage SVG et formatage de la disposition des graduations.
+  * **`dataset_processor.cpp`** : Lecture d'images (via LibTIFF), élimination de dérive et filtrage de contrôle de qualité en 3 passes.
+  * **`batch_processor.cpp`** : Analyseur de répertoire, analyse des métadonnées de fréquence d'acquisition et appariement de fichiers.
+  * **`main.cpp`** : Point d'entrée de l'exécution en ligne de commande.
+* **`bolus_tracking_cpp.hpp`** : En-tête C++ unifié déclarant toutes les structures, paramètres et interfaces de classe du pipeline.
 * **`bolus_gui.cpp`** : Interface graphique interactive multiplateforme en C++ construite avec Dear ImGui et ImPlot pour inspecter et corriger manuellement les modélisations.
 * **`test_bolus_tracking_cpp.cpp`** : Suite de tests unitaires C++ vérifiant les calculs mathématiques, les modèles d'ajustement et les cas limites.
 * **`CMakeLists.txt`** : Fichier de configuration de compilation CMake.

@@ -225,8 +225,15 @@ Pour modifier la durée de la ligne de base utilisée pour corriger la dérive (
 * `batch_process.py` : Script Python principal lisant les images TIFF, extrayant le signal des ROI et enregistrant les résultats et graphiques.
 * `bolus_tracking.py` : Moteur mathématique sous Python (débruitage, estimation, modélisation Gamma et optimisation).
 * `run_pipeline_cpp.sh` : Script Bash pour compiler et lancer le pipeline parallèle en C++.
-* `bolus_tracking_cpp.cpp` : Code C++ central implémentant l'interpolation par spline cubique, l'ajustement de courbe par Levenberg-Marquardt (Eigen) et l'exécution multithread.
-* `bolus_tracking_cpp.hpp` : En-tête C++ déclarant les structures de données.
+* Fichiers sources d'implémentation C++ :
+  * `signal_processing.cpp` : Interpolation par spline cubique, lissage gaussien et détection de valeurs aberrantes.
+  * `bolus_fitting.cpp` : Ajustement de courbe non linéaire de Levenberg-Marquardt (Eigen) et logique d'estimation automatique.
+  * `roi_rasterizer.cpp` : Rastériseur de coordonnées pour convertir les ROI de capillaires en masques binaires.
+  * `bolus_visualizer.cpp` : Fonctions de génération de fichiers SVG et disposition des graduations.
+  * `dataset_processor.cpp` : Moteur principal gérant le chargement TIFF (LibTIFF), l'élimination de la dérive et le filtrage CQ en 3 passes.
+  * `batch_processor.cpp` : Balayage, analyse des fichiers de métadonnées de fréquence d'acquisition et organisation des répertoires.
+  * `main.cpp` : Point d'entrée de l'interface en ligne de commande (CLI).
+* `bolus_tracking_cpp.hpp` : En-tête C++ déclarant toutes les structures, les paramètres et les définitions de classe partagés.
 * `test_bolus_tracking_cpp.cpp` : Suite de tests unitaires C++.
 * `CMakeLists.txt` & `Dockerfile.cpp` : Fichiers de configuration CMake et Docker pour le C++.
 * `test_bolus_parity.py` & `test_bolus_tracking.py` : Tests unitaires et tests de parité numériques sous Python.

@@ -41,8 +41,15 @@ We provide detailed documentation for each part of the codebase. Please refer to
 
 ### C++-Based Parallel & GUI Tools (Recommended)
 * **`run_pipeline_cpp.sh`**: Command-line wrapper script that compiles and executes the parallel C++ pipeline inside Docker or locally.
-* **`bolus_tracking_cpp.cpp`**: Core C++ source code implementing spline upsampling, Levenberg-Marquardt robust curve fitting (via Eigen), and multi-threaded processing.
-* **`bolus_tracking_cpp.hpp`**: C++ header file containing the object-oriented structure of the code.
+* **C++ Pipeline Implementation Files**:
+  * **`signal_processing.cpp`**: Spline upsampling, Gaussian smoothing, and outlier detection logic.
+  * **`bolus_fitting.cpp`**: Levenberg-Marquardt non-linear curve fitting (via Eigen) and parameter heuristic auto-estimation.
+  * **`roi_rasterizer.cpp`**: Polygon scanline rasterization for capillary ROI masks.
+  * **`bolus_visualizer.cpp`**: SVG plotting functions and tick layout formatting.
+  * **`dataset_processor.cpp`**: Image reading (via LibTIFF), detrending, and 3-pass quality control filtering.
+  * **`batch_processor.cpp`**: Directory tree crawler, frame rate parsing, and dataset pairing logic.
+  * **`main.cpp`**: Command-line execution entry point.
+* **`bolus_tracking_cpp.hpp`**: Unified C++ header declaring all pipeline structures, parameters, and class interfaces.
 * **`bolus_gui.cpp`**: Cross-platform interactive C++ GUI built with Dear ImGui and ImPlot to manually inspect and correct fits.
 * **`test_bolus_tracking_cpp.cpp`**: C++ test suite verifying all math routines, fit models, and edge cases.
 * **`CMakeLists.txt`**: C++ build configuration file.

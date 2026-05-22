@@ -286,8 +286,15 @@ Here is what each file does:
 * `batch_process.py`: The high-level script that scans for datasets, reads TIFF image stacks, extracts the mean signal from each ROI, fits the Gamma curve, and saves results/plots.
 * `bolus_tracking.py`: The core computational engine containing all denoising, thresholding, onset/peak/end detection, and mathematical optimization logic.
 * `run_pipeline_cpp.sh`: The pure Bash script to compile and launch the C++ parallel processing pipeline.
-* `bolus_tracking_cpp.cpp`: The core C++ source code containing natural cubic spline upsampling, Levenberg-Marquardt robust curve fitting (Eigen), and parallel multi-threading.
-* `bolus_tracking_cpp.hpp`: Header file containing the OOP structure of the C++ pipeline.
+* C++ Implementation Source Files:
+  * `signal_processing.cpp`: Cubic spline interpolation, Gaussian smoothing, and median filtering outlier detection.
+  * `bolus_fitting.cpp`: Non-linear Levenberg-Marquardt curve fitting (Eigen) and parameter auto-estimation logic.
+  * `roi_rasterizer.cpp`: Coordinates scanline rasterizer for converting polygon capillary ROIs to binary masks.
+  * `bolus_visualizer.cpp`: SVG rendering functions and custom nice tick generator.
+  * `dataset_processor.cpp`: Core pipeline containing TIFF loading (LibTIFF), baseline drift detrending, and 3-pass QC prior refitting.
+  * `batch_processor.cpp`: Scanning, metadata parsing, and Subject-Experiment folder organization logic.
+  * `main.cpp`: Standalone CLI execution entry point.
+* `bolus_tracking_cpp.hpp`: Unified C++ header containing shared structure/class definitions and fitting options.
 * `test_bolus_tracking_cpp.cpp`: The C++ testing suite.
 * `CMakeLists.txt` & `Dockerfile.cpp`: Compilation and Docker configurations for the C++ implementation.
 * `test_bolus_parity.py` & `test_bolus_tracking.py`: Python unit tests and parity test suite.
