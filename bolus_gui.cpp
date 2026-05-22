@@ -352,10 +352,42 @@ std::string find_korean_font() {
     return "";
 }
 
-
-
-
-
+std::string find_fallback_font(bool bold) {
+    std::vector<std::string> paths;
+    if (bold) {
+        paths = {
+            // macOS
+            "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+            "/System/Library/Fonts/Helvetica.ttc",
+            // Windows
+            "C:\\Windows\\Fonts\\arialbd.ttf",
+            // Linux
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
+        };
+    } else {
+        paths = {
+            // macOS
+            "/System/Library/Fonts/Supplemental/Arial.ttf",
+            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+            "/System/Library/Fonts/Helvetica.ttc",
+            // Windows
+            "C:\\Windows\\Fonts\\arial.ttf",
+            // Linux
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+        };
+    }
+    for (const auto& p : paths) {
+        if (is_valid_ttf(p)) {
+            return p;
+        }
+    }
+    return "";
+}
 // ============================================================================
 // Helper Utilities
 // ============================================================================
@@ -1081,6 +1113,12 @@ bool BolusApp::init() {
         std::string korean_font = find_korean_font();
         std::string klingon_font = get_resource_path("resources/fonts/Klingon-pIqaD.ttf");
         
+        static const ImWchar FallbackRanges[] = {
+            0x0100, 0x017F, // Latin Extended-A (Esperanto)
+            0x0400, 0x052F, // Cyrillic (Russian, Ukrainian)
+            0
+        };
+
         if (is_valid_ttf(font_reg_path)) {
             m_font_regular = io.Fonts->AddFontFromFileTTF(font_reg_path.c_str(), 16.0f, &font_config, LatinRanges);
             
@@ -1106,6 +1144,14 @@ bool BolusApp::init() {
                     0
                 };
                 io.Fonts->AddFontFromFileTTF(klingon_font.c_str(), 16.0f, &merge_config, KlingonRanges);
+            }
+            
+            std::string fallback_font = find_fallback_font(false);
+            if (!fallback_font.empty()) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                io.Fonts->AddFontFromFileTTF(fallback_font.c_str(), 16.0f, &merge_config, FallbackRanges);
             }
         }
         
@@ -1135,6 +1181,14 @@ bool BolusApp::init() {
                 };
                 io.Fonts->AddFontFromFileTTF(klingon_font.c_str(), 18.0f, &merge_config, KlingonRanges);
             }
+            
+            std::string fallback_font_bold = find_fallback_font(true);
+            if (!fallback_font_bold.empty()) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                io.Fonts->AddFontFromFileTTF(fallback_font_bold.c_str(), 18.0f, &merge_config, FallbackRanges);
+            }
         }
         
         if (!m_font_regular) {
@@ -1161,6 +1215,14 @@ bool BolusApp::init() {
                     0
                 };
                 io.Fonts->AddFontFromFileTTF(klingon_font.c_str(), 13.0f, &merge_config, KlingonRanges);
+            }
+            
+            std::string fallback_font = find_fallback_font(false);
+            if (!fallback_font.empty()) {
+                ImFontConfig merge_config;
+                merge_config.MergeMode = true;
+                merge_config.PixelSnapH = true;
+                io.Fonts->AddFontFromFileTTF(fallback_font.c_str(), 13.0f, &merge_config, FallbackRanges);
             }
         }
         if (!m_font_bold) {
@@ -2409,11 +2471,12 @@ void BolusApp::draw_top_bar() {
         { LANG_EN, "", true }, // Separator
         
         { LANG_EO, "Esperanto", false },
+        { LANG_GENZ, "Gen Z English", false },
+        { LANG_KL, kl_label, false },
         { LANG_LEET, "Leet Speak", false },
         { LANG_MINION, "Minion (Bello!)", false },
         { LANG_PIRATE, "Pirate English", false },
         { LANG_SHAKESPEARE, "Shakespearean", false },
-        { LANG_KL, kl_label, false },
         { LANG_YODA, "Yoda Speak", false }
     };
 

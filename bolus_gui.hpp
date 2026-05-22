@@ -44,7 +44,8 @@ enum Language {
     LANG_UK,
     LANG_YODA,
     LANG_SHAKESPEARE,
-    LANG_MINION
+    LANG_MINION,
+    LANG_GENZ
 };
 
 struct Translation {
@@ -246,6 +247,7 @@ bool is_valid_ttf(const std::string& path);
 std::string to_klingon_piqad(const std::string& input);
 std::string find_cjk_font();
 std::string find_korean_font();
+std::string find_fallback_font(bool bold);
 std::vector<CsvRecord> read_results_csv(const std::string& path);
 void save_results_csv(const std::string& path, const std::vector<CsvRecord>& records);
 std::string find_rois_txt_file(const std::string& tiff_path);
