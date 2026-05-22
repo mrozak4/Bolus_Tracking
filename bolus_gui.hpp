@@ -311,6 +311,10 @@ private:
     double m_drift_win = 15.0;
     float m_denoise_strength_factor = 1.0f;
 
+    bool m_showing_intro = true;
+    double m_intro_start_time = -1.0;
+
+    void draw_intro_screen(float width, float height);
     void update_locale();
     void build_triage_queue();
     void select_record(int idx);

@@ -28,6 +28,13 @@
 #include "bolus_tracking_cpp.hpp"
 #include "bolus_gui.hpp"
 
+// Inline math operators for ImVec2, since ImGui doesn't define them by default in public headers
+inline ImVec2 operator+(const ImVec2& lhs, const ImVec2& rhs) { return ImVec2(lhs.x + rhs.x, lhs.y + rhs.y); }
+inline ImVec2 operator-(const ImVec2& lhs, const ImVec2& rhs) { return ImVec2(lhs.x - rhs.x, lhs.y - rhs.y); }
+inline ImVec2 operator*(const ImVec2& lhs, float rhs) { return ImVec2(lhs.x * rhs, lhs.y * rhs); }
+inline ImVec2 operator*(float lhs, const ImVec2& rhs) { return ImVec2(lhs * rhs.x, lhs * rhs.y); }
+inline ImVec2 operator/(const ImVec2& lhs, float rhs) { return ImVec2(lhs.x / rhs, lhs.y / rhs); }
+
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
 #include <limits.h>
@@ -826,7 +833,7 @@ static bool RangeSlider(const char* id_str, double* v_min, double* v_max, double
 // Main Application Class
 // ============================================================================
 
-BolusApp::BolusApp() : m_fitter(1e-6, 1023.0, 1e-6, 1e6, 0.5, 1e6), m_denoise_strength_factor(1.0f) {}
+BolusApp::BolusApp() : m_fitter(1e-6, 1023.0, 1e-6, 1e6, 0.5, 1e6), m_denoise_strength_factor(1.0f), m_showing_intro(true), m_intro_start_time(-1.0) {}
 
 BolusApp::~BolusApp() {
     ImPlot::DestroyContext();
@@ -1930,11 +1937,292 @@ void BolusApp::save_active_roi_svg() {
         BolusVisualizer::save_svg_plot(frec.roi_id, m_tiff_path, c.t_raw, c.y_raw, c.y_denoised, c.t_us, c.y_us, frec, fit_success, c.drift_slope);
     }
 
+void BolusApp::draw_intro_screen(float width, float height) {
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(ImVec2(width, height));
+    ImGui::Begin("IntroWindow", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBackground);
+    
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    
+    // 1. Draw Background (Deep Charcoal #131316)
+    ImU32 bg_color = IM_COL32(19, 19, 22, 255);
+    draw_list->AddRectFilled(ImVec2(0, 0), ImVec2(width, height), bg_color);
+    
+    float elapsed = (float)(glfwGetTime() - m_intro_start_time);
+    if (elapsed > 5.0f) {
+        m_showing_intro = false;
+        ImGui::End();
+        return;
+    }
+    
+    // Warm retro palette colors
+    ImU32 col_cream    = IM_COL32(244, 234, 212, 255); // #F4EAD4
+    ImU32 col_mustard  = IM_COL32(230, 173, 69, 255);  // #E6AD45
+    ImU32 col_terracotta = IM_COL32(217, 93, 57, 255);  // #D95D39
+    ImU32 col_red_dark   = IM_COL32(138, 37, 34, 255);  // #8A2522
+    ImU32 col_teal       = IM_COL32(58, 96, 115, 255);  // #3A6073
+    ImU32 col_teal_light = IM_COL32(82, 132, 155, 255); // #52849B
+    
+    // Overall fade out in the last 0.5s of the 5.0s intro
+    float global_alpha = 1.0f;
+    if (elapsed > 4.5f) {
+        global_alpha = (5.0f - elapsed) / 0.5f;
+    }
+    
+    auto fade = [global_alpha](ImU32 color) -> ImU32 {
+        ImVec4 c = ImGui::ColorConvertU32ToFloat4(color);
+        c.w *= global_alpha;
+        return ImGui::ColorConvertFloat4ToU32(c);
+    };
+    
+    // --- 2. RETRO GRID BACKGROUND ---
+    float grid_y = height * 0.7f;
+    int num_grid_lines = 16;
+    for (int i = 0; i <= num_grid_lines; ++i) {
+        float x_ratio = (float)i / num_grid_lines;
+        float x_start = width * x_ratio;
+        draw_list->AddLine(ImVec2(x_start, grid_y), ImVec2(x_start, height), fade(IM_COL32(40, 40, 48, 80)), 1.5f);
+    }
+    int num_horiz = 8;
+    for (int i = 0; i < num_horiz; ++i) {
+        float ratio = (float)i / (num_horiz - 1);
+        float y = grid_y + (height - grid_y) * (ratio * ratio);
+        draw_list->AddLine(ImVec2(0, y), ImVec2(width, y), fade(IM_COL32(40, 40, 48, 80)), 1.5f);
+    }
+    
+    // --- 3. THE VESSEL AND CELL ANIMATION ---
+    ImVec2 p0(0.0f, height * 0.45f);
+    ImVec2 cp1(width * 0.3f, height * 0.3f);
+    ImVec2 cp2(width * 0.6f, height * 0.6f);
+    ImVec2 p3(width, height * 0.45f);
+    
+    float thickness = 70.0f;
+    int steps = 100;
+    std::vector<ImVec2> points(steps + 1);
+    for (int i = 0; i <= steps; ++i) {
+        float t = (float)i / steps;
+        float omt = 1.0f - t;
+        points[i] = omt*omt*omt*p0 + 3.0f*omt*omt*t*cp1 + 3.0f*omt*t*t*cp2 + t*t*t*p3;
+    }
+    
+    // Draw vessel background ribbon
+    for (int i = 0; i < steps; ++i) {
+        ImVec2 pA = points[i];
+        ImVec2 pB = points[i+1];
+        ImVec2 dir = ImVec2(pB.x - pA.x, pB.y - pA.y);
+        float len = sqrtf(dir.x*dir.x + dir.y*dir.y);
+        ImVec2 normal(-dir.y / len, dir.x / len);
+        
+        ImVec2 topA = pA + normal * (thickness * 0.5f);
+        ImVec2 botA = pA - normal * (thickness * 0.5f);
+        ImVec2 topB = pB + normal * (thickness * 0.5f);
+        ImVec2 botB = pB - normal * (thickness * 0.5f);
+        
+        draw_list->AddQuadFilled(topA, topB, botB, botA, fade(IM_COL32(35, 55, 65, 90)));
+    }
+    
+    // Draw outer borders
+    for (int i = 0; i < steps; ++i) {
+        ImVec2 pA = points[i];
+        ImVec2 pB = points[i+1];
+        ImVec2 dir = ImVec2(pB.x - pA.x, pB.y - pA.y);
+        float len = sqrtf(dir.x*dir.x + dir.y*dir.y);
+        ImVec2 normal(-dir.y / len, dir.x / len);
+        
+        draw_list->AddLine(pA + normal * (thickness * 0.5f), pB + normal * (thickness * 0.5f), fade(col_cream), 3.0f);
+        draw_list->AddLine(pA - normal * (thickness * 0.5f), pB - normal * (thickness * 0.5f), fade(col_mustard), 3.0f);
+    }
+    
+    // Draw static red blood cells inside vessel
+    struct CellSeed {
+        float x_ratio;
+        float y_offset;
+        float radius;
+        ImU32 color;
+    };
+    static const CellSeed bcells[] = {
+        { 0.15f, -10.0f, 12.0f, IM_COL32(138, 37, 34, 120) },
+        { 0.28f,  15.0f, 10.0f, IM_COL32(217, 93, 57, 100) },
+        { 0.45f,  -8.0f, 14.0f, IM_COL32(138, 37, 34, 80) },
+        { 0.62f,  12.0f, 11.0f, IM_COL32(217, 93, 57, 110) },
+        { 0.78f,  -12.0f, 13.0f, IM_COL32(138, 37, 34, 90) },
+        { 0.90f,   5.0f, 10.0f, IM_COL32(217, 93, 57, 120) }
+    };
+    for (const auto& bc : bcells) {
+        int idx = (int)(bc.x_ratio * steps);
+        if (idx >= 0 && idx <= steps) {
+            ImVec2 center = points[idx];
+            ImVec2 dir = (idx < steps) ? ImVec2(points[idx+1].x - points[idx].x, points[idx+1].y - points[idx].y) : ImVec2(1, 0);
+            float len = sqrtf(dir.x*dir.x + dir.y*dir.y);
+            ImVec2 normal(-dir.y / len, dir.x / len);
+            
+            ImVec2 cell_pos = center + normal * bc.y_offset;
+            draw_list->AddCircleFilled(cell_pos, bc.radius, fade(bc.color));
+            draw_list->AddCircle(cell_pos, bc.radius, fade(col_cream), 0, 1.5f);
+        }
+    }
+    
+    // --- 4. THE MAIN ACTIVE RED BLOOD CELL ---
+    float cell_t = 0.0f;
+    if (elapsed < 2.5f) {
+        cell_t = elapsed / 2.5f;
+    } else {
+        cell_t = 1.0f;
+    }
+    
+    float bezier_param = cell_t * 0.5f;
+    float omt_c = 1.0f - bezier_param;
+    ImVec2 cell_pos = omt_c*omt_c*omt_c*p0 + 3.0f*omt_c*omt_c*bezier_param*cp1 + 3.0f*omt_c*bezier_param*bezier_param*cp2 + bezier_param*bezier_param*bezier_param*p3;
+    
+    // Draw tracking ticks behind cell
+    int cell_idx_limit = (int)(bezier_param * steps);
+    for (int i = 0; i <= cell_idx_limit; i += 4) {
+        ImVec2 pA = points[i];
+        ImVec2 pNext = (i < steps) ? points[i+1] : points[i];
+        ImVec2 dir = ImVec2(pNext.x - pA.x, pNext.y - pA.y);
+        float len = sqrtf(dir.x*dir.x + dir.y*dir.y);
+        ImVec2 normal(-dir.y / len, dir.x / len);
+        draw_list->AddLine(pA + normal * (thickness * 0.3f), pA - normal * (thickness * 0.3f), fade(col_teal_light), 1.5f);
+    }
+    
+    float cell_radius = 24.0f;
+    float rumble_x = 0.0f;
+    float rumble_y = 0.0f;
+    float pulse_scale = 1.0f;
+    float crescendo_intensity = 0.0f;
+    
+    if (elapsed >= 1.5f && elapsed < 4.2f) {
+        if (elapsed < 3.5f) {
+            crescendo_intensity = (elapsed - 1.5f) / 2.0f;
+        } else {
+            crescendo_intensity = 1.0f - (elapsed - 3.5f) / 0.7f;
+            if (crescendo_intensity < 0.0f) crescendo_intensity = 0.0f;
+        }
+        
+        pulse_scale = 1.0f + 0.3f * crescendo_intensity * sinf(elapsed * 25.0f);
+        rumble_x = 8.0f * crescendo_intensity * sinf(elapsed * 45.0f);
+        rumble_y = 8.0f * crescendo_intensity * cosf(elapsed * 37.0f);
+        
+        int wave_count = 4;
+        for (int w = 0; w < wave_count; ++w) {
+            float wave_age = elapsed * 1.5f - (float)w * 0.35f;
+            if (wave_age > 0.0f) {
+                float wave_r = cell_radius * (1.0f + 8.0f * fmodf(wave_age, 1.0f));
+                float wave_alpha = 1.0f - fmodf(wave_age, 1.0f);
+                ImU32 wave_col = (w % 2 == 0) ? col_terracotta : col_mustard;
+                ImVec4 wc = ImGui::ColorConvertU32ToFloat4(wave_col);
+                wc.w *= wave_alpha * crescendo_intensity * global_alpha * 0.7f;
+                draw_list->AddCircle(cell_pos + ImVec2(rumble_x, rumble_y), wave_r, ImGui::ColorConvertFloat4ToU32(wc), 0, 2.5f);
+            }
+        }
+    }
+    
+    ImVec2 active_cell_pos = cell_pos + ImVec2(rumble_x, rumble_y);
+    float final_radius = cell_radius * pulse_scale;
+    
+    draw_list->AddCircleFilled(active_cell_pos, final_radius, fade(col_terracotta));
+    draw_list->AddCircleFilled(active_cell_pos - ImVec2(final_radius*0.15f, final_radius*0.15f), final_radius * 0.5f, fade(col_red_dark));
+    draw_list->AddCircle(active_cell_pos, final_radius, fade(col_cream), 0, 3.0f);
+    
+    // --- 5. THE THX-STYLE LOGO ---
+    float logo_alpha = 0.0f;
+    if (elapsed > 1.5f) {
+        logo_alpha = (elapsed - 1.5f) / 1.3f;
+        if (logo_alpha > 1.0f) logo_alpha = 1.0f;
+    }
+    
+    if (logo_alpha > 0.0f) {
+        float logo_y = height * 0.28f;
+        ImVec2 text_pos_center(width * 0.5f + rumble_x, logo_y + rumble_y);
+        
+        ImGui::PushFont(m_font_bold);
+        std::string title_str = "BOLUS KINETICS";
+        ImVec2 text_size = ImGui::CalcTextSize(title_str.c_str());
+        ImVec2 text_pos = text_pos_center - ImVec2(text_size.x * 0.5f, text_size.y * 0.5f);
+        
+        // Retro double-offset shadow
+        ImVec4 sc1 = ImGui::ColorConvertU32ToFloat4(col_terracotta);
+        sc1.w *= logo_alpha * global_alpha;
+        draw_list->AddText(m_font_bold, 36.0f, text_pos + ImVec2(5.0f, 5.0f), ImGui::ColorConvertFloat4ToU32(sc1), title_str.c_str());
+        
+        ImVec4 sc2 = ImGui::ColorConvertU32ToFloat4(col_teal);
+        sc2.w *= logo_alpha * global_alpha * 0.8f;
+        draw_list->AddText(m_font_bold, 36.0f, text_pos + ImVec2(-4.0f, -4.0f), ImGui::ColorConvertFloat4ToU32(sc2), title_str.c_str());
+        
+        ImVec4 tc = ImGui::ColorConvertU32ToFloat4(col_cream);
+        tc.w *= logo_alpha * global_alpha;
+        draw_list->AddText(m_font_bold, 36.0f, text_pos, ImGui::ColorConvertFloat4ToU32(tc), title_str.c_str());
+        ImGui::PopFont();
+        
+        // --- 6. "MADE BY MATT" BADGE ---
+        float matt_alpha = 0.0f;
+        if (elapsed > 2.5f) {
+            matt_alpha = (elapsed - 2.5f) / 1.0f;
+            if (matt_alpha > 1.0f) matt_alpha = 1.0f;
+        }
+        
+        if (matt_alpha > 0.0f) {
+            float sub_y = height * 0.65f;
+            std::string sub_str = "MADE BY MATT";
+            
+            ImGui::PushFont(m_font_regular);
+            ImVec2 sub_size = ImGui::CalcTextSize(sub_str.c_str());
+            ImVec2 badge_pos_center(width * 0.5f, sub_y);
+            float pad_x = 24.0f;
+            float pad_y = 8.0f;
+            
+            ImVec2 min_pt = badge_pos_center - ImVec2(sub_size.x * 0.5f + pad_x, sub_size.y * 0.5f + pad_y);
+            ImVec2 max_pt = badge_pos_center + ImVec2(sub_size.x * 0.5f + pad_x, sub_size.y * 0.5f + pad_y);
+            
+            ImVec4 bgc = ImGui::ColorConvertU32ToFloat4(col_teal);
+            bgc.w *= matt_alpha * global_alpha * 0.9f;
+            draw_list->AddRectFilled(min_pt, max_pt, ImGui::ColorConvertFloat4ToU32(bgc), 20.0f);
+            
+            ImVec4 bdc = ImGui::ColorConvertU32ToFloat4(col_cream);
+            bdc.w *= matt_alpha * global_alpha;
+            draw_list->AddRect(min_pt, max_pt, ImGui::ColorConvertFloat4ToU32(bdc), 20.0f, 0, 2.0f);
+            
+            ImVec4 mc = ImGui::ColorConvertU32ToFloat4(col_cream);
+            mc.w *= matt_alpha * global_alpha;
+            draw_list->AddText(badge_pos_center - ImVec2(sub_size.x * 0.5f, sub_size.y * 0.5f), ImGui::ColorConvertFloat4ToU32(mc), sub_str.c_str());
+            ImGui::PopFont();
+        }
+    }
+    
+    float skip_alpha = 0.5f;
+    if (elapsed > 4.5f) {
+        skip_alpha *= (5.0f - elapsed) / 0.5f;
+    }
+    ImVec4 skc = ImGui::ColorConvertU32ToFloat4(col_cream);
+    skc.w *= skip_alpha;
+    std::string skip_str = "Press SPACE to Skip";
+    ImVec2 skip_size = ImGui::CalcTextSize(skip_str.c_str());
+    draw_list->AddText(ImVec2(width - skip_size.x - 20.0f, height - skip_size.y - 20.0f), ImGui::ColorConvertFloat4ToU32(skc), skip_str.c_str());
+    
+    ImGui::End();
+}
+
     /**
      * @brief Render the graphical panels.
      */
 void BolusApp::draw_gui() {
         ImGui::PushFont(m_font_regular);
+        
+        if (m_showing_intro) {
+            if (m_intro_start_time < 0.0) {
+                m_intro_start_time = glfwGetTime();
+            }
+            ImGuiViewport* viewport = ImGui::GetMainViewport();
+            draw_intro_screen(viewport->Size.x, viewport->Size.y);
+            
+            // Skip intro with Space, Enter, or Mouse Click
+            if (ImGui::IsKeyPressed(ImGuiKey_Space) || ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsMouseClicked(0)) {
+                m_showing_intro = false;
+            }
+            ImGui::PopFont();
+            return;
+        }
+
         ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(viewport->WorkPos);
         ImGui::SetNextWindowSize(viewport->WorkSize);
