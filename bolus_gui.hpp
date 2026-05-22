@@ -24,7 +24,10 @@ enum Language {
     LANG_DE_CH,
     LANG_JA,
     LANG_ZH_CN,
-    LANG_KL
+    LANG_KL,
+    LANG_HT,
+    LANG_DA,
+    LANG_NL
 };
 
 struct Translation {
@@ -115,6 +118,7 @@ struct Translation {
     std::string source_auto;
     std::string source_manual;
     std::string source_override;
+    std::string source_prior;
     std::string label_fitted;
     std::string label_estimated_init;
     std::string label_filter;
@@ -125,6 +129,18 @@ struct Translation {
     std::string filter_pass;
     std::string filter_review;
     std::string label_auto_fit;
+    
+    // New translation fields
+    std::string text_sidebar_counts;
+    std::string text_kinetics_title;
+    std::string col_onset_scan;
+    std::string col_tt_lower;
+    std::string col_tt_peak;
+    std::string col_tt_upper;
+    std::string col_vessel_type;
+    std::string text_visual_crop_range;
+    std::string btn_prev_short;
+    std::string btn_next_short;
 };
 
 // ============================================================================

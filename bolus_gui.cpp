@@ -87,54 +87,87 @@ std::string to_klingon_piqad(const std::string& input) {
     std::string result = "";
     size_t i = 0;
     while (i < input.length()) {
-        if (i + 2 < input.length() && input.substr(i, 3) == "tlh") {
+        if (input[i] == '%') {
+            result += '%';
+            i++;
+            while (i < input.length() && (std::isdigit(input[i]) || input[i] == '.' || input[i] == '-' || input[i] == '+' || input[i] == ' ' || input[i] == '#' || input[i] == 'l' || input[i] == 'h')) {
+                result += input[i];
+                i++;
+            }
+            if (i < input.length()) {
+                result += input[i];
+                i++;
+            }
+            continue;
+        }
+
+        // Case-insensitive multi-char phonemes
+        std::string sub3 = "";
+        if (i + 2 < input.length()) {
+            sub3 = input.substr(i, 3);
+            for (char& c : sub3) c = std::tolower(static_cast<unsigned char>(c));
+        }
+        std::string sub2 = "";
+        if (i + 1 < input.length()) {
+            sub2 = input.substr(i, 2);
+            for (char& c : sub2) c = std::tolower(static_cast<unsigned char>(c));
+        }
+
+        if (sub3 == "tlh") {
             result += "\xEF\xA3\xA4"; // U+F8E4
             i += 3;
-        } else if (i + 1 < input.length() && input.substr(i, 2) == "ch") {
+        } else if (sub2 == "ch") {
             result += "\xEF\xA3\x92"; // U+F8D2
             i += 2;
-        } else if (i + 1 < input.length() && input.substr(i, 2) == "gh") {
+        } else if (sub2 == "gh") {
             result += "\xEF\xA3\x95"; // U+F8D5
             i += 2;
-        } else if (i + 1 < input.length() && input.substr(i, 2) == "ng") {
+        } else if (sub2 == "ng") {
             result += "\xEF\xA3\x9C"; // U+F8DC
             i += 2;
         } else {
             char c = input[i];
-            if (c == 'a') result += "\xEF\xA3\x90";      // U+F8D0
-            else if (c == 'b') result += "\xEF\xA3\x91"; // U+F8D1
-            else if (c == 'D') result += "\xEF\xA3\x93"; // U+F8D3
-            else if (c == 'e') result += "\xEF\xA3\x94"; // U+F8D4
-            else if (c == 'H') result += "\xEF\xA3\x96"; // U+F8D6
-            else if (c == 'I') result += "\xEF\xA3\x97"; // U+F8D7
-            else if (c == 'j') result += "\xEF\xA3\x98"; // U+F8D8
-            else if (c == 'l') result += "\xEF\xA3\x99"; // U+F8D9
-            else if (c == 'm') result += "\xEF\xA3\x9A"; // U+F8DA
-            else if (c == 'n') result += "\xEF\xA3\x9B"; // U+F8DB
-            else if (c == 'o') result += "\xEF\xA3\x9D"; // U+F8DD
-            else if (c == 'p') result += "\xEF\xA3\x9E"; // U+F8DE
-            else if (c == 'q') result += "\xEF\xA3\x9F"; // U+F8DF
-            else if (c == 'Q') result += "\xEF\xA3\xA0"; // U+F8E0
-            else if (c == 'r') result += "\xEF\xA3\xA1"; // U+F8E1
-            else if (c == 'S') result += "\xEF\xA3\xA2"; // U+F8E2
-            else if (c == 't') result += "\xEF\xA3\xA3"; // U+F8E3
-            else if (c == 'u') result += "\xEF\xA3\xA5"; // U+F8E5
-            else if (c == 'v') result += "\xEF\xA3\xA6"; // U+F8E6
-            else if (c == 'w') result += "\xEF\xA3\xA7"; // U+F8E7
-            else if (c == 'y') result += "\xEF\xA3\xA8"; // U+F8E8
-            else if (c == '\'') result += "\xEF\xA3\xA9"; // U+F8E9
-            else if (c == '0') result += "\xEF\xA3\xB0"; // U+F8F0
-            else if (c == '1') result += "\xEF\xA3\xB1"; // U+F8F1
-            else if (c == '2') result += "\xEF\xA3\xB2"; // U+F8F2
-            else if (c == '3') result += "\xEF\xA3\xB3"; // U+F8F3
-            else if (c == '4') result += "\xEF\xA3\xB4"; // U+F8F4
-            else if (c == '5') result += "\xEF\xA3\xB5"; // U+F8F5
-            else if (c == '6') result += "\xEF\xA3\xB6"; // U+F8F6
-            else if (c == '7') result += "\xEF\xA3\xB7"; // U+F8F7
-            else if (c == '8') result += "\xEF\xA3\xB8"; // U+F8F8
-            else if (c == '9') result += "\xEF\xA3\xB9"; // U+F8F9
-            else if (c == ',') result += "\xEF\xA3\xBD"; // U+F8FD
-            else if (c == '.') result += "\xEF\xA3\xBE"; // U+F8FE
+            if (c == 'a' || c == 'A') result += "\xEF\xA3\x90";      // U+F8D0
+            else if (c == 'b' || c == 'B') result += "\xEF\xA3\x91"; // U+F8D1
+            else if (c == 'd' || c == 'D') result += "\xEF\xA3\x93"; // U+F8D3
+            else if (c == 'e' || c == 'E') result += "\xEF\xA3\x94"; // U+F8D4
+            else if (c == 'h' || c == 'H') result += "\xEF\xA3\x96"; // U+F8D6
+            else if (c == 'i' || c == 'I') result += "\xEF\xA3\x97"; // U+F8D7
+            else if (c == 'j' || c == 'J') result += "\xEF\xA3\x98"; // U+F8D8
+            else if (c == 'l' || c == 'L') result += "\xEF\xA3\x99"; // U+F8D9
+            else if (c == 'm' || c == 'M') result += "\xEF\xA3\x9A"; // U+F8DA
+            else if (c == 'n' || c == 'N') result += "\xEF\xA3\x9B"; // U+F8DB
+            else if (c == 'o' || c == 'O') result += "\xEF\xA3\x9D"; // U+F8DD
+            else if (c == 'p' || c == 'P') result += "\xEF\xA3\x9E"; // U+F8DE
+            else if (c == 'q') result += "\xEF\xA3\x9F";             // U+F8DF
+            else if (c == 'Q') result += "\xEF\xA3\xA0";             // U+F8E0
+            else if (c == 'r' || c == 'R') result += "\xEF\xA3\xA1"; // U+F8E1
+            else if (c == 's' || c == 'S') result += "\xEF\xA3\xA2"; // U+F8E2
+            else if (c == 't' || c == 'T') result += "\xEF\xA3\xA3"; // U+F8E3
+            else if (c == 'u' || c == 'U') result += "\xEF\xA3\xA5"; // U+F8E5
+            else if (c == 'v' || c == 'V') result += "\xEF\xA3\xA6"; // U+F8E6
+            else if (c == 'w' || c == 'W') result += "\xEF\xA3\xA7"; // U+F8E7
+            else if (c == 'y' || c == 'Y') result += "\xEF\xA3\xA8"; // U+F8E8
+            else if (c == '\'') result += "\xEF\xA3\xA9";            // U+F8E9
+            else if (c == '0') result += "\xEF\xA3\xB0";             // U+F8F0
+            else if (c == '1') result += "\xEF\xA3\xB1";             // U+F8F1
+            else if (c == '2') result += "\xEF\xA3\xB2";             // U+F8F2
+            else if (c == '3') result += "\xEF\xA3\xB3";             // U+F8F3
+            else if (c == '4') result += "\xEF\xA3\xB4";             // U+F8F4
+            else if (c == '5') result += "\xEF\xA3\xB5";             // U+F8F5
+            else if (c == '6') result += "\xEF\xA3\xB6";             // U+F8F6
+            else if (c == '7') result += "\xEF\xA3\xB7";             // U+F8F7
+            else if (c == '8') result += "\xEF\xA3\xB8";             // U+F8F8
+            else if (c == '9') result += "\xEF\xA3\xB9";             // U+F8F9
+            else if (c == ',') result += "\xEF\xA3\xBD";             // U+F8FD
+            else if (c == '.') result += "\xEF\xA3\xBE";             // U+F8FE
+            // Fallback for non-Klingon English letters
+            else if (c == 'c' || c == 'C') result += "\xEF\xA3\xA2"; // map to S (U+F8E2)
+            else if (c == 'f' || c == 'F') result += "\xEF\xA3\xA6"; // map to v (U+F8E6)
+            else if (c == 'g' || c == 'G') result += "\xEF\xA3\x95"; // map to gh (U+F8D5)
+            else if (c == 'k' || c == 'K') result += "\xEF\xA3\x9F"; // map to q (U+F8DF)
+            else if (c == 'x' || c == 'X') result += "\xEF\xA3\xA2"; // map to S (U+F8E2)
+            else if (c == 'z' || c == 'Z') result += "\xEF\xA3\xA2"; // map to S (U+F8E2)
             else {
                 result += c;
             }
@@ -595,7 +628,7 @@ void FileBrowser::draw(const char* title) {
 // ============================================================================
 // Custom range slider for visual crop selection
 // ============================================================================
-static bool RangeSlider(const char* id_str, double* v_min, double* v_max, double v_min_limit, double v_max_limit, const ImVec2& size) {
+static bool RangeSlider(const char* id_str, double* v_min, double* v_max, double v_min_limit, double v_max_limit, const ImVec2& size, const char* label) {
     ImGui::PushID(id_str);
     
     ImVec2 pos = ImGui::GetCursorScreenPos();
@@ -755,7 +788,7 @@ static bool RangeSlider(const char* id_str, double* v_min, double* v_max, double
     
     // Add text label overlay inside the slider
     char label_buf[128];
-    snprintf(label_buf, sizeof(label_buf), "Visual Crop Range: %.1fs - %.1fs", *v_min, *v_max);
+    snprintf(label_buf, sizeof(label_buf), "%s: %.1fs - %.1fs", label, *v_min, *v_max);
     ImVec2 text_size = ImGui::CalcTextSize(label_buf);
     ImVec2 text_pos(pos.x + (width - text_size.x) * 0.5f, pos.y + (height - text_size.y) * 0.5f);
     draw_list->AddText(text_pos, ImGui::GetColorU32(ImGuiCol_Text), label_buf);
@@ -850,6 +883,7 @@ void BolusApp::update_locale() {
         m_tr.source_auto = "auto";
         m_tr.source_manual = "manual";
         m_tr.source_override = "override";
+        m_tr.source_prior = "population prior";
         m_tr.label_fitted = "Fitted";
         m_tr.label_estimated_init = "Estimated (Init)";
         m_tr.label_filter = "Filter:";
@@ -861,8 +895,17 @@ void BolusApp::update_locale() {
         m_tr.filter_review = "REVIEW Only";
         m_tr.label_auto_fit = "Original Auto Fit";
         m_tr.section_denoise = "DENOISING OPTIONS";
-        m_tr.label_denoise_strength = "Denoising Strength";
         m_tr.section_actions = "FITTING ACTIONS";
+        m_tr.text_sidebar_counts = "ROIs: %d  |  Active: %d  |  Manual: %d";
+        m_tr.text_kinetics_title = "BOLUS KINETICS & CLASSIFICATION";
+        m_tr.col_onset_scan = "Onset Scan (s)";
+        m_tr.col_tt_lower = "TT Lower (s)";
+        m_tr.col_tt_peak = "TT Peak (s)";
+        m_tr.col_tt_upper = "TT Upper (s)";
+        m_tr.col_vessel_type = "Vessel Type";
+        m_tr.text_visual_crop_range = "Visual Crop Range";
+        m_tr.btn_prev_short = "< Previous";
+        m_tr.btn_next_short = "Next >";
     } else if (m_lang == LANG_FR) {
         m_tr.title_app = "SUIVI DE BOLUS - TRIAGE MANUEL";
         m_tr.section_markers = "FENÊTRE D'AJUSTEMENT ET MARQUEURS INTERACTIFS";
@@ -875,7 +918,7 @@ void BolusApp::update_locale() {
         m_tr.btn_load_state = "Charger l'état";
         m_tr.btn_save_state = "Enregistrer l'état";
         m_tr.btn_refit = "Réajuster (LM)";
-        m_tr.btn_override = "Déroger (PASS)";
+        m_tr.btn_override = "Forcer CONFORME";
         m_tr.btn_revert = "Rétablir les estimations automatiques";
         m_tr.btn_reset_crop = "Réinitialiser le rognage";
         m_tr.btn_crop_bounds = "Rogner aux marqueurs";
@@ -944,6 +987,7 @@ void BolusApp::update_locale() {
         m_tr.source_auto = "auto";
         m_tr.source_manual = "manuel";
         m_tr.source_override = "dérogé";
+        m_tr.source_prior = "a priori";
         m_tr.label_fitted = "Modélisé";
         m_tr.label_estimated_init = "Estimé (initial)";
         m_tr.label_filter = "Filtre :";
@@ -955,8 +999,17 @@ void BolusApp::update_locale() {
         m_tr.filter_review = "À RÉVISER uniquement";
         m_tr.label_auto_fit = "Ajustement auto initial";
         m_tr.section_denoise = "OPTIONS DE DÉBRUITAGE";
-        m_tr.label_denoise_strength = "Force du débruitage";
         m_tr.section_actions = "ACTIONS D'AJUSTEMENT";
+        m_tr.text_sidebar_counts = "ROI : %d  |  Actives : %d  |  Manuelles : %d";
+        m_tr.text_kinetics_title = "CINÉTIQUE DU BOLUS ET CLASSIFICATION";
+        m_tr.col_onset_scan = "Début scan (s)";
+        m_tr.col_tt_lower = "TT Inf (s)";
+        m_tr.col_tt_peak = "TT Pic (s)";
+        m_tr.col_tt_upper = "TT Sup (s)";
+        m_tr.col_vessel_type = "Type vaisseau";
+        m_tr.text_visual_crop_range = "Zone de rognage";
+        m_tr.btn_prev_short = "< Précédent";
+        m_tr.btn_next_short = "Suivant >";
     } else if (m_lang == LANG_DE_CH) {
         m_tr.title_app = "BOLUS TRACKING MANUELLE TRIAGE APP";
         m_tr.section_markers = "ANPASSUNGSFENSTER & INTERAKTIVE MARKER";
@@ -969,7 +1022,7 @@ void BolusApp::update_locale() {
         m_tr.btn_load_state = "Zustand laden";
         m_tr.btn_save_state = "Zustand speichern";
         m_tr.btn_refit = "Neu anpassen (LM)";
-        m_tr.btn_override = "Erzwinge PASS";
+        m_tr.btn_override = "Erzwinge BESTANDEN";
         m_tr.btn_revert = "Auf Original zurücksetzen";
         m_tr.btn_reset_crop = "Crop zurücksetzen";
         m_tr.btn_crop_bounds = "Auf Marker zuschneiden";
@@ -1031,13 +1084,14 @@ void BolusApp::update_locale() {
         m_tr.tag_end = "Ende: %.1fs";
         m_tr.tag_base = "Basis: %.1f";
         m_tr.btn_clear_data = "Daten löschen";
-        m_tr.qc_pass = "PASS";
+        m_tr.qc_pass = "BESTANDEN";
         m_tr.qc_warn = "WARNUNG";
         m_tr.qc_fail = "FEHLER";
         m_tr.qc_review = "PRÜFEN";
         m_tr.source_auto = "auto";
         m_tr.source_manual = "manuell";
-        m_tr.source_override = "manuell (PASS)";
+        m_tr.source_override = "manuell (BESTANDEN)";
+        m_tr.source_prior = "Populations-Priorwert";
         m_tr.label_fitted = "Angepasst";
         m_tr.label_estimated_init = "Geschätzt (Init)";
         m_tr.label_filter = "Filter:";
@@ -1045,12 +1099,21 @@ void BolusApp::update_locale() {
         m_tr.filter_flagged = "Problemfälle (FEHLER/WARNUNG/PRÜFEN)";
         m_tr.filter_fail = "Nur FEHLER";
         m_tr.filter_warn = "Nur WARNUNG";
-        m_tr.filter_pass = "Nur PASS";
+        m_tr.filter_pass = "Nur BESTANDEN";
         m_tr.filter_review = "Nur PRÜFEN";
         m_tr.label_auto_fit = "Originale Auto-Anpassung";
         m_tr.section_denoise = "ENTRAUSCHUNGS-OPTIONEN";
-        m_tr.label_denoise_strength = "Entrauschungs-Stärke";
         m_tr.section_actions = "AKTIONEN";
+        m_tr.text_sidebar_counts = "ROIs: %d  |  Aktiv: %d  |  Manuell: %d";
+        m_tr.text_kinetics_title = "BOLUSKINETIK & KLASSIFIZIERUNG";
+        m_tr.col_onset_scan = "Scan-Start (s)";
+        m_tr.col_tt_lower = "TT Unterer (s)";
+        m_tr.col_tt_peak = "TT Peak (s)";
+        m_tr.col_tt_upper = "TT Oberer (s)";
+        m_tr.col_vessel_type = "Gefässtyp";
+        m_tr.text_visual_crop_range = "Visueller Zuschneidebereich";
+        m_tr.btn_prev_short = "< Vorherige";
+        m_tr.btn_next_short = "Nächste >";
     } else if (m_lang == LANG_JA) {
         m_tr.title_app = "丸薬追跡手動評価アプリ (BOLUS TRACKING)";
         m_tr.section_markers = "フィッティングウィンドウ & インタラクティブマーカー";
@@ -1063,7 +1126,7 @@ void BolusApp::update_locale() {
         m_tr.btn_load_state = "状態を読込";
         m_tr.btn_save_state = "状態を保存";
         m_tr.btn_refit = "再フィッティング (LM)";
-        m_tr.btn_override = "強制 PASS";
+        m_tr.btn_override = "強制合格";
         m_tr.btn_revert = "初期値に戻す";
         m_tr.btn_reset_crop = "クロップ解除";
         m_tr.btn_crop_bounds = "範囲をマーカーに合わせる";
@@ -1125,13 +1188,14 @@ void BolusApp::update_locale() {
         m_tr.tag_end = "終了: %.1f秒";
         m_tr.tag_base = "ベース: %.1f";
         m_tr.btn_clear_data = "データをクリア";
-        m_tr.qc_pass = "PASS (合格)";
+        m_tr.qc_pass = "合格";
         m_tr.qc_warn = "WARN (警告)";
         m_tr.qc_fail = "FAIL (不合格)";
         m_tr.qc_review = "REVIEW (要確認)";
         m_tr.source_auto = "自動 (auto)";
         m_tr.source_manual = "手動 (manual)";
         m_tr.source_override = "強制合格 (override)";
+        m_tr.source_prior = "事前分布 (prior)";
         m_tr.label_fitted = "フィット済";
         m_tr.label_estimated_init = "推定初期値";
         m_tr.label_filter = "フィルター:";
@@ -1139,12 +1203,21 @@ void BolusApp::update_locale() {
         m_tr.filter_flagged = "問題あり (FAIL/WARN/REVIEW)";
         m_tr.filter_fail = "FAIL のみ";
         m_tr.filter_warn = "WARN のみ";
-        m_tr.filter_pass = "PASS のみ";
+        m_tr.filter_pass = "合格のみ";
         m_tr.filter_review = "REVIEW のみ";
         m_tr.label_auto_fit = "初期自動フィット";
         m_tr.section_denoise = "ノイズ除去オプション";
-        m_tr.label_denoise_strength = "ノイズ除去強度";
         m_tr.section_actions = "フィッティング操作";
+        m_tr.text_sidebar_counts = "ROI総数: %d  |  アクティブ: %d  |  手動: %d";
+        m_tr.text_kinetics_title = "ボラス速度論と分類";
+        m_tr.col_onset_scan = "スキャン開始 (s)";
+        m_tr.col_tt_lower = "TT 下限 (s)";
+        m_tr.col_tt_peak = "TT ピーク (s)";
+        m_tr.col_tt_upper = "TT 上限 (s)";
+        m_tr.col_vessel_type = "血管タイプ";
+        m_tr.text_visual_crop_range = "可視クロップ範囲";
+        m_tr.btn_prev_short = "< 前へ";
+        m_tr.btn_next_short = "次へ >";
     } else if (m_lang == LANG_ZH_CN) {
         m_tr.title_app = "团注追踪手动评估软件 (BOLUS TRACKING)";
         m_tr.section_markers = "拟合窗口与交互式标记";
@@ -1157,7 +1230,7 @@ void BolusApp::update_locale() {
         m_tr.btn_load_state = "加载进度";
         m_tr.btn_save_state = "保存进度";
         m_tr.btn_refit = "重新拟合 (LM)";
-        m_tr.btn_override = "强制 PASS";
+        m_tr.btn_override = "强制通过";
         m_tr.btn_revert = "恢复到自动估计";
         m_tr.btn_reset_crop = "重置裁剪";
         m_tr.btn_crop_bounds = "裁剪至标记范围";
@@ -1219,13 +1292,14 @@ void BolusApp::update_locale() {
         m_tr.tag_end = "终点: %.1f秒";
         m_tr.tag_base = "基线: %.1f";
         m_tr.btn_clear_data = "清空数据";
-        m_tr.qc_pass = "通过 (PASS)";
+        m_tr.qc_pass = "通过";
         m_tr.qc_warn = "警告 (WARN)";
         m_tr.qc_fail = "失败 (FAIL)";
         m_tr.qc_review = "复核 (REVIEW)";
         m_tr.source_auto = "自动 (auto)";
         m_tr.source_manual = "手动 (manual)";
         m_tr.source_override = "强制通过 (override)";
+        m_tr.source_prior = "群体先验 (prior)";
         m_tr.label_fitted = "拟合值";
         m_tr.label_estimated_init = "估计初始值";
         m_tr.label_filter = "筛选器：";
@@ -1233,13 +1307,23 @@ void BolusApp::update_locale() {
         m_tr.filter_flagged = "有问题的病例 (FAIL/WARN/REVIEW)";
         m_tr.filter_fail = "仅限 FAIL";
         m_tr.filter_warn = "仅限 WARN";
-        m_tr.filter_pass = "仅限 PASS";
+        m_tr.filter_pass = "仅限通过";
         m_tr.filter_review = "仅限 REVIEW";
         m_tr.label_auto_fit = "原始自动拟合";
         m_tr.section_denoise = "去噪设置";
         m_tr.label_denoise_strength = "去噪强度";
         m_tr.section_actions = "拟合操作";
-    } else {
+        m_tr.text_sidebar_counts = "ROI总数: %d  |  活跃: %d  |  手动: %d";
+        m_tr.text_kinetics_title = "玻鲁斯动力学与分类";
+        m_tr.col_onset_scan = "扫描开始 (s)";
+        m_tr.col_tt_lower = "TT 下限 (s)";
+        m_tr.col_tt_peak = "TT 峰值 (s)";
+        m_tr.col_tt_upper = "TT 上限 (s)";
+        m_tr.col_vessel_type = "血管类型";
+        m_tr.text_visual_crop_range = "可视裁剪范围";
+        m_tr.btn_prev_short = "< 上一个";
+        m_tr.btn_next_short = "下一个 >";
+    } else if (m_lang == LANG_KL) {
         m_tr.title_app = to_klingon_piqad("bolus ghal wIv pat");
         m_tr.section_markers = to_klingon_piqad("chenmoHmeH QorwI' je lach");
         m_tr.section_crop = to_klingon_piqad("leghmeH pe'wI' pat");
@@ -1320,6 +1404,7 @@ void BolusApp::update_locale() {
         m_tr.source_auto = to_klingon_piqad("pat");
         m_tr.source_manual = to_klingon_piqad("ghob");
         m_tr.source_override = to_klingon_piqad("chav");
+        m_tr.source_prior = to_klingon_piqad("prior");
         m_tr.label_fitted = to_klingon_piqad("fitted");
         m_tr.label_estimated_init = to_klingon_piqad("initial");
         m_tr.label_filter = to_klingon_piqad("Filter:");
@@ -1331,8 +1416,332 @@ void BolusApp::update_locale() {
         m_tr.filter_review = to_klingon_piqad("tob neH");
         m_tr.label_auto_fit = to_klingon_piqad("auto fit");
         m_tr.section_denoise = to_klingon_piqad("denoising");
-        m_tr.label_denoise_strength = to_klingon_piqad("denoising strength");
         m_tr.section_actions = to_klingon_piqad("fit actions");
+        m_tr.text_sidebar_counts = to_klingon_piqad("ROIs: %d | taH: %d | ghob: %d");
+        m_tr.text_kinetics_title = to_klingon_piqad("bolus kinetics & classification");
+        m_tr.col_onset_scan = to_klingon_piqad("Onset Scan (s)");
+        m_tr.col_tt_lower = to_klingon_piqad("TT Lower (s)");
+        m_tr.col_tt_peak = to_klingon_piqad("TT Peak (s)");
+        m_tr.col_tt_upper = to_klingon_piqad("TT Upper (s)");
+        m_tr.col_vessel_type = to_klingon_piqad("Vessel Type");
+        m_tr.text_visual_crop_range = to_klingon_piqad("Visual Crop Range");
+        m_tr.btn_prev_short = to_klingon_piqad("< Prev");
+        m_tr.btn_next_short = to_klingon_piqad("Next >");
+    } else if (m_lang == LANG_HT) {
+        m_tr.title_app = "APLIKASYON TRIYAY MANYÈL POU SWIV BOLUS";
+        m_tr.section_markers = "FÈNÈT AJISTEMAN AK MAKÈ ENTEWAKTIF";
+        m_tr.section_crop = "KONTWÒL KOUPE VIZYALIZASYON";
+        m_tr.section_params = "PARAMÈT EMODINAMIK AKTYÈL";
+        m_tr.sidebar_title = "Ba bò kote pou Triyaj";
+        m_tr.checkbox_flagged = "Montre sèlman ka pwoblèm (ERÈ/AVÈTISMAN)";
+        m_tr.btn_save_csv = "Sove CSV final";
+        m_tr.btn_reset_all = "Reyisyalize";
+        m_tr.btn_load_state = "Chaje Deta";
+        m_tr.btn_save_state = "Sove Leta";
+        m_tr.btn_refit = "Ajiste ankò (LM)";
+        m_tr.btn_override = "Fòse PASÈ";
+        m_tr.btn_revert = "Tounen nan orijinal";
+        m_tr.btn_reset_crop = "Reyisyalize Koupe";
+        m_tr.btn_crop_bounds = "Koupe nan makè yo";
+        m_tr.label_onset = "Makè kòmansman (s)";
+        m_tr.label_peak = "Makè pik (s)";
+        m_tr.label_end = "Makè fen (s)";
+        m_tr.label_baseline = "Liy de baz";
+        m_tr.text_slider_desc = "Sèvi ak glisyè a pou chwazi zòn nan";
+        m_tr.btn_ok = "Ok";
+        m_tr.btn_cancel = "Anile";
+        m_tr.modal_reset_title = "Reyisyalize?";
+        m_tr.modal_reset_desc = "Èske ou vle efase modifikasyon manyèl yo?";
+        m_tr.btn_reset_confirm = "Wi, reyisyalize";
+        m_tr.modal_save_success = "CSV sove avèk siksè!";
+        m_tr.modal_save_state_success = "Leta sove avèk siksè!";
+        m_tr.modal_load_state_success = "Leta chaje avèk siksè!";
+        m_tr.text_active_roi = "ROI ki aktif:";
+        m_tr.text_qc_flag = "QC drapo:";
+        m_tr.text_fit_source = "Sous ajisteman:";
+        m_tr.text_dataset_loaded = "Done ki chaje:";
+        m_tr.text_roi_count = "Kantite ROI:";
+        m_tr.text_flagged_count = "Drapo (ERÈ/AVÈT.):";
+        m_tr.text_manual_count = "Manyèl kont:";
+        m_tr.col_variable = "Varyab";
+        m_tr.col_amplitude = "Anplitid";
+        m_tr.col_t2p = "T2p";
+        m_tr.col_fwhm = "FWHM";
+        m_tr.col_baseline = "De baz";
+        m_tr.col_cnr = "CNR";
+        m_tr.col_onset = "Kòmansman (OnT)";
+        m_tr.plot_title = "Koub Dilatasyon Bolus";
+        m_tr.plot_y_axis = "Entansite (SU)";
+        m_tr.plot_x_axis = "Tan (s)";
+        m_tr.plot_raw = "Kri";
+        m_tr.plot_denoised = "Filtre";
+        m_tr.plot_fit = "Ajisteman Gamma";
+        m_tr.current_folder = "Dousye aktif:";
+        m_tr.path_selector = "Seleksyon chemen";
+        m_tr.btn_select_folder = "Chwazi Dousye";
+        m_tr.btn_open_file = "Ouvri Fichye";
+        m_tr.btn_close_dialog = "Fèmen";
+        m_tr.dialog_title = "Ouvri Fichye Done";
+        m_tr.text_total_rois = "Total ROIs: %d";
+        m_tr.text_active_queue = "Filtrage ke: %d";
+        m_tr.text_triage_queue = "Ke: %d / %d";
+        m_tr.btn_next_problem = "Pwochen >>";
+        m_tr.btn_prev_problem = "<< Presedan";
+        m_tr.text_no_data = "Pa gen done chaje";
+        m_tr.text_plot_status_header = "Seri Tanporèl Siyal (SU) - ROI #%d (Gwosè: %d px) | QC: %s (Sous: %s)";
+        m_tr.title_manual_override = "Modifikasyon Manyèl";
+        m_tr.text_manual_override_desc = "Sleksyone makè yo pou deplase";
+        m_tr.btn_revert_loaded = "Tounen nan chaje";
+        m_tr.text_load_subject_data = "Chaje Done";
+        m_tr.text_save_state_msg = "Sove";
+        m_tr.text_load_state_msg = "Chaje";
+        m_tr.text_save_csv_msg = "Sove";
+        m_tr.tag_onset = "Kòmansman: %.1fs";
+        m_tr.tag_peak = "Pik: %.1fs";
+        m_tr.tag_end = "Fen: %.1fs";
+        m_tr.tag_base = "De baz: %.1f";
+        m_tr.btn_clear_data = "Efase Done";
+        m_tr.qc_pass = "PASÈ";
+        m_tr.qc_warn = "AVÈTISMAN";
+        m_tr.qc_fail = "ERÈ";
+        m_tr.qc_review = "REVIZYON";
+        m_tr.source_auto = "Auto";
+        m_tr.source_manual = "Manyèl";
+        m_tr.source_override = "Fòse";
+        m_tr.source_prior = "priyò pop.";
+        m_tr.label_fitted = "Ajiste";
+        m_tr.label_estimated_init = "Estime";
+        m_tr.label_filter = "Filtre:";
+        m_tr.filter_all = "Tout";
+        m_tr.filter_flagged = "Drapo";
+        m_tr.filter_fail = "ERÈ sèlman";
+        m_tr.filter_warn = "AVÈTISMAN sèlman";
+        m_tr.filter_pass = "PASÈ sèlman";
+        m_tr.filter_review = "REVIZYON sèlman";
+        m_tr.label_auto_fit = "Ajisteman otomatik";
+        m_tr.section_denoise = "OPSYON POU RETIRE BRI";
+        m_tr.label_denoise_strength = "Fòs filtraj";
+        m_tr.section_actions = "AKSYON AJISTEMAN";
+        m_tr.text_sidebar_counts = "ROI: %d  |  Aktif: %d  |  Manyèl: %d";
+        m_tr.text_kinetics_title = "KINETIK BOLUS AK KLASIFIKASYON";
+        m_tr.col_onset_scan = "Kòmansman eskanè (s)";
+        m_tr.col_tt_lower = "TT Pi Ba (s)";
+        m_tr.col_tt_peak = "TT Pik (s)";
+        m_tr.col_tt_upper = "TT Pi Wo (s)";
+        m_tr.col_vessel_type = "Kalite Veso";
+        m_tr.text_visual_crop_range = "Zòn koupe vizyèl";
+        m_tr.btn_prev_short = "< Devan";
+        m_tr.btn_next_short = "Pwochen >";
+    } else if (m_lang == LANG_DA) {
+        m_tr.title_app = "BOLUS TRACKING MANUEL TRIAGE APP";
+        m_tr.section_markers = "JUSTERINGSVINDU & INTERAKTIVE MARKØRER";
+        m_tr.section_crop = "VISUALISERING BESKÆRINGSSTYRING";
+        m_tr.section_params = "AKTUELLE HÆMODYNAMISKE PARAMETRE";
+        m_tr.sidebar_title = "Triage Sidebar";
+        m_tr.checkbox_flagged = "Vis kun problemområder (FEJL/ADVARSEL)";
+        m_tr.btn_save_csv = "Gem endelig CSV";
+        m_tr.btn_reset_all = "Nulstil";
+        m_tr.btn_load_state = "Hent status";
+        m_tr.btn_save_state = "Gem status";
+        m_tr.btn_refit = "Genberegn (LM)";
+        m_tr.btn_override = "Gennemtving GODKENDT";
+        m_tr.btn_revert = "Gendan original";
+        m_tr.btn_reset_crop = "Nulstil beskæring";
+        m_tr.btn_crop_bounds = "Beskær til markører";
+        m_tr.label_onset = "Startmarkør (s)";
+        m_tr.label_peak = "Peakmarkør (s)";
+        m_tr.label_end = "Slutmarkør (s)";
+        m_tr.label_baseline = "Baseline";
+        m_tr.text_slider_desc = "Træk i skyderne for at vælge interval";
+        m_tr.btn_ok = "Ok";
+        m_tr.btn_cancel = "Annuller";
+        m_tr.modal_reset_title = "Nulstil?";
+        m_tr.modal_reset_desc = "Vil du nulstille alle manuelle ændringer?";
+        m_tr.btn_reset_confirm = "Ja, nulstil";
+        m_tr.modal_save_success = "CSV gemt med succes!";
+        m_tr.modal_save_state_success = "App-status gemt med succes!";
+        m_tr.modal_load_state_success = "App-status indlæst med succes!";
+        m_tr.text_active_roi = "Aktiv ROI:";
+        m_tr.text_qc_flag = "QC Flag:";
+        m_tr.text_fit_source = "Justeringskilde:";
+        m_tr.text_dataset_loaded = "Indlæst datasæt:";
+        m_tr.text_roi_count = "Antal ROI'er:";
+        m_tr.text_flagged_count = "Flag (FEJL/ADVARSEL):";
+        m_tr.text_manual_count = "Manuelt antal:";
+        m_tr.col_variable = "Variabel";
+        m_tr.col_amplitude = "Amplitude";
+        m_tr.col_t2p = "T2p";
+        m_tr.col_fwhm = "FWHM";
+        m_tr.col_baseline = "Baseline";
+        m_tr.col_cnr = "CNR";
+        m_tr.col_onset = "Start (OnT)";
+        m_tr.plot_title = "Bolus-transientkurve";
+        m_tr.plot_y_axis = "Intensitet (SU)";
+        m_tr.plot_x_axis = "Tid (s)";
+        m_tr.plot_raw = "Rå";
+        m_tr.plot_denoised = "Filtreret";
+        m_tr.plot_fit = "Gamma-tilpasning";
+        m_tr.current_folder = "Aktiv mappe:";
+        m_tr.path_selector = "Stivalg";
+        m_tr.btn_select_folder = "Vælg mappe";
+        m_tr.btn_open_file = "Åbn fil";
+        m_tr.btn_close_dialog = "Luk";
+        m_tr.dialog_title = "Åbn datafil";
+        m_tr.text_total_rois = "Total ROI'er: %d";
+        m_tr.text_active_queue = "Filterkø: %d";
+        m_tr.text_triage_queue = "Kø: %d / %d";
+        m_tr.btn_next_problem = "Næste >>";
+        m_tr.btn_prev_problem = "<< Forrige";
+        m_tr.text_no_data = "Ingen data indlæst";
+        m_tr.text_plot_status_header = "Signal-tidsserie (SU) - ROI #%d (Størrelse: %d px) | QC: %s (Kilde: %s)";
+        m_tr.title_manual_override = "Manuelle overstyringer";
+        m_tr.text_manual_override_desc = "Træk i markørerne for at flytte dem";
+        m_tr.btn_revert_loaded = "Gendan indlæst";
+        m_tr.text_load_subject_data = "Indlæs data";
+        m_tr.text_save_state_msg = "Gemt";
+        m_tr.text_load_state_msg = "Hentet";
+        m_tr.text_save_csv_msg = "Gemt";
+        m_tr.tag_onset = "Start: %.1fs";
+        m_tr.tag_peak = "Peak: %.1fs";
+        m_tr.tag_end = "Slut: %.1fs";
+        m_tr.tag_base = "Base: %.1f";
+        m_tr.btn_clear_data = "Ryd data";
+        m_tr.qc_pass = "GODKENDT";
+        m_tr.qc_warn = "ADVARSEL";
+        m_tr.qc_fail = "FEJL";
+        m_tr.qc_review = "TIL GENSYN";
+        m_tr.source_auto = "Auto";
+        m_tr.source_manual = "Manuel";
+        m_tr.source_override = "Tvungen";
+        m_tr.source_prior = "populations-prior";
+        m_tr.label_fitted = "Tilpasset";
+        m_tr.label_estimated_init = "Estimeret";
+        m_tr.label_filter = "Filter:";
+        m_tr.filter_all = "Alle";
+        m_tr.filter_flagged = "Markeret";
+        m_tr.filter_fail = "Kun FEJL";
+        m_tr.filter_warn = "Kun ADVARSEL";
+        m_tr.filter_pass = "Kun GODKENDT";
+        m_tr.filter_review = "Kun TIL GENSYN";
+        m_tr.label_auto_fit = "Automatisk tilpasning";
+        m_tr.section_denoise = "STØJREDUKTIONSINDSTILLINGER";
+        m_tr.label_denoise_strength = "Dæmpningsstyrke";
+        m_tr.section_actions = "TILPASNINGSAKTIONER";
+        m_tr.text_sidebar_counts = "ROI'er: %d  |  Aktive: %d  |  Manuelle: %d";
+        m_tr.text_kinetics_title = "BOLUSKINETIK OG KLASSIFIKATION";
+        m_tr.col_onset_scan = "Scan start (s)";
+        m_tr.col_tt_lower = "TT Nedre (s)";
+        m_tr.col_tt_peak = "TT Peak (s)";
+        m_tr.col_tt_upper = "TT Øvre (s)";
+        m_tr.col_vessel_type = "Kartype";
+        m_tr.text_visual_crop_range = "Visuelt beskæringsområde";
+        m_tr.btn_prev_short = "< Forrige";
+        m_tr.btn_next_short = "Næste >";
+    } else if (m_lang == LANG_NL) {
+        m_tr.title_app = "BOLUS TRACKING HANDMATIGE TRIAGE APP";
+        m_tr.section_markers = "AANPASSINGSVENSTER & INTERACTIEVE MARKERINGEN";
+        m_tr.section_crop = "VISUALISATIE BIJSNIJDREGELING";
+        m_tr.section_params = "HUIDIGE HEMODYNAMISCHE PARAMETERS";
+        m_tr.sidebar_title = "Triage Zijbalk";
+        m_tr.checkbox_flagged = "Toon alleen probleemgevallen (FOUT/WAARSCHUWING)";
+        m_tr.btn_save_csv = "Sla definitieve CSV op";
+        m_tr.btn_reset_all = "Resetten";
+        m_tr.btn_load_state = "Status laden";
+        m_tr.btn_save_state = "Status opslaan";
+        m_tr.btn_refit = "Opnieuw aanpassen (LM)";
+        m_tr.btn_override = "Forceer GESLAAGD";
+        m_tr.btn_revert = "Herstel origineel";
+        m_tr.btn_reset_crop = "Reset bijsnijden";
+        m_tr.btn_crop_bounds = "Bijsnijden tot markeringen";
+        m_tr.label_onset = "Startmarkering (s)";
+        m_tr.label_peak = "Piekmarkering (s)";
+        m_tr.label_end = "Eindmarkering (s)";
+        m_tr.label_baseline = "Baseline";
+        m_tr.text_slider_desc = "Sleep de schuifregelaars om het interval te selecteren";
+        m_tr.btn_ok = "Ok";
+        m_tr.btn_cancel = "Annuleren";
+        m_tr.modal_reset_title = "Resetten?";
+        m_tr.modal_reset_desc = "Wilt u alle handmatige wijzigingen ongedaan maken?";
+        m_tr.btn_reset_confirm = "Ja, resetten";
+        m_tr.modal_save_success = "CSV succesvol opgeslagen!";
+        m_tr.modal_save_state_success = "App-status succesvol opgeslagen!";
+        m_tr.modal_load_state_success = "App-status succesvol geladen!";
+        m_tr.text_active_roi = "Actieve ROI:";
+        m_tr.text_qc_flag = "QC Flag:";
+        m_tr.text_fit_source = "Aanpassingsbron:";
+        m_tr.text_dataset_loaded = "Geladen dataset:";
+        m_tr.text_roi_count = "Aantal ROI's:";
+        m_tr.text_flagged_count = "Gemarkeerd (FOUT/WAARSCH.):";
+        m_tr.text_manual_count = "Handmatig aantal:";
+        m_tr.col_variable = "Variabele";
+        m_tr.col_amplitude = "Amplitude";
+        m_tr.col_t2p = "T2p";
+        m_tr.col_fwhm = "FWHM";
+        m_tr.col_baseline = "Baseline";
+        m_tr.col_cnr = "CNR";
+        m_tr.col_onset = "Start (OnT)";
+        m_tr.plot_title = "Bolustransiëntcurve";
+        m_tr.plot_y_axis = "Intensiteit (SU)";
+        m_tr.plot_x_axis = "Tijd (s)";
+        m_tr.plot_raw = "Ruw";
+        m_tr.plot_denoised = "Gefilterd";
+        m_tr.plot_fit = "Gamma-aanpassing";
+        m_tr.current_folder = "Actieve map:";
+        m_tr.path_selector = "Padkiezer";
+        m_tr.btn_select_folder = "Selecteer map";
+        m_tr.btn_open_file = "Open bestand";
+        m_tr.btn_close_dialog = "Sluiten";
+        m_tr.dialog_title = "Open databestand";
+        m_tr.text_total_rois = "Totaal ROI's: %d";
+        m_tr.text_active_queue = "Filterwachtrij: %d";
+        m_tr.text_triage_queue = "Wachtrij: %d / %d";
+        m_tr.btn_next_problem = "Volgende >>";
+        m_tr.btn_prev_problem = "<< Vorige";
+        m_tr.text_no_data = "Geen gegevens geladen";
+        m_tr.text_plot_status_header = "Signaaltijdreeks (SU) - ROI #%d (Grootte: %d px) | QC: %s (Bron: %s)";
+        m_tr.title_manual_override = "Handmatige overschrijvingen";
+        m_tr.text_manual_override_desc = "Sleep de markeringen om ze te verplaatsen";
+        m_tr.btn_revert_loaded = "Herstel geladen";
+        m_tr.text_load_subject_data = "Gegevens laden";
+        m_tr.text_save_state_msg = "Opgeslagen";
+        m_tr.text_load_state_msg = "Geladen";
+        m_tr.text_save_csv_msg = "Opgeslagen";
+        m_tr.tag_onset = "Start: %.1fs";
+        m_tr.tag_peak = "Piek: %.1fs";
+        m_tr.tag_end = "Einde: %.1fs";
+        m_tr.tag_base = "Basis: %.1f";
+        m_tr.btn_clear_data = "Wis gegevens";
+        m_tr.qc_pass = "GESLAAGD";
+        m_tr.qc_warn = "WAARSCHUWING";
+        m_tr.qc_fail = "FOUT";
+        m_tr.qc_review = "TER BEOORDELING";
+        m_tr.source_auto = "Auto";
+        m_tr.source_manual = "Handmatig";
+        m_tr.source_override = "Geforceerd";
+        m_tr.source_prior = "populatie-prior";
+        m_tr.label_fitted = "Aangepast";
+        m_tr.label_estimated_init = "Geschat";
+        m_tr.label_filter = "Filter:";
+        m_tr.filter_all = "Alle";
+        m_tr.filter_flagged = "Gemarkeerd";
+        m_tr.filter_fail = "Alleen FOUT";
+        m_tr.filter_warn = "Alleen WAARSCHUWING";
+        m_tr.filter_pass = "Alleen GESLAAGD";
+        m_tr.filter_review = "Alleen TER BEOORDELING";
+        m_tr.label_auto_fit = "Automatische aanpassing";
+        m_tr.section_denoise = "RUISONDERDRUKKINGSOPTIES";
+        m_tr.label_denoise_strength = "Filtersterkte";
+        m_tr.section_actions = "AANPASSINGSACTIES";
+        m_tr.text_sidebar_counts = "ROI's: %d  |  Actief: %d  |  Handmatig: %d";
+        m_tr.text_kinetics_title = "BOLUSKINETIEK & CLASSIFICATIE";
+        m_tr.col_onset_scan = "Scan start (s)";
+        m_tr.col_tt_lower = "TT Onderste (s)";
+        m_tr.col_tt_peak = "TT Piek (s)";
+        m_tr.col_tt_upper = "TT Bovenste (s)";
+        m_tr.col_vessel_type = "Vaattype";
+        m_tr.text_visual_crop_range = "Visueel bijsnijdgebied";
+        m_tr.btn_prev_short = "< Vorige";
+        m_tr.btn_next_short = "Volgende >";
     }
 }
 BolusApp::BolusApp() : m_fitter(1e-6, 1023.0, 1e-6, 1e6, 0.5, 1e6), m_denoise_strength_factor(1.0f) {}
@@ -2476,9 +2885,9 @@ void BolusApp::draw_top_bar() {
     ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 955.0f);
     
     std::string kl_label = to_klingon_piqad("tlhIngan Hol");
-    const char* languages[] = { "EN (Canada)", "FR (Québec)", "DE (Schweiz)", "日本語", "简体中文", kl_label.c_str() };
+    const char* languages[] = { "EN (Canada)", "FR (Québec)", "DE (Schweiz)", "日本語", "简体中文", kl_label.c_str(), "Kreyòl (Ayiti)", "DA (Danmark)", "NL (Nederland)" };
     int current_lang = static_cast<int>(m_lang);
-    ImGui::SetNextItemWidth(130.0f);
+    ImGui::SetNextItemWidth(140.0f);
     if (ImGui::Combo("##LanguageCombo", &current_lang, languages, IM_ARRAYSIZE(languages))) {
         m_lang = static_cast<Language>(current_lang);
         update_locale();
@@ -2631,11 +3040,7 @@ void BolusApp::draw_sidebar() {
     for (const auto& r : m_records) {
         if (r.fit_source != "auto") manual_count++;
     }
-    if (m_lang == LANG_FR) {
-        ImGui::Text("ROI : %d  |  Actives : %d  |  Manuelles : %d", (int)m_records.size(), (int)m_triage_queue.size(), manual_count);
-    } else {
-        ImGui::Text("ROIs: %d  |  Active: %d  |  Manual: %d", (int)m_records.size(), (int)m_triage_queue.size(), manual_count);
-    }
+    ImGui::Text(m_tr.text_sidebar_counts.c_str(), (int)m_records.size(), (int)m_triage_queue.size(), manual_count);
     ImGui::Separator();
     
     ImGui::BeginChild("ListScrollPane", ImVec2(0, 0), false);
@@ -2688,6 +3093,7 @@ void BolusApp::draw_sidebar() {
             if (rec.fit_source == "auto") disp_source = m_tr.source_auto;
             else if (rec.fit_source == "manual") disp_source = m_tr.source_manual;
             else if (rec.fit_source == "override") disp_source = m_tr.source_override;
+            else if (rec.fit_source == "population_prior") disp_source = m_tr.source_prior;
             else disp_source = rec.fit_source;
             
             if (rec.fit_source != "auto") {
@@ -2732,6 +3138,7 @@ void BolusApp::draw_main_area() {
     if (rec.fit_source == "auto") disp_source = m_tr.source_auto;
     else if (rec.fit_source == "manual") disp_source = m_tr.source_manual;
     else if (rec.fit_source == "override") disp_source = m_tr.source_override;
+    else if (rec.fit_source == "population_prior") disp_source = m_tr.source_prior;
     else disp_source = rec.fit_source;
     
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::GetStyle().Colors[ImGuiCol_FrameBg]);
@@ -2762,7 +3169,7 @@ void BolusApp::draw_main_area() {
         ImGui::TableNextColumn();
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6, 2));
-        if (ImGui::Button(m_lang == LANG_FR ? "< Précédent" : "< Previous", ImVec2(nav_btn_w, 22))) {
+        if (ImGui::Button(m_tr.btn_prev_short.c_str(), ImVec2(nav_btn_w, 22))) {
             if (m_queue_pos > 0) {
                 select_record(m_triage_queue[m_queue_pos - 1]);
             }
@@ -2770,7 +3177,7 @@ void BolusApp::draw_main_area() {
         ImGui::SameLine();
         ImGui::Text("%s", queue_text);
         ImGui::SameLine();
-        if (ImGui::Button(m_lang == LANG_FR ? "Suivant >" : "Next >", ImVec2(nav_btn_w, 22))) {
+        if (ImGui::Button(m_tr.btn_next_short.c_str(), ImVec2(nav_btn_w, 22))) {
             if (m_queue_pos >= 0 && m_queue_pos + 1 < static_cast<int>(m_triage_queue.size())) {
                 select_record(m_triage_queue[m_queue_pos + 1]);
             }
@@ -2927,12 +3334,12 @@ void BolusApp::draw_main_area() {
                 ImVec2 cursor_pos = ImGui::GetCursorPos();
                 ImGui::SetCursorPosX(plot_pos.x - ImGui::GetWindowPos().x);
                 double limit_max = c.t_raw.empty() ? 120.0 : c.t_raw.back();
-                RangeSlider("PlotCropSlider", &m_crop_min, &m_crop_max, 0.0, limit_max, ImVec2(plot_size.x, 24.0f));
+                RangeSlider("PlotCropSlider", &m_crop_min, &m_crop_max, 0.0, limit_max, ImVec2(plot_size.x, 24.0f), m_tr.text_visual_crop_range.c_str());
                 ImGui::SetCursorPosX(cursor_pos.x);
             } else {
                 float avail_w = ImGui::GetContentRegionAvail().x;
                 double limit_max = c.t_raw.empty() ? 120.0 : c.t_raw.back();
-                RangeSlider("PlotCropSlider", &m_crop_min, &m_crop_max, 0.0, limit_max, ImVec2(avail_w, 24.0f));
+                RangeSlider("PlotCropSlider", &m_crop_min, &m_crop_max, 0.0, limit_max, ImVec2(avail_w, 24.0f), m_tr.text_visual_crop_range.c_str());
             }
         }
         ImGui::Dummy(ImVec2(0.0f, 6.0f));
