@@ -2876,9 +2876,9 @@ void BolusApp::draw_main_area() {
         
         // Calculate dynamic plot height based on available window height to fit everything else
         float avail_h = ImGui::GetContentRegionAvail().y;
-        float plot_h = avail_h - 460.0f; // Reserved for ParamsPane and RangeSlider/Header
-        if (plot_h < 250.0f) plot_h = 250.0f;
-        if (plot_h > 650.0f) plot_h = 650.0f;
+        float plot_h = avail_h - 315.0f; // Reserved for ParamsPane and RangeSlider/Header
+        if (plot_h < 300.0f) plot_h = 300.0f;
+        if (plot_h > 900.0f) plot_h = 900.0f;
 
         if (ImPlot::BeginPlot(m_tr.plot_title.c_str(), ImVec2(-1, plot_h))) {
             ImPlot::SetupAxes(m_tr.plot_x_axis.c_str(), m_tr.plot_y_axis.c_str());
@@ -3000,8 +3000,10 @@ void BolusApp::draw_main_area() {
         ImGui::PushFont(m_font_bold);
         ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", m_tr.section_crop.c_str());
         ImGui::PopFont();
-        ImGui::Text("%s", m_tr.text_slider_desc.c_str());
-        ImGui::Dummy(ImVec2(0.0f, 4.0f));
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("%s", m_tr.text_slider_desc.c_str());
+        }
+        ImGui::Dummy(ImVec2(0.0f, 2.0f));
         if (ImGui::Button(m_tr.btn_reset_crop.c_str(), ImVec2(150, 26))) {
             m_crop_min = 0.0;
             m_crop_max = c.t_raw.back();
@@ -3012,7 +3014,7 @@ void BolusApp::draw_main_area() {
             m_crop_max = std::min(c.t_raw.back(), m_end_marker + 10.0);
         }
         
-        ImGui::Dummy(ImVec2(0.0f, 6.0f));
+        ImGui::Dummy(ImVec2(0.0f, 4.0f));
         ImGui::PushFont(m_font_bold);
         ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", m_tr.section_denoise.c_str());
         ImGui::PopFont();
@@ -3034,13 +3036,13 @@ void BolusApp::draw_main_area() {
         ImGui::PushFont(m_font_bold);
         ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", m_tr.section_actions.c_str());
         ImGui::PopFont();
-        ImGui::Dummy(ImVec2(0.0f, 4.0f));
+        ImGui::Dummy(ImVec2(0.0f, 2.0f));
         
         float btn_w = ImGui::GetContentRegionAvail().x - 8.0f;
         if (ImGui::Button(m_tr.btn_refit.c_str(), ImVec2(btn_w, 26))) {
             run_fit_on_current_roi();
         }
-        ImGui::Dummy(ImVec2(0.0f, 4.0f));
+        ImGui::Dummy(ImVec2(0.0f, 2.0f));
         if (ImGui::Button(m_tr.btn_override.c_str(), ImVec2(btn_w, 26))) {
             m_records[m_selected_roi_idx].qc_flag = "PASS";
             m_records[m_selected_roi_idx].fit_source = "override";
@@ -3051,7 +3053,7 @@ void BolusApp::draw_main_area() {
             build_triage_queue();
             save_active_roi_svg();
         }
-        ImGui::Dummy(ImVec2(0.0f, 4.0f));
+        ImGui::Dummy(ImVec2(0.0f, 2.0f));
         if (ImGui::Button(m_tr.btn_revert.c_str(), ImVec2(btn_w, 26))) {
             if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_records_backup.size())) {
                 int idx = m_selected_roi_idx;
@@ -3068,7 +3070,14 @@ void BolusApp::draw_main_area() {
         ImGui::Columns(1);
         ImGui::Separator();
         
-        // Active fit parameters table comparison
+        // Two-column layout for the tables below the controls
+        ImGui::Columns(2, "TablesGrid", false);
+        
+        // Setup proportional widths for the two tables
+        float avail_width = ImGui::GetContentRegionAvail().x;
+        ImGui::SetColumnWidth(0, avail_width * 0.5f);
+        
+        // Left Column: Active fit parameters table comparison
         ImGui::PushFont(m_font_bold);
         ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", m_tr.section_params.c_str());
         ImGui::PopFont();
@@ -3110,7 +3119,9 @@ void BolusApp::draw_main_area() {
             ImGui::EndTable();
         }
         
-        ImGui::Dummy(ImVec2(0.0f, 6.0f));
+        ImGui::NextColumn();
+        
+        // Right Column: Kinetics & Classification table
         ImGui::PushFont(m_font_bold);
         ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", m_tr.text_kinetics_title.c_str());
         ImGui::PopFont();
@@ -3142,6 +3153,8 @@ void BolusApp::draw_main_area() {
             
             ImGui::EndTable();
         }
+        
+        ImGui::Columns(1);
         ImGui::EndChild();
     }
 
