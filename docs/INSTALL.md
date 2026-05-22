@@ -21,7 +21,7 @@ bash install_macos.sh
 This script will:
 1. Compile the high-performance C++ GUI application.
 2. Build the macOS application bundle structure `BolusTrackingStudio.app`.
-3. Create a beautiful app icon from `app_icon.png`.
+3. Create a beautiful app icon from `resources/app_icon.png`.
 4. Copy the bundle to your Applications directory (`/Applications` or fallback to user-local `~/Applications` if not writable) for automatic indexing in **Launchpad**.
 
 ### Launching the Application:
@@ -63,7 +63,7 @@ Type=Application
 Name=Bolus Tracking Studio
 Comment=Capillary Bolus Tracking & Gamma Curve Fitting Studio
 Exec=/path/to/Bolus_Tracking/build/bolus_tracking_gui
-Icon=/path/to/Bolus_Tracking/app_icon.png
+Icon=/path/to/Bolus_Tracking/resources/app_icon.png
 Terminal=false
 Categories=Science;ScientificVisualization;
 ```
@@ -96,4 +96,4 @@ On Windows, you can compile the GUI using Visual Studio and set up a clickable d
 3. Name it **Bolus Tracking Studio**.
 4. To set the custom icon:
    * Right-click the shortcut and select **Properties**.
-   * Click **Change Icon...** and browse to `app_icon.png` (or convert `app_icon.png` to `app_icon.ico` using a web converter and select it).
+   * Click **Change Icon...** and browse to `resources/app_icon.png` (or convert `resources/app_icon.png` to `app_icon.ico` using a web converter and select it).

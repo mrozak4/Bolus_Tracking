@@ -18,9 +18,9 @@ Cette boîte d'outils effectue l'analyse du suivi de bolus de fluorescence sur d
 | Fichier | Objectif |
 |------|---------|
 | `drawROI.m` | Dessiner et enregistrer les ROI polygonales sur une image MIP |
-| `ApplyRegistrationToMask.m` | Appliquer les transformations affines (translation + rotation) aux fichiers maskObj existants |
-| `GlobalShiftMask.m` | Outil graphique pour appliquer un décalage uniforme en pixels XY à toutes les ROI et enregistrer un nouveau masque |
-| `BolusTrack_InteractiveEdit.m` | Interface graphique d'ajustement de bolus avec éditeur de ROI, chargement de métadonnées, débruitage et sauvegarde automatique |
+| `matlab/src/ApplyRegistrationToMask.m` | Appliquer les transformations affines (translation + rotation) aux fichiers maskObj existants |
+| `matlab/src/GlobalShiftMask.m` | Outil graphique pour appliquer un décalage uniforme en pixels XY à toutes les ROI et enregistrer un nouveau masque |
+| `matlab/src/BolusTrack_InteractiveEdit.m` | Interface graphique d'ajustement de bolus avec éditeur de ROI, chargement de métadonnées, débruitage et sauvegarde automatique |
 | `BolusTrack.m` (original) | Interface graphique originale de Paolo (conservée comme sauvegarde) |
 
 ---
@@ -148,7 +148,7 @@ BolusTrack
 5. Cliquer sur `Show ROIs tc` pour extraire les signaux.
 6. Cliquer sur `Resume Session` et sélectionner `autosave_progress.mat` : les ajustements terminés sont rechargés et l'affichage bascule sur le premier tracé non ajusté.
 
-*Note : le script `gammaFun.m` doit être présent dans le chemin de recherche MATLAB. Utilisez `which gammaFun` pour valider.*
+*Note : le script `matlab/src/gammaFun.m` doit être présent dans le chemin de recherche MATLAB. Utilisez `which gammaFun` pour valider.*
 
 **Débruitage — Approche recommandée :**
 
@@ -183,6 +183,4 @@ Le logiciel indique si le tracé a été ajusté sur le signal brut ou débruit�
 
 **Échec de convergence de la courbe Gamma :** Ajustez les paramètres initiaux. Avancez légèrement le temps au pic estimé ou reculez le début de l'ajustement.
 
-**Erreur sur la fonction "gammaFun" :** Le script `gammaFun.m` n'est pas présent dans les chemins de recherche. Ajoutez le dossier avec `addpath('/chemin/vers/dossier')`.le temps de pic estimé ou reculez le début de l'ajustement.
-
-**Erreur sur la fonction "gammaFun" :** Le script `gammaFun.m` n'est pas présent dans les chemins de recherche. Ajoutez le dossier avec `addpath('/chemin/vers/dossier')`.
+**Erreur sur la fonction "gammaFun" :** Le script `matlab/src/gammaFun.m` n'est pas présent dans les chemins de recherche. Ajoutez le dossier avec `addpath('/chemin/vers/dossier')`.

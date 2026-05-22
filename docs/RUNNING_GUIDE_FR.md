@@ -219,26 +219,26 @@ Pour modifier la durée de la ligne de base utilisée pour corriger la dérive (
 
 ## 5. Description technique des fichiers du projet
 
-* `bolus_gui.cpp` : L'interface graphique C++ interactive sous Dear ImGui et ImPlot.
-* `bolus_gui.py` : L'interface graphique Python de référence basée sur Tkinter et Matplotlib.
+* `cpp/src/bolus_gui.cpp` : L'interface graphique C++ interactive sous Dear ImGui et ImPlot.
+* `python/src/bolus_gui.py` : L'interface graphique Python de référence basée sur Tkinter et Matplotlib.
 * `run_pipeline.sh` : Script de contrôle principal configurant l'environnement virtuel Python et lançant le traitement.
-* `batch_process.py` : Script Python principal lisant les images TIFF, extrayant le signal des ROI et enregistrant les résultats et graphiques.
-* `bolus_tracking.py` : Moteur mathématique sous Python (débruitage, estimation, modélisation Gamma et optimisation).
+* `python/src/batch_process.py` : Script Python principal lisant les images TIFF, extrayant le signal des ROI et enregistrant les résultats et graphiques.
+* `python/src/bolus_tracking.py` : Moteur mathématique sous Python (débruitage, estimation, modélisation Gamma et optimisation).
 * `run_pipeline_cpp.sh` : Script Bash pour compiler et lancer le pipeline parallèle en C++.
 * Fichiers sources d'implémentation C++ :
-  * `signal_processing.cpp` : Interpolation par spline cubique, lissage gaussien et détection de valeurs aberrantes.
-  * `bolus_fitting.cpp` : Ajustement de courbe non linéaire de Levenberg-Marquardt (Eigen) et logique d'estimation automatique.
-  * `roi_rasterizer.cpp` : Rastériseur de coordonnées pour convertir les ROI de capillaires en masques binaires.
-  * `bolus_visualizer.cpp` : Fonctions de génération de fichiers SVG et disposition des graduations.
-  * `dataset_processor.cpp` : Moteur principal gérant le chargement TIFF (LibTIFF), l'élimination de la dérive et le filtrage CQ en 3 passes.
-  * `batch_processor.cpp` : Balayage, analyse des fichiers de métadonnées de fréquence d'acquisition et organisation des répertoires.
-  * `main.cpp` : Point d'entrée de l'interface en ligne de commande (CLI).
-* `bolus_tracking_cpp.hpp` : En-tête C++ déclarant toutes les structures, les paramètres et les définitions de classe partagés.
-* `test_bolus_tracking_cpp.cpp` : Suite de tests unitaires C++.
+  * `cpp/src/signal_processing.cpp` : Interpolation par spline cubique, lissage gaussien et détection de valeurs aberrantes.
+  * `cpp/src/bolus_fitting.cpp` : Ajustement de courbe non linéaire de Levenberg-Marquardt (Eigen) et logique d'estimation automatique.
+  * `cpp/src/roi_rasterizer.cpp` : Rastériseur de coordonnées pour convertir les ROI de capillaires en masques binaires.
+  * `cpp/src/bolus_visualizer.cpp` : Fonctions de génération de fichiers SVG et disposition des graduations.
+  * `cpp/src/dataset_processor.cpp` : Moteur principal gérant le chargement TIFF (LibTIFF), l'élimination de la dérive et le filtrage CQ en 3 passes.
+  * `cpp/src/batch_processor.cpp` : Balayage, analyse des fichiers de métadonnées de fréquence d'acquisition et organisation des répertoires.
+  * `cpp/src/main.cpp` : Point d'entrée de l'interface en ligne de commande (CLI).
+* `cpp/include/bolus_tracking_cpp.hpp` : En-tête C++ déclarant toutes les structures, les paramètres et les définitions de classe partagés.
+* `cpp/tests/test_bolus_tracking_cpp.cpp` : Suite de tests unitaires C++.
 * `CMakeLists.txt` & `Dockerfile.cpp` : Fichiers de configuration CMake et Docker pour le C++.
-* `test_bolus_parity.py` & `test_bolus_tracking.py` : Tests unitaires et tests de parité numériques sous Python.
-* `BolusTrack_InteractiveEdit.m` : Interface graphique MATLAB héritée pour ajuster les courbes.
-* `gammaFun.m` : Définition MATLAB de la fonction Gamma.
+* `python/tests/test_bolus_parity.py` & `python/tests/test_bolus_tracking.py` : Tests unitaires et tests de parité numériques sous Python.
+* `matlab/src/BolusTrack_InteractiveEdit.m` : Interface graphique MATLAB héritée pour ajuster les courbes.
+* `matlab/src/gammaFun.m` : Définition MATLAB de la fonction Gamma.
 
 ---
 

@@ -13,7 +13,7 @@ Before running the Python scripts, you need to convert your older MATLAB `MaskOb
 1. **Convert the Masks (One-Time Step):**
    Open MATLAB in this directory and run the conversion script:
    ```matlab
-   run('scratch/convert_masks_for_python.m')
+   run('matlab/convert_masks_for_python.m')
    ```
    This will automatically find every `MaskObj.mat` file in your folders and create a duplicate file named `adjusted_<OriginalName>.mat`. **You will use these `adjusted_*.mat` files for the Python pipeline.**
 
@@ -27,20 +27,20 @@ If you just run the `run_pipeline.sh` script, it will automatically build the Do
 
 ## Running the Pipeline
 
-The main script is `batch_process.py`. It takes a registered TIFF stack, an adjusted mask `.mat` file, and a `.txt` metadata file as inputs.
+The main script is `python/src/batch_process.py`. It takes a registered TIFF stack, an adjusted mask `.mat` file, and a `.txt` metadata file as inputs.
 
 ### Usage
 You can either provide a specific folder to auto-detect all matching files, or specify them individually.
 
 **To auto-detect files in a folder:**
 ```bash
-python batch_process.py --folder <path_to_folder> --outdir <output_directory>
+python python/src/batch_process.py --folder <path_to_folder> --outdir <output_directory>
 ```
 *(The script will automatically find and pair the TIFFs, Metadata `.txt` files, and `adjusted_*.mat` masks based on the `bolusX_condition` naming convention).*
 
 **To specify files individually:**
 ```bash
-python batch_process.py --tiff <path_to_tif> --mask <path_to_adjusted_mat> --meta <path_to_txt> --outdir <output_directory>
+python python/src/batch_process.py --tiff <path_to_tif> --mask <path_to_adjusted_mat> --meta <path_to_txt> --outdir <output_directory>
 ```
 
 ### Example (Dockerized Script)
@@ -80,13 +80,13 @@ The Python GUI provides an interactive interface to visually browse datasets, se
    python3 -m venv .venv
    source .venv/bin/activate
    pip install -r requirements.txt
-   python bolus_gui.py
+   python python/src/bolus_gui.py
    
    # Windows (PowerShell)
    python -m venv .venv
    .venv\Scripts\Activate.ps1
    pip install -r requirements.txt
-   python bolus_gui.py
+   python python/src/bolus_gui.py
    ```
 2. **GUI Step-by-Step Instructions**:
    - **Load Subject Folder**: Click **📁 Open Subject Folder** and select the subject folder.
@@ -99,7 +99,7 @@ The Python GUI provides an interactive interface to visually browse datasets, se
 
 ## Python Parameter Constraints Configuration
 
-When running the batch script `batch_process.py`, you can pass custom bounds to constrain the fitting parameters to physiologically reasonable values:
+When running the batch script `python/src/batch_process.py`, you can pass custom bounds to constrain the fitting parameters to physiologically reasonable values:
 - `--min-amp` (default: `1e-6`)
 - `--max-amp` (default: `1023.0` - matching the 10-bit microscope digitizer limit)
 - `--min-t2p` (default: `1e-6`)
@@ -109,7 +109,7 @@ When running the batch script `batch_process.py`, you can pass custom bounds to 
 
 For example, to constrain the time-to-peak ($T_{2p}$) between 2.0 and 8.0 seconds:
 ```bash
-python batch_process.py --folder sample-subject-2259 --min-t2p 2.0 --max-t2p 8.0
+python python/src/batch_process.py --folder sample-subject-2259 --min-t2p 2.0 --max-t2p 8.0
 ```
 
 ### Quality Control Triage Status (`QC_Flag`):

@@ -21,7 +21,7 @@ bash install_macos.sh
 Ce script va :
 1. Compiler l'application graphique haute performance en C++.
 2. Construire la structure du paquet d'application macOS `BolusTrackingStudio.app`.
-3. Créer une icône d'application à partir du fichier `app_icon.png`.
+3. Créer une icône d'application à partir du fichier `resources/app_icon.png`.
 4. Copier le paquet d'application dans votre dossier d'applications (`/Applications` ou le dossier utilisateur local `~/Applications` si vous n'avez pas les droits d'écriture) pour une indexation automatique dans le **Launchpad**.
 
 ### Lancement de l'application :
@@ -63,7 +63,7 @@ Type=Application
 Name=Bolus Tracking Studio
 Comment=Capillary Bolus Tracking & Gamma Curve Fitting Studio
 Exec=/chemin/vers/Bolus_Tracking/build/bolus_tracking_gui
-Icon=/chemin/vers/Bolus_Tracking/app_icon.png
+Icon=/chemin/vers/Bolus_Tracking/resources/app_icon.png
 Terminal=false
 Categories=Science;ScientificVisualization;
 ```
@@ -96,4 +96,4 @@ Sur Windows, vous pouvez compiler l'application graphique à l'aide de Visual St
 3. Nommez le raccourci **Bolus Tracking Studio**.
 4. Pour définir l'icône personnalisée :
    * Faites un clic droit sur le raccourci et sélectionnez **Propriétés**.
-   * Cliquez sur **Changer d'icône...** et ciblez `app_icon.png` (ou convertissez `app_icon.png` en `app_icon.ico` à l'aide d'un convertisseur en ligne et sélectionnez-le).
+   * Cliquez sur **Changer d'icône...** et ciblez `resources/app_icon.png` (ou convertissez `resources/app_icon.png` en `app_icon.ico` à l'aide d'un convertisseur en ligne et sélectionnez-le).

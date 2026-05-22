@@ -84,13 +84,19 @@ def test_matlab_parity():
                 # Check that the curves visually/numerically match
                 np.testing.assert_allclose(py_fit_tr, matlab_fit_tr, rtol=1e-2, err_msg=f"Fitted curve failed parity for {roi_key}")
 
+@pytest.mark.skipif(
+    not os.path.exists(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../build/bolus_tracking_cpp"))) or
+    not os.path.exists(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../sample-subject-2259/bolus1_baseline.tif"))) or
+    not os.path.exists(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../sample-subject-2259/old_masks_drawROI/adjusted_2259_bolus1_baseline_maskObj.mat"))) or
+    not os.path.exists(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../sample-subject-2259/bolus1_baseline.txt"))),
+    reason="C++ binary or sample subject data not available"
+)
 def test_cpp_vs_python_parity():
     """
     Verifies that the compiled C++ pipeline outputs match the Python pipeline outputs.
     """
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     cpp_binary = os.path.join(repo_root, "build/bolus_tracking_cpp")
-    assert os.path.exists(cpp_binary), "C++ binary not found. Please compile the C++ code first."
     
     import pandas as pd
     import subprocess

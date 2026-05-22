@@ -13,7 +13,7 @@ Avant d'exécuter les scripts Python, vous devez convertir vos anciens fichiers 
 1. **Convertir les masques (étape unique) :**
    Ouvrez MATLAB dans ce répertoire et exécutez le script de conversion :
    ```matlab
-   run('scratch/convert_masks_for_python.m')
+   run('matlab/convert_masks_for_python.m')
    ```
    Cela va automatiquement trouver chaque fichier `MaskObj.mat` dans vos dossiers et créer un fichier dupliqué nommé `adjusted_<OriginalName>.mat`. **Vous utiliserez ces fichiers `adjusted_*.mat` pour le pipeline Python.**
 
@@ -27,20 +27,20 @@ Si vous exécutez simplement le script `run_pipeline.sh`, il va automatiquement 
 
 ## Exécution du pipeline
 
-Le script principal est `batch_process.py`. Il prend en entrée une pile d'images TIFF alignées, un fichier de masque MAT ajusté et un fichier de métadonnées TXT.
+Le script principal est `python/src/batch_process.py`. Il prend en entrée une pile d'images TIFF alignées, un fichier de masque MAT ajusté et un fichier de métadonnées TXT.
 
 ### Utilisation
 Vous pouvez soit fournir un dossier spécifique pour détecter automatiquement tous les fichiers correspondants, soit les spécifier individuellement.
 
 **Pour détecter automatiquement les fichiers dans un dossier :**
 ```bash
-python batch_process.py --folder <chemin_dossier> --outdir <repertoire_sortie>
+python python/src/batch_process.py --folder <chemin_dossier> --outdir <repertoire_sortie>
 ```
 *(Le script trouvera et associera automatiquement les images TIFF, les fichiers de métadonnées `.txt` et les masques `adjusted_*.mat` sur la base de la convention de nommage `bolusX_condition`).*
 
 **Pour spécifier les fichiers individuellement :**
 ```bash
-python batch_process.py --tiff <chemin_tif> --mask <chemin_masque_mat> --meta <chemin_txt> --outdir <repertoire_sortie>
+python python/src/batch_process.py --tiff <chemin_tif> --mask <chemin_masque_mat> --meta <chemin_txt> --outdir <repertoire_sortie>
 ```
 
 ### Exemple (Script avec Docker)
@@ -80,13 +80,13 @@ L'interface graphique Python fournit un tableau de bord interactif pour parcouri
    python3 -m venv .venv
    source .venv/bin/activate
    pip install -r requirements.txt
-   python bolus_gui.py
+   python python/src/bolus_gui.py
    
    # Windows (PowerShell)
    python -m venv .venv
    .venv\Scripts\Activate.ps1
    pip install -r requirements.txt
-   python bolus_gui.py
+   python python/src/bolus_gui.py
    ```
 2. **Instructions d'utilisation** :
    - **Charger les données du sujet** : Cliquez sur **📁 Open Subject Folder** et sélectionnez le dossier cible.
@@ -99,7 +99,7 @@ L'interface graphique Python fournit un tableau de bord interactif pour parcouri
 
 ## Configuration des contraintes de paramètres sous Python
 
-Lorsque vous exécutez le script de traitement par lots `batch_process.py`, vous pouvez transmettre des limites personnalisées pour contraindre les paramètres d'ajustement à des valeurs physiologiquement plausibles :
+Lorsque vous exécutez le script de traitement par lots `python/src/batch_process.py`, vous pouvez transmettre des limites personnalisées pour contraindre les paramètres d'ajustement à des valeurs physiologiquement plausibles :
 - `--min-amp` (par défaut : `1e-6`)
 - `--max-amp` (par défaut : `1023.0` - correspondant à la limite du numériseur de microscope 10 bits)
 - `--min-t2p` (par défaut : `1e-6`)
@@ -109,7 +109,7 @@ Lorsque vous exécutez le script de traitement par lots `batch_process.py`, vous
 
 Par exemple, pour contraindre le temps au pic (TAP) entre 2.0 et 8.0 secondes :
 ```bash
-python batch_process.py --folder sample-subject-2259 --min-t2p 2.0 --max-t2p 8.0
+python python/src/batch_process.py --folder sample-subject-2259 --min-t2p 2.0 --max-t2p 8.0
 ```
 
 ### Niveaux de statut de contrôle de qualité (`QC_Flag`) :

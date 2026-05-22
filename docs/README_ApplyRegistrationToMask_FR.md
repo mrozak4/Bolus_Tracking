@@ -6,7 +6,7 @@
 
 ## Aperçu
 
-`ApplyRegistrationToMask.m` est une interface graphique MATLAB permettant d'appliquer les transformations géométriques de recalage de Visual Studio aux fichiers existants de ROI `maskObj`. 
+`matlab/src/ApplyRegistrationToMask.m` est une interface graphique MATLAB permettant d'appliquer les transformations géométriques de recalage de Visual Studio aux fichiers existants de ROI `maskObj`. 
 
 Lorsque des ROI sont tracées sur une image de bolus non recalée puis que ce bolus est recalé sur la pile volumétrique XYZ, les ROI ne correspondent plus à l'image recalée. Cet outil applique aux sommets des polygones de ROI la même transformation affine que celle appliquée à l'image, afin que les ROI suivent fidèlement les vaisseaux.
 
@@ -51,11 +51,11 @@ Cet outil intervient lors de la correction géométrique des masques de données
 ```
 Recaler les TIFF de bolus sur la pile XYZ (Visual Studio)
                            |
-ApplyRegistrationToMask.m — transformer l'ancien masque pour correspondre à l'image
+matlab/src/ApplyRegistrationToMask.m — transformer l'ancien masque pour correspondre à l'image
                            |
-(Optionnel) GlobalShiftMask.m — appliquer une correction XY fine
+(Optionnel) matlab/src/GlobalShiftMask.m — appliquer une correction XY fine
                            |
-BolusTrack.m — importer les masques, modéliser, exporter
+matlab/src/BolusTrack_InteractiveEdit.m — importer les masques, modéliser, exporter
 ```
 
 ## Remarques importantes

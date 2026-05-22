@@ -42,31 +42,31 @@ We provide detailed documentation for each part of the codebase. Please refer to
 ### C++-Based Parallel & GUI Tools (Recommended)
 * **`run_pipeline_cpp.sh`**: Command-line wrapper script that compiles and executes the parallel C++ pipeline inside Docker or locally.
 * **C++ Pipeline Implementation Files**:
-  * **`signal_processing.cpp`**: Spline upsampling, Gaussian smoothing, and outlier detection logic.
-  * **`bolus_fitting.cpp`**: Levenberg-Marquardt non-linear curve fitting (via Eigen) and parameter heuristic auto-estimation.
-  * **`roi_rasterizer.cpp`**: Polygon scanline rasterization for capillary ROI masks.
-  * **`bolus_visualizer.cpp`**: SVG plotting functions and tick layout formatting.
-  * **`dataset_processor.cpp`**: Image reading (via LibTIFF), detrending, and 3-pass quality control filtering.
-  * **`batch_processor.cpp`**: Directory tree crawler, frame rate parsing, and dataset pairing logic.
-  * **`main.cpp`**: Command-line execution entry point.
-* **`bolus_tracking_cpp.hpp`**: Unified C++ header declaring all pipeline structures, parameters, and class interfaces.
-* **`bolus_gui.cpp`**: Cross-platform interactive C++ GUI built with Dear ImGui and ImPlot to manually inspect and correct fits.
-* **`test_bolus_tracking_cpp.cpp`**: C++ test suite verifying all math routines, fit models, and edge cases.
+  * **`cpp/src/signal_processing.cpp`**: Spline upsampling, Gaussian smoothing, and outlier detection logic.
+  * **`cpp/src/bolus_fitting.cpp`**: Levenberg-Marquardt non-linear curve fitting (via Eigen) and parameter heuristic auto-estimation.
+  * **`cpp/src/roi_rasterizer.cpp`**: Polygon scanline rasterization for capillary ROI masks.
+  * **`cpp/src/bolus_visualizer.cpp`**: SVG plotting functions and tick layout formatting.
+  * **`cpp/src/dataset_processor.cpp`**: Image reading (via LibTIFF), detrending, and 3-pass quality control filtering.
+  * **`cpp/src/batch_processor.cpp`**: Directory tree crawler, frame rate parsing, and dataset pairing logic.
+  * **`cpp/src/main.cpp`**: Command-line execution entry point.
+* **`cpp/include/bolus_tracking_cpp.hpp`**: Unified C++ header declaring all pipeline structures, parameters, and class interfaces.
+* **`cpp/src/bolus_gui.cpp`**: Cross-platform interactive C++ GUI built with Dear ImGui and ImPlot to manually inspect and correct fits.
+* **`cpp/tests/test_bolus_tracking_cpp.cpp`**: C++ test suite verifying all math routines, fit models, and edge cases.
 * **`CMakeLists.txt`**: C++ build configuration file.
 * **`Dockerfile.cpp`**: Docker configuration for compiling, testing, and containerizing the C++ pipeline.
 
 ### Python-Based Reference & GUI Tools
-* **`bolus_gui.py`**: A premium, interactive Python interface to visually browse datasets, select ROIs, click on plots to adjust markers, run fits, and save results.
+* **`python/src/bolus_gui.py`**: A premium, interactive Python interface to visually browse datasets, select ROIs, click on plots to adjust markers, run fits, and save results.
 * **`run_pipeline.sh`**: Command-line wrapper script that sets up python virtual environments and executes the reference Python batch pipeline.
-* **`batch_process.py`**: Scans folders for triplets (TIFF image, MAT mask, metadata TXT), extracts traces, runs fitting, and saves CSVs.
-* **`bolus_tracking.py`**: Core mathematical algorithms containing filtering, upsampling, peak/onset/end detections, and curve fitting.
-* **`test_bolus_parity.py`**: Parity test suite verifying Python vs. MATLAB numerical outputs.
+* **`python/src/batch_process.py`**: Scans folders for triplets (TIFF image, MAT mask, metadata TXT), extracts traces, runs fitting, and saves CSVs.
+* **`python/src/bolus_tracking.py`**: Core mathematical algorithms containing filtering, upsampling, peak/onset/end detections, and curve fitting.
+* **`python/tests/test_bolus_parity.py`**: Parity test suite verifying Python vs. MATLAB numerical outputs.
 
 ### MATLAB-Based Legacy Tools
-* **`BolusTrack_InteractiveEdit.m`**: Interactive MATLAB GUI for visualizing and manually clicking bolus curves.
-* **`gammaFun.m`**: Standard MATLAB implementation of the Gamma variate model.
-* **`ApplyRegistrationToMask.m` & `GlobalShiftMask.m`**: Tools for aligning ROIs across registered images.
-* **`calcFWHM.m`, `denoiseTrace.m`, `findMaskObjInData.m`, `parseFrameRateFromMetadata.m`**: Auxiliary MATLAB functions.
+* **`matlab/src/BolusTrack_InteractiveEdit.m`**: Interactive MATLAB GUI for visualizing and manually clicking bolus curves.
+* **`matlab/src/gammaFun.m`**: Standard MATLAB implementation of the Gamma variate model.
+* **`matlab/src/ApplyRegistrationToMask.m` & `matlab/src/GlobalShiftMask.m`**: Tools for aligning ROIs across registered images.
+* **`matlab/src/calcFWHM.m`, `matlab/src/denoiseTrace.m`, `matlab/src/findMaskObjInData.m`, `matlab/src/parseFrameRateFromMetadata.m`**: Auxiliary MATLAB functions.
 
 ---
 

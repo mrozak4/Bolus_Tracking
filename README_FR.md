@@ -42,31 +42,31 @@ Nous fournissons une documentation détaillée pour chaque partie du code. Veuil
 ### Outils parallèles et d'interface graphique en C++ (Recommandé)
 * **`run_pipeline_cpp.sh`** : Script enveloppe en ligne de commande pour compiler et exécuter le pipeline C++ en parallèle avec Docker ou localement.
 * **Fichiers d'implémentation du pipeline C++** :
-  * **`signal_processing.cpp`** : Interpolation par spline, lissage gaussien et détection de valeurs aberrantes.
-  * **`bolus_fitting.cpp`** : Ajustement de courbe non linéaire de Levenberg-Marquardt (via Eigen) et estimation automatique des paramètres.
-  * **`roi_rasterizer.cpp`** : Rastérisation de polygones pour les masques de ROI capillaires.
-  * **`bolus_visualizer.cpp`** : Fonctions de traçage SVG et formatage de la disposition des graduations.
-  * **`dataset_processor.cpp`** : Lecture d'images (via LibTIFF), élimination de dérive et filtrage de contrôle de qualité en 3 passes.
-  * **`batch_processor.cpp`** : Analyseur de répertoire, analyse des métadonnées de fréquence d'acquisition et appariement de fichiers.
-  * **`main.cpp`** : Point d'entrée de l'exécution en ligne de commande.
-* **`bolus_tracking_cpp.hpp`** : En-tête C++ unifié déclarant toutes les structures, paramètres et interfaces de classe du pipeline.
-* **`bolus_gui.cpp`** : Interface graphique interactive multiplateforme en C++ construite avec Dear ImGui et ImPlot pour inspecter et corriger manuellement les modélisations.
-* **`test_bolus_tracking_cpp.cpp`** : Suite de tests unitaires C++ vérifiant les calculs mathématiques, les modèles d'ajustement et les cas limites.
+  * **`cpp/src/signal_processing.cpp`** : Interpolation par spline, lissage gaussien et détection de valeurs aberrantes.
+  * **`cpp/src/bolus_fitting.cpp`** : Ajustement de courbe non linéaire de Levenberg-Marquardt (via Eigen) et estimation automatique des paramètres.
+  * **`cpp/src/roi_rasterizer.cpp`** : Rastérisation de polygones pour les masques de ROI capillaires.
+  * **`cpp/src/bolus_visualizer.cpp`** : Fonctions de traçage SVG et formatage de la disposition des graduations.
+  * **`cpp/src/dataset_processor.cpp`** : Lecture d'images (via LibTIFF), élimination de dérive et filtrage de contrôle de qualité en 3 passes.
+  * **`cpp/src/batch_processor.cpp`** : Analyseur de répertoire, analyse des métadonnées de fréquence d'acquisition et appariement de fichiers.
+  * **`cpp/src/main.cpp`** : Point d'entrée de l'exécution en ligne de commande.
+* **`cpp/include/bolus_tracking_cpp.hpp`** : En-tête C++ unifié déclarant toutes les structures, paramètres et interfaces de classe du pipeline.
+* **`cpp/src/bolus_gui.cpp`** : Interface graphique interactive multiplateforme en C++ construite avec Dear ImGui et ImPlot pour inspecter et corriger manuellement les modélisations.
+* **`cpp/tests/test_bolus_tracking_cpp.cpp`** : Suite de tests unitaires C++ vérifiant les calculs mathématiques, les modèles d'ajustement et les cas limites.
 * **`CMakeLists.txt`** : Fichier de configuration de compilation CMake.
 * **`Dockerfile.cpp`** : Configuration Docker pour compiler, tester et conteneuriser le pipeline C++.
 
 ### Outils de référence et d'interface graphique en Python
-* **`bolus_gui.py`** : Interface Python interactive haut de gamme pour parcourir visuellement les jeux de données, sélectionner les ROI, ajuster les marqueurs graphiques et exporter les résultats.
+* **`python/src/bolus_gui.py`** : Interface Python interactive haut de gamme pour parcourir visuellement les jeux de données, sélectionner les ROI, ajuster les marqueurs graphiques et exporter les résultats.
 * **`run_pipeline.sh`** : Script enveloppe pour configurer l'environnement virtuel Python et exécuter le pipeline par lots de référence.
-* **`batch_process.py`** : Scanne les répertoires pour identifier les triplets (image TIFF, masque MAT, métadonnées TXT), extrait les signaux, exécute les modélisations et enregistre les CSV.
-* **`bolus_tracking.py`** : Algorithmes mathématiques centraux (filtrage, suréchantillonnage, détection du début/pic/fin et modélisation de courbe).
-* **`test_bolus_parity.py`** : Suite de tests de parité vérifiant les sorties numériques de Python par rapport à MATLAB.
+* **`python/src/batch_process.py`** : Scanne les répertoires pour identifier les triplets (image TIFF, masque MAT, métadonnées TXT), extrait les signaux, exécute les modélisations et enregistre les CSV.
+* **`python/src/bolus_tracking.py`** : Algorithmes mathématiques centraux (filtrage, suréchantillonnage, détection du début/pic/fin et modélisation de courbe).
+* **`python/tests/test_bolus_parity.py`** : Suite de tests de parité vérifiant les sorties numériques de Python par rapport à MATLAB.
 
 ### Outils patrimoniaux basés sur MATLAB
-* **`BolusTrack_InteractiveEdit.m`** : Interface graphique MATLAB pour visualiser et ajuster manuellement les courbes de bolus.
-* **`gammaFun.m`** : Implémentation standard MATLAB de la fonction Gamma.
-* **`ApplyRegistrationToMask.m` & `GlobalShiftMask.m`** : Alignement et recalage des masques de ROI sur les images.
-* **`calcFWHM.m`, `denoiseTrace.m`, `findMaskObjInData.m`, `parseFrameRateFromMetadata.m`** : Fonctions auxiliaires MATLAB.
+* **`matlab/src/BolusTrack_InteractiveEdit.m`** : Interface graphique MATLAB pour visualiser et ajuster manuellement les courbes de bolus.
+* **`matlab/src/gammaFun.m`** : Implémentation standard MATLAB de la fonction Gamma.
+* **`matlab/src/ApplyRegistrationToMask.m` & `matlab/src/GlobalShiftMask.m`** : Alignement et recalage des masques de ROI sur les images.
+* **`matlab/src/calcFWHM.m`, `matlab/src/denoiseTrace.m`, `matlab/src/findMaskObjInData.m`, `matlab/src/parseFrameRateFromMetadata.m`** : Fonctions auxiliaires MATLAB.
 
 ---
 

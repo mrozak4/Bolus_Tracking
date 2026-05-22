@@ -280,26 +280,26 @@ cd ..
 ## 5. Technical Overview of the Files
 
 Here is what each file does:
-* `bolus_gui.cpp`: The C++ interactive GUI built on Dear ImGui and ImPlot.
-* `bolus_gui.py`: The Python-based interactive GUI built on Tkinter and Matplotlib.
+* `cpp/src/bolus_gui.cpp`: The C++ interactive GUI built on Dear ImGui and ImPlot.
+* `python/src/bolus_gui.py`: The Python-based interactive GUI built on Tkinter and Matplotlib.
 * `run_pipeline.sh`: The master control script that prepares the Python virtual environment and kicks off the processing.
-* `batch_process.py`: The high-level script that scans for datasets, reads TIFF image stacks, extracts the mean signal from each ROI, fits the Gamma curve, and saves results/plots.
-* `bolus_tracking.py`: The core computational engine containing all denoising, thresholding, onset/peak/end detection, and mathematical optimization logic.
+* `python/src/batch_process.py`: The high-level script that scans for datasets, reads TIFF image stacks, extracts the mean signal from each ROI, fits the Gamma curve, and saves results/plots.
+* `python/src/bolus_tracking.py`: The core computational engine containing all denoising, thresholding, onset/peak/end detection, and mathematical optimization logic.
 * `run_pipeline_cpp.sh`: The pure Bash script to compile and launch the C++ parallel processing pipeline.
 * C++ Implementation Source Files:
-  * `signal_processing.cpp`: Cubic spline interpolation, Gaussian smoothing, and median filtering outlier detection.
-  * `bolus_fitting.cpp`: Non-linear Levenberg-Marquardt curve fitting (Eigen) and parameter auto-estimation logic.
-  * `roi_rasterizer.cpp`: Coordinates scanline rasterizer for converting polygon capillary ROIs to binary masks.
-  * `bolus_visualizer.cpp`: SVG rendering functions and custom nice tick generator.
-  * `dataset_processor.cpp`: Core pipeline containing TIFF loading (LibTIFF), baseline drift detrending, and 3-pass QC prior refitting.
-  * `batch_processor.cpp`: Scanning, metadata parsing, and Subject-Experiment folder organization logic.
-  * `main.cpp`: Standalone CLI execution entry point.
-* `bolus_tracking_cpp.hpp`: Unified C++ header containing shared structure/class definitions and fitting options.
-* `test_bolus_tracking_cpp.cpp`: The C++ testing suite.
+  * `cpp/src/signal_processing.cpp`: Cubic spline interpolation, Gaussian smoothing, and median filtering outlier detection.
+  * `cpp/src/bolus_fitting.cpp`: Non-linear Levenberg-Marquardt curve fitting (Eigen) and parameter auto-estimation logic.
+  * `cpp/src/roi_rasterizer.cpp`: Coordinates scanline rasterizer for converting polygon capillary ROIs to binary masks.
+  * `cpp/src/bolus_visualizer.cpp`: SVG rendering functions and custom nice tick generator.
+  * `cpp/src/dataset_processor.cpp`: Core pipeline containing TIFF loading (LibTIFF), baseline drift detrending, and 3-pass QC prior refitting.
+  * `cpp/src/batch_processor.cpp`: Scanning, metadata parsing, and Subject-Experiment folder organization logic.
+  * `cpp/src/main.cpp`: Standalone CLI execution entry point.
+* `cpp/include/bolus_tracking_cpp.hpp`: Unified C++ header containing shared structure/class definitions and fitting options.
+* `cpp/tests/test_bolus_tracking_cpp.cpp`: The C++ testing suite.
 * `CMakeLists.txt` & `Dockerfile.cpp`: Compilation and Docker configurations for the C++ implementation.
-* `test_bolus_parity.py` & `test_bolus_tracking.py`: Python unit tests and parity test suite.
-* `BolusTrack_InteractiveEdit.m`: The MATLAB graphical user interface (GUI) for manually visualizing and adjusting fits.
-* `gammaFun.m`: The MATLAB definition of the Gamma variate function.
+* `python/tests/test_bolus_parity.py` & `python/tests/test_bolus_tracking.py`: Python unit tests and parity test suite.
+* `matlab/src/BolusTrack_InteractiveEdit.m`: The MATLAB graphical user interface (GUI) for manually visualizing and adjusting fits.
+* `matlab/src/gammaFun.m`: The MATLAB definition of the Gamma variate function.
 * `Dockerfile`: Instructs Docker how to build the runtime container image for the Python pipeline.
 
 ---

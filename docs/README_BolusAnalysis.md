@@ -18,9 +18,9 @@ This toolkit performs fluorescence bolus tracking analysis on two-photon microsc
 | File | Purpose |
 |------|---------|
 | `drawROI.m` | Draw and save polygon ROIs on a MIP image |
-| `ApplyRegistrationToMask.m` | Apply Visual Studio affine transforms (translation + rotation) to existing maskObj files |
-| `GlobalShiftMask.m` | GUI tool to apply a uniform XY pixel shift to all ROIs and save a new mask file |
-| `BolusTrack_InteractiveEdit.m` | Bolus fitting GUI with pop-out ROI editor, metadata loading, denoising, and auto-save |
+| `matlab/src/ApplyRegistrationToMask.m` | Apply Visual Studio affine transforms (translation + rotation) to existing maskObj files |
+| `matlab/src/GlobalShiftMask.m` | GUI tool to apply a uniform XY pixel shift to all ROIs and save a new mask file |
+| `matlab/src/BolusTrack_InteractiveEdit.m` | Bolus fitting GUI with pop-out ROI editor, metadata loading, denoising, and auto-save |
 | `BolusTrack.m` (original) | Paolo's original bolus fitting GUI (kept as backup) |
 
 ---
@@ -148,7 +148,7 @@ BolusTrack
 5. Show ROIs tc (regenerates time-courses from the TIFF)
 6. Click Resume Session — select autosave_progress.mat — completed fits are restored and the display jumps to the next unfitted trace
 
-Note: `gammaFun.m` must be on the MATLAB path for fitting to work. If MATLAB restarted after a crash, it may have lost the path. Check with `which gammaFun` and add the folder if needed: `addpath('/path/to/folder')`. To make this permanent: Home > Set Path > Add Folder > Save.
+Note: `matlab/src/gammaFun.m` must be on the MATLAB path for fitting to work. If MATLAB restarted after a crash, it may have lost the path. Check with `which gammaFun` and add the folder if needed: `addpath('/path/to/folder')`. To make this permanent: Home > Set Path > Add Folder > Save.
 
 **Denoising — recommended approach:**
 
@@ -245,7 +245,7 @@ To assess inter-rater reliability, a second operator can independently fit the s
 - Time-cropped bolus TIFF files (registered or unregistered, matching your analysis)
 - The maskObj .mat files (original from drawROI and/or shifted from GlobalShiftMask)
 - The metadata .txt files for frame rate
-- All .m files: BolusTrack_InteractiveEdit.m (renamed to BolusTrack.m), gammaFun.m, and optionally GlobalShiftMask.m
+- All .m files: matlab/src/BolusTrack_InteractiveEdit.m (renamed to BolusTrack.m), matlab/src/gammaFun.m, and optionally matlab/src/GlobalShiftMask.m
 - This README and the Bolus_Analysis_Processing_2026 document
 
 The second rater should use the same maskObj and the same bolus TIFF — the only difference should be their selection of initial fitting parameters (Amplitude, Time to Peak, Fit Start, Fit End) and their decision of whether to denoise each trace. Compare the resulting fitted parameters (F_Amp, F_T2p, F_FWHM, AUC, TTm, OnTSc) between raters.
@@ -257,7 +257,7 @@ The second rater should use the same maskObj and the same bolus TIFF — the onl
 - MATLAB R2020a or later
 - Image Processing Toolbox (`images.roi.Polygon`, `poly2mask`, `medfilt2`)
 - Statistics and Machine Learning Toolbox (`nlinfit`, `nlparci`, `statset`)
-- `gammaFun.m` (must be on MATLAB path — check with `which gammaFun`)
+- `matlab/src/gammaFun.m` (must be on MATLAB path — check with `which gammaFun`)
 
 ---
 
