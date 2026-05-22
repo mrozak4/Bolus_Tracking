@@ -2418,10 +2418,11 @@ void BolusApp::update_mip_texture() {
         if (pt.second > max_y) max_y = pt.second;
     }
     
-    int pad_min_x = static_cast<int>(std::floor(min_x - 15.0));
-    int pad_max_x = static_cast<int>(std::ceil(max_x + 15.0));
-    int pad_min_y = static_cast<int>(std::floor(min_y - 15.0));
-    int pad_max_y = static_cast<int>(std::ceil(max_y + 15.0));
+    double fov_pad = 80.0;
+    int pad_min_x = static_cast<int>(std::floor(min_x - fov_pad));
+    int pad_max_x = static_cast<int>(std::ceil(max_x + fov_pad));
+    int pad_min_y = static_cast<int>(std::floor(min_y - fov_pad));
+    int pad_max_y = static_cast<int>(std::ceil(max_y + fov_pad));
     
     pad_min_x = std::max(0, std::min(pad_min_x, static_cast<int>(m_tiff.width) - 1));
     pad_max_x = std::max(0, std::min(pad_max_x, static_cast<int>(m_tiff.width) - 1));
@@ -2526,8 +2527,9 @@ void BolusApp::draw_mip_modal() {
                     if (pt.second > max_y) max_y = pt.second;
                 }
                 
-                int pad_min_x = static_cast<int>(std::floor(min_x - 15.0));
-                int pad_min_y = static_cast<int>(std::floor(min_y - 15.0));
+                double fov_pad = 80.0;
+                int pad_min_x = static_cast<int>(std::floor(min_x - fov_pad));
+                int pad_min_y = static_cast<int>(std::floor(min_y - fov_pad));
                 
                 pad_min_x = std::max(0, std::min(pad_min_x, static_cast<int>(m_tiff.width) - 1));
                 pad_min_y = std::max(0, std::min(pad_min_y, static_cast<int>(m_tiff.height) - 1));
@@ -3032,6 +3034,7 @@ void BolusApp::draw_top_bar() {
     ImGui::SameLine();
     if (ImGui::Button(m_tr.btn_reset_all.c_str(), ImVec2(100, 24))) {
         if (!m_csv_path.empty()) {
+            m_reset_attempt_count = 0;
             ImGui::OpenPopup(m_tr.modal_reset_title.c_str());
         }
     }
@@ -3072,27 +3075,42 @@ void BolusApp::draw_top_bar() {
         }
         if (ImGui::BeginPopupModal(m_tr.modal_reset_title.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::Text("%s", m_tr.modal_reset_desc.c_str());
+            if (m_reset_attempt_count > 0) {
+                ImGui::TextColored(ImVec4(0.88f, 0.45f, 0.18f, 1.0f), "Attempts to confirm: %d / 3", m_reset_attempt_count);
+            }
             ImGui::Separator();
             if (ImGui::Button(m_tr.btn_reset_confirm.c_str(), ImVec2(120, 0))) {
-                int active_idx = m_selected_roi_idx;
-                m_selected_roi_idx = -1; // Bypass saving current modified state
-                m_records = m_records_backup;
-                m_gui_roi_states = m_gui_roi_states_backup;
-                for (size_t i = 0; i < m_gui_roi_states.size(); ++i) {
-                    precompute_fit_plot(i);
-                }
-                if (active_idx >= 0 && active_idx < static_cast<int>(m_records.size())) {
-                    select_record(active_idx);
+                if (m_reset_attempt_count < 3) {
+                    m_reset_attempt_count++;
+                    ImVec2 display_size = ImGui::GetIO().DisplaySize;
+                    float max_x = std::max(50.0f, display_size.x - 300.0f);
+                    float max_y = std::max(50.0f, display_size.y - 150.0f);
+                    float rx = 50.0f + static_cast<float>(std::rand()) / (static_cast<float>(RAND_MAX) / (max_x - 50.0f));
+                    float ry = 50.0f + static_cast<float>(std::rand()) / (static_cast<float>(RAND_MAX) / (max_y - 50.0f));
+                    ImGui::SetWindowPos(ImVec2(rx, ry));
                 } else {
-                    m_selected_roi_idx = -1;
+                    m_reset_attempt_count = 0;
+                    int active_idx = m_selected_roi_idx;
+                    m_selected_roi_idx = -1; // Bypass saving current modified state
+                    m_records = m_records_backup;
+                    m_gui_roi_states = m_gui_roi_states_backup;
+                    for (size_t i = 0; i < m_gui_roi_states.size(); ++i) {
+                        precompute_fit_plot(i);
+                    }
+                    if (active_idx >= 0 && active_idx < static_cast<int>(m_records.size())) {
+                        select_record(active_idx);
+                    } else {
+                        m_selected_roi_idx = -1;
+                    }
+                    build_triage_queue();
+                    save_gui_state();
+                    save_active_roi_svg();
+                    ImGui::CloseCurrentPopup();
                 }
-                build_triage_queue();
-                save_gui_state();
-                save_active_roi_svg();
-                ImGui::CloseCurrentPopup();
             }
             ImGui::SameLine();
             if (ImGui::Button(m_tr.btn_cancel.c_str(), ImVec2(120, 0))) {
+                m_reset_attempt_count = 0;
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();

@@ -356,6 +356,7 @@ private:
     int m_mip_tex_width = 0;
     int m_mip_tex_height = 0;
     bool m_any_item_active_prev = false;
+    int m_reset_attempt_count = 0;
 
     void draw_intro_screen(float width, float height);
     void update_locale();
