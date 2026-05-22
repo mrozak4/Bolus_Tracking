@@ -2206,12 +2206,11 @@ void BolusApp::draw_intro_screen(float width, float height) {
     float pulse_scale = 1.0f;
     float crescendo_intensity = 0.0f;
     
-    if (elapsed >= 1.5f && elapsed < 5.5f) {
+    if (elapsed >= 1.5f && elapsed < 6.5f) {
         if (elapsed < 3.5f) {
             crescendo_intensity = (elapsed - 1.5f) / 2.0f;
         } else {
-            crescendo_intensity = 1.0f - (elapsed - 3.5f) / 2.0f;
-            if (crescendo_intensity < 0.0f) crescendo_intensity = 0.0f;
+            crescendo_intensity = 1.0f;
         }
         
         pulse_scale = 1.0f + 0.3f * crescendo_intensity * sinf(elapsed * 25.0f);
