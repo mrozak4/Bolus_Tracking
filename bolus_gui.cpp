@@ -2379,18 +2379,69 @@ void BolusApp::draw_top_bar() {
     ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 955.0f);
     
     std::string kl_label = to_klingon_piqad("tlhIngan Hol");
-    const char* languages[] = {
-        "EN (Canada)", "FR (Québec)", "DE (Schweiz)", "日本語", "简体中文",
-        kl_label.c_str(), "Kreyòl (Ayiti)", "DA (Danmark)", "NL (Nederland)",
-        "ES (España)", "IT (Italia)", "한국어", "SV (Sverige)",
-        "Pirate English", "Leet Speak", "Scots", "Kalaallisut",
-        "Esperanto", "Gaeilge"
+    struct LangOption {
+        Language lang;
+        std::string name;
+        bool is_separator;
     };
-    int current_lang = static_cast<int>(m_lang);
+    
+    std::vector<LangOption> options = {
+        { LANG_DA, "DA (Danmark)", false },
+        { LANG_DE_CH, "DE (Schweiz)", false },
+        { LANG_EN, "EN (Canada)", false },
+        { LANG_ES, "ES (España)", false },
+        { LANG_FR, "FR (Québec)", false },
+        { LANG_GA, "Gaeilge", false },
+        { LANG_IT, "IT (Italia)", false },
+        { LANG_GL, "Kalaallisut", false },
+        { LANG_HT, "Kreyòl (Ayiti)", false },
+        { LANG_LA, "LA (Latina)", false },
+        { LANG_NL, "NL (Nederland)", false },
+        { LANG_NO, "NO (Norge)", false },
+        { LANG_RU, "RU (Россия)", false },
+        { LANG_SCOTS, "Scots", false },
+        { LANG_SV, "SV (Sverige)", false },
+        { LANG_UK, "UK (Україна)", false },
+        { LANG_KO, "한국어", false },
+        { LANG_JA, "日本語", false },
+        { LANG_ZH_CN, "简体中文", false },
+        
+        { LANG_EN, "", true }, // Separator
+        
+        { LANG_EO, "Esperanto", false },
+        { LANG_LEET, "Leet Speak", false },
+        { LANG_MINION, "Minion (Bello!)", false },
+        { LANG_PIRATE, "Pirate English", false },
+        { LANG_SHAKESPEARE, "Shakespearean", false },
+        { LANG_KL, kl_label, false },
+        { LANG_YODA, "Yoda Speak", false }
+    };
+
+    std::string current_display_name = "EN (Canada)";
+    for (const auto& opt : options) {
+        if (!opt.is_separator && opt.lang == m_lang) {
+            current_display_name = opt.name;
+            break;
+        }
+    }
+
     ImGui::SetNextItemWidth(140.0f);
-    if (ImGui::Combo("##LanguageCombo", &current_lang, languages, IM_ARRAYSIZE(languages))) {
-        m_lang = static_cast<Language>(current_lang);
-        update_locale();
+    if (ImGui::BeginCombo("##LanguageCombo", current_display_name.c_str())) {
+        for (const auto& opt : options) {
+            if (opt.is_separator) {
+                ImGui::Separator();
+            } else {
+                bool is_selected = (m_lang == opt.lang);
+                if (ImGui::Selectable(opt.name.c_str(), is_selected)) {
+                    m_lang = opt.lang;
+                    update_locale();
+                }
+                if (is_selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+        }
+        ImGui::EndCombo();
     }
     ImGui::SameLine();
     

@@ -37,7 +37,14 @@ enum Language {
     LANG_SCOTS,
     LANG_GL,
     LANG_EO,
-    LANG_GA
+    LANG_GA,
+    LANG_LA,
+    LANG_NO,
+    LANG_RU,
+    LANG_UK,
+    LANG_YODA,
+    LANG_SHAKESPEARE,
+    LANG_MINION
 };
 
 struct Translation {
