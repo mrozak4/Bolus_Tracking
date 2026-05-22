@@ -2885,8 +2885,8 @@ void BolusApp::draw_main_area() {
         
         // Calculate dynamic plot height based on available window height to fit everything else
         float avail_h = ImGui::GetContentRegionAvail().y;
-        float plot_h = avail_h - 375.0f; // Reserved for ParamsPane and RangeSlider/Header
-        if (plot_h < 300.0f) plot_h = 300.0f;
+        float plot_h = avail_h - 410.0f; // Reserved for ParamsPane and RangeSlider/Header
+        if (plot_h < 240.0f) plot_h = 240.0f;
         if (plot_h > 900.0f) plot_h = 900.0f;
 
         if (ImPlot::BeginPlot(m_tr.plot_title.c_str(), ImVec2(-1, plot_h))) {
@@ -2986,25 +2986,46 @@ void BolusApp::draw_main_area() {
         double base_min = 0.0;
         double base_max = 1000.0;
         
-        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.55f, 0.62f, 0.45f, 0.8f));
-        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.65f, 0.72f, 0.55f, 1.0f));
-        ImGui::SliderScalar(m_tr.label_onset.c_str(), ImGuiDataType_Double, &m_onset_marker, &min_t, &max_t, "%.1f");
-        ImGui::PopStyleColor(2);
-
-        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.92f, 0.72f, 0.30f, 0.8f));
-        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.00f, 0.82f, 0.40f, 1.0f));
-        ImGui::SliderScalar(m_tr.label_peak.c_str(), ImGuiDataType_Double, &m_peak_marker, &m_onset_marker, &max_t, "%.1f");
-        ImGui::PopStyleColor(2);
-
-        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.80f, 0.32f, 0.22f, 0.8f));
-        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.90f, 0.42f, 0.32f, 1.0f));
-        ImGui::SliderScalar(m_tr.label_end.c_str(), ImGuiDataType_Double, &m_end_marker, &m_peak_marker, &max_t, "%.1f");
-        ImGui::PopStyleColor(2);
-
-        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.68f, 0.48f, 0.68f, 0.8f));
-        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.78f, 0.58f, 0.78f, 1.0f));
-        ImGui::SliderScalar(m_tr.label_baseline.c_str(), ImGuiDataType_Double, &m_baseline_marker, &base_min, &base_max, "%.1f");
-        ImGui::PopStyleColor(2);
+        if (ImGui::BeginTable("SlidersGridTable", 2, ImGuiTableFlags_None)) {
+            ImGui::TableSetupColumn("Col1", ImGuiTableColumnFlags_WidthFixed, 215.0f);
+            ImGui::TableSetupColumn("Col2", ImGuiTableColumnFlags_WidthFixed, 215.0f);
+            
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::PushItemWidth(110.0f);
+            ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.55f, 0.62f, 0.45f, 0.8f));
+            ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.65f, 0.72f, 0.55f, 1.0f));
+            ImGui::SliderScalar(m_tr.label_onset.c_str(), ImGuiDataType_Double, &m_onset_marker, &min_t, &max_t, "%.1f");
+            ImGui::PopStyleColor(2);
+            ImGui::PopItemWidth();
+            
+            ImGui::TableNextColumn();
+            ImGui::PushItemWidth(110.0f);
+            ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.92f, 0.72f, 0.30f, 0.8f));
+            ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.00f, 0.82f, 0.40f, 1.0f));
+            ImGui::SliderScalar(m_tr.label_peak.c_str(), ImGuiDataType_Double, &m_peak_marker, &m_onset_marker, &max_t, "%.1f");
+            ImGui::PopStyleColor(2);
+            ImGui::PopItemWidth();
+            
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::PushItemWidth(110.0f);
+            ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.80f, 0.32f, 0.22f, 0.8f));
+            ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.90f, 0.42f, 0.32f, 1.0f));
+            ImGui::SliderScalar(m_tr.label_end.c_str(), ImGuiDataType_Double, &m_end_marker, &m_peak_marker, &max_t, "%.1f");
+            ImGui::PopStyleColor(2);
+            ImGui::PopItemWidth();
+            
+            ImGui::TableNextColumn();
+            ImGui::PushItemWidth(110.0f);
+            ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.68f, 0.48f, 0.68f, 0.8f));
+            ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.78f, 0.58f, 0.78f, 1.0f));
+            ImGui::SliderScalar(m_tr.label_baseline.c_str(), ImGuiDataType_Double, &m_baseline_marker, &base_min, &base_max, "%.1f");
+            ImGui::PopStyleColor(2);
+            ImGui::PopItemWidth();
+            
+            ImGui::EndTable();
+        }
         
         ImGui::NextColumn();
         
