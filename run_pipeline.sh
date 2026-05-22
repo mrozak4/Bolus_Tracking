@@ -108,9 +108,9 @@ fi
 if [ -n "$MATLAB_CMD" ]; then
     if [[ "$MATLAB_CMD" == *.exe ]]; then
         # On Windows, run in batch mode to output directly to the console and terminate properly
-        "$MATLAB_CMD" -batch "run('scratch/convert_masks_for_python.m');"
+        "$MATLAB_CMD" -batch "run('matlab/convert_masks_for_python.m');"
     else
-        $MATLAB_CMD -nodesktop -nosplash -r "run('scratch/convert_masks_for_python.m'); quit;"
+        $MATLAB_CMD -nodesktop -nosplash -r "run('matlab/convert_masks_for_python.m'); quit;"
     fi
 fi
 
@@ -123,7 +123,7 @@ if docker info > /dev/null 2>&1; then
     
     echo "Starting docker container..."
     docker run --rm -v "$(pwd):/data" bolus_tracking:latest --folder "/data/$TARGET_FOLDER" $DRIFT_FLAG \
-        $MIN_AMP_FLAG $MAX_AMP_FLAG $MIN_T2P_FLAG $MAX_T2P_FLAG $MIN_FWHM_FLAG $MAX_FWHM_FLAG
+         $MIN_AMP_FLAG $MAX_AMP_FLAG $MIN_T2P_FLAG $MAX_T2P_FLAG $MIN_FWHM_FLAG $MAX_FWHM_FLAG
 else
     echo "WARNING: Docker is not running or not accessible."
     echo "Falling back to local Python virtual environment (.venv)..."
@@ -133,7 +133,7 @@ else
         # Quietly ensure latest requirements (like matplotlib) are installed
         pip install -q -r requirements.txt
         
-        python batch_process.py --folder "$TARGET_FOLDER" $DRIFT_FLAG \
+        python python/src/batch_process.py --folder "$TARGET_FOLDER" $DRIFT_FLAG \
             $MIN_AMP_FLAG $MAX_AMP_FLAG $MIN_T2P_FLAG $MAX_T2P_FLAG $MIN_FWHM_FLAG $MAX_FWHM_FLAG
     else
         echo "ERROR: Docker is not running and .venv was not found."

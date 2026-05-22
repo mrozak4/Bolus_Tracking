@@ -151,9 +151,9 @@ if [ -n "$MATLAB_CMD" ]; then
     echo "Running MATLAB mask conversion..."
     if [[ "$MATLAB_CMD" == *.exe ]]; then
         # On Windows, run in batch mode to output directly to the console and terminate properly
-        "$MATLAB_CMD" -batch "run('scratch/convert_masks_for_python.m');"
+        "$MATLAB_CMD" -batch "run('matlab/convert_masks_for_python.m');"
     else
-        $MATLAB_CMD -nodesktop -nosplash -r "run('scratch/convert_masks_for_python.m'); quit;"
+        $MATLAB_CMD -nodesktop -nosplash -r "run('matlab/convert_masks_for_python.m'); quit;"
     fi
 fi
 

@@ -20,10 +20,10 @@ make -j4
 
 # 2. Generate AppIcon.icns if not present or rebuild it
 cd "$REPO_DIR"
-if [ -f "app_icon.png" ]; then
+if [ -f "resources/app_icon.png" ]; then
     echo "Step 2: Generating AppIcon.icns from app_icon.png..."
-    bash create_app_icon.sh
-elif [ -f "AppIcon.icns" ]; then
+    bash resources/create_app_icon.sh
+elif [ -f "resources/AppIcon.icns" ]; then
     echo "Step 2 Warning: app_icon.png not found. Using existing AppIcon.icns."
 else
     echo "Step 2 Warning: No app icon found. Continuing without icon."
@@ -39,8 +39,8 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 echo "Step 4: Copying binaries and resources..."
 cp "$REPO_DIR/build/bolus_tracking_gui" "$APP_BUNDLE/Contents/MacOS/bolus_tracking_gui"
 
-if [ -f "AppIcon.icns" ]; then
-    cp "$REPO_DIR/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+if [ -f "resources/AppIcon.icns" ]; then
+    cp "$REPO_DIR/resources/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
 fi
 
 if [ -d "$REPO_DIR/resources" ]; then

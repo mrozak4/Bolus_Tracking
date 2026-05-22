@@ -13,23 +13,23 @@ find_package(Eigen3 REQUIRED)
 find_package(TIFF REQUIRED)
 
 set(PIPELINE_SRCS
-    signal_processing.cpp
-    bolus_fitting.cpp
-    roi_rasterizer.cpp
-    bolus_visualizer.cpp
-    dataset_processor.cpp
-    batch_processor.cpp
+    cpp/src/signal_processing.cpp
+    cpp/src/bolus_fitting.cpp
+    cpp/src/roi_rasterizer.cpp
+    cpp/src/bolus_visualizer.cpp
+    cpp/src/dataset_processor.cpp
+    cpp/src/batch_processor.cpp
 )
 
 # Core pipeline command-line executable
-add_executable(bolus_tracking_cpp main.cpp ${PIPELINE_SRCS} bolus_tracking_cpp.hpp)
-target_include_directories(bolus_tracking_cpp PRIVATE ${TIFF_INCLUDE_DIRS})
+add_executable(bolus_tracking_cpp cpp/src/main.cpp ${PIPELINE_SRCS} cpp/include/bolus_tracking_cpp.hpp)
+target_include_directories(bolus_tracking_cpp PRIVATE cpp/include ${TIFF_INCLUDE_DIRS})
 target_link_libraries(bolus_tracking_cpp PRIVATE ${TIFF_LIBRARIES} Eigen3::Eigen)
 
 # Core pipeline test executable
-add_executable(test_bolus_tracking_cpp test_bolus_tracking_cpp.cpp ${PIPELINE_SRCS} bolus_tracking_cpp.hpp)
+add_executable(test_bolus_tracking_cpp cpp/tests/test_bolus_tracking_cpp.cpp ${PIPELINE_SRCS} cpp/include/bolus_tracking_cpp.hpp)
 target_compile_definitions(test_bolus_tracking_cpp PRIVATE BUILD_TESTS=1)
-target_include_directories(test_bolus_tracking_cpp PRIVATE ${TIFF_INCLUDE_DIRS})
+target_include_directories(test_bolus_tracking_cpp PRIVATE cpp/include ${TIFF_INCLUDE_DIRS})
 target_link_libraries(test_bolus_tracking_cpp PRIVATE ${TIFF_LIBRARIES} Eigen3::Eigen)
 
 # ========================================================
@@ -90,17 +90,18 @@ if(BUILD_GUI)
     
     # Add GUI executable
     add_executable(bolus_tracking_gui
-        bolus_gui.cpp
-        bolus_gui.hpp
-        bolus_locale.cpp
+        cpp/src/bolus_gui.cpp
+        cpp/include/bolus_gui.hpp
+        cpp/src/bolus_locale.cpp
         ${PIPELINE_SRCS}
-        bolus_tracking_cpp.hpp
+        cpp/include/bolus_tracking_cpp.hpp
         ${IMGUI_SRCS}
         ${IMPLOT_SRCS}
     )
     
     # Include directories
     target_include_directories(bolus_tracking_gui PRIVATE
+        cpp/include
         ${TIFF_INCLUDE_DIRS}
         ${imgui_SOURCE_DIR}
         ${imgui_SOURCE_DIR}/backends

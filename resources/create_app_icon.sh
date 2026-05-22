@@ -2,8 +2,8 @@
 set -e
 
 # Script to convert a PNG image to macOS .icns format
-PNG_IMAGE="app_icon.png"
-OUTPUT_ICNS="AppIcon.icns"
+PNG_IMAGE="resources/app_icon.png"
+OUTPUT_ICNS="resources/AppIcon.icns"
 
 if [ ! -f "$PNG_IMAGE" ]; then
     echo "Error: $PNG_IMAGE not found!"
@@ -28,6 +28,7 @@ sips -s format png -z 1024 1024 "$PNG_IMAGE" --out AppIcon.iconset/icon_512x512@
 
 echo "Building AppIcon.icns..."
 iconutil -c icns AppIcon.iconset
+mv AppIcon.icns resources/AppIcon.icns
 
 echo "Cleaning up..."
 rm -rf AppIcon.iconset
