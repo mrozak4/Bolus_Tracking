@@ -2885,7 +2885,7 @@ void BolusApp::draw_main_area() {
         
         // Calculate dynamic plot height based on available window height to fit everything else
         float avail_h = ImGui::GetContentRegionAvail().y;
-        float plot_h = avail_h - 315.0f; // Reserved for ParamsPane and RangeSlider/Header
+        float plot_h = avail_h - 375.0f; // Reserved for ParamsPane and RangeSlider/Header
         if (plot_h < 300.0f) plot_h = 300.0f;
         if (plot_h > 900.0f) plot_h = 900.0f;
 
