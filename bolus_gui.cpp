@@ -2972,10 +2972,11 @@ void BolusApp::draw_main_area() {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 4.0f));
         ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(4.0f, 2.0f));
         
-        // Manual fitting and cropping
+        // Manual fitting and cropping with dynamic proportions
+        float controls_total_w = ImGui::GetContentRegionAvail().x;
         ImGui::Columns(3, "ControlsGrid", false);
-        ImGui::SetColumnWidth(0, 450.0f);
-        ImGui::SetColumnWidth(1, 380.0f);
+        ImGui::SetColumnWidth(0, controls_total_w * 0.52f);
+        ImGui::SetColumnWidth(1, controls_total_w * 0.26f);
         // Column 2 takes the remainder
         
         ImGui::PushFont(m_font_bold);
@@ -2987,12 +2988,13 @@ void BolusApp::draw_main_area() {
         double base_max = 1000.0;
         
         if (ImGui::BeginTable("SlidersGridTable", 2, ImGuiTableFlags_None)) {
-            ImGui::TableSetupColumn("Col1", ImGuiTableColumnFlags_WidthFixed, 215.0f);
-            ImGui::TableSetupColumn("Col2", ImGuiTableColumnFlags_WidthFixed, 215.0f);
+            float col_w = ImGui::GetContentRegionAvail().x * 0.5f;
+            ImGui::TableSetupColumn("Col1", ImGuiTableColumnFlags_WidthFixed, col_w);
+            ImGui::TableSetupColumn("Col2", ImGuiTableColumnFlags_WidthFixed, col_w);
             
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
-            ImGui::PushItemWidth(110.0f);
+            ImGui::PushItemWidth(col_w * 0.52f);
             ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.55f, 0.62f, 0.45f, 0.8f));
             ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.65f, 0.72f, 0.55f, 1.0f));
             ImGui::SliderScalar(m_tr.label_onset.c_str(), ImGuiDataType_Double, &m_onset_marker, &min_t, &max_t, "%.1f");
@@ -3000,7 +3002,7 @@ void BolusApp::draw_main_area() {
             ImGui::PopItemWidth();
             
             ImGui::TableNextColumn();
-            ImGui::PushItemWidth(110.0f);
+            ImGui::PushItemWidth(col_w * 0.52f);
             ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.92f, 0.72f, 0.30f, 0.8f));
             ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.00f, 0.82f, 0.40f, 1.0f));
             ImGui::SliderScalar(m_tr.label_peak.c_str(), ImGuiDataType_Double, &m_peak_marker, &m_onset_marker, &max_t, "%.1f");
@@ -3009,7 +3011,7 @@ void BolusApp::draw_main_area() {
             
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
-            ImGui::PushItemWidth(110.0f);
+            ImGui::PushItemWidth(col_w * 0.52f);
             ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.80f, 0.32f, 0.22f, 0.8f));
             ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.90f, 0.42f, 0.32f, 1.0f));
             ImGui::SliderScalar(m_tr.label_end.c_str(), ImGuiDataType_Double, &m_end_marker, &m_peak_marker, &max_t, "%.1f");
@@ -3017,7 +3019,7 @@ void BolusApp::draw_main_area() {
             ImGui::PopItemWidth();
             
             ImGui::TableNextColumn();
-            ImGui::PushItemWidth(110.0f);
+            ImGui::PushItemWidth(col_w * 0.52f);
             ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.68f, 0.48f, 0.68f, 0.8f));
             ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.78f, 0.58f, 0.78f, 1.0f));
             ImGui::SliderScalar(m_tr.label_baseline.c_str(), ImGuiDataType_Double, &m_baseline_marker, &base_min, &base_max, "%.1f");
