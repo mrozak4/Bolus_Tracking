@@ -3081,14 +3081,7 @@ void BolusApp::draw_main_area() {
         ImGui::Columns(1);
         ImGui::Separator();
         
-        // Two-column layout for the tables below the controls
-        ImGui::Columns(2, "TablesGrid", false);
-        
-        // Setup proportional widths for the two tables
-        float avail_width = ImGui::GetContentRegionAvail().x;
-        ImGui::SetColumnWidth(0, avail_width * 0.5f);
-        
-        // Left Column: Active fit parameters table comparison
+        // Active fit parameters table comparison
         ImGui::PushFont(m_font_bold);
         ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", m_tr.section_params.c_str());
         ImGui::PopFont();
@@ -3130,9 +3123,9 @@ void BolusApp::draw_main_area() {
             ImGui::EndTable();
         }
         
-        ImGui::NextColumn();
+        ImGui::Dummy(ImVec2(0.0f, 2.0f));
         
-        // Right Column: Kinetics & Classification table
+        // Kinetics & Classification table
         ImGui::PushFont(m_font_bold);
         ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s", m_tr.text_kinetics_title.c_str());
         ImGui::PopFont();
