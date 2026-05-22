@@ -2280,8 +2280,8 @@ void BolusApp::draw_intro_screen(float width, float height) {
             float sub_y = height * 0.65f;
             std::string sub_str = "MADE BY MATT";
             
-            // Visual crescendo: starts at 30% scale and swells dramatically to 130% scale (bold 28px base font size)
-            float scale = 0.30f + 1.00f * matt_alpha;
+            // Visual crescendo: starts at 30% scale and swells dramatically to 400% scale (bold 28px base font size)
+            float scale = 0.30f + 3.70f * matt_alpha;
             float font_size = 28.0f * scale;
             
             ImVec2 sub_size = m_font_bold->CalcTextSizeA(font_size, FLT_MAX, 0.0f, sub_str.c_str());
