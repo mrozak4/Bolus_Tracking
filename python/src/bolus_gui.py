@@ -462,6 +462,14 @@ class BolusTrackingGUI:
                     text=f"Fit Successful!\nFitted Amplitude: {popt[0]:.2f}\nT2P: {popt[1]:.2f}s, FWHM: {popt[2]:.2f}s, Base: {popt[3]:.2f}",
                     foreground="#27ae60"
                 )
+                self.ent_amp.delete(0, tk.END)
+                self.ent_amp.insert(0, f"{popt[0]:.3f}")
+                self.ent_t2p.delete(0, tk.END)
+                self.ent_t2p.insert(0, f"{popt[1]:.3f}")
+                self.ent_fwhm.delete(0, tk.END)
+                self.ent_fwhm.insert(0, f"{popt[2]:.3f}")
+                self.ent_base.delete(0, tk.END)
+                self.ent_base.insert(0, f"{popt[3]:.3f}")
             else:
                 self.lbl_status.config(text="Fitting failed or diverged.", foreground="#e74c3c")
                 

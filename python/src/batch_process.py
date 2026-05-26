@@ -624,16 +624,61 @@ class BatchProcessor:
         """
         Runs the batch processor over the configured folder.
         """
+        # Collect all TIFF files in folder_path
+        all_tifs = []
+        for root, _, files in os.walk(self.folder_path):
+            for f in files:
+                if f.startswith('.'):
+                    continue
+                f_lower = f.lower()
+                if f_lower.endswith('.tif') or f_lower.endswith('.tiff'):
+                    if 'mips' not in f_lower and 'results' not in f_lower and 'shift_info' not in f_lower and 'max_' not in f_lower:
+                        all_tifs.append(os.path.join(root, f))
+
+        registered_stems = {os.path.splitext(os.path.basename(t))[0].lower() for t in all_tifs if 'registered' in t.lower()}
+        skipped_unregistered = []
+        
         triplets = self.find_triplets(self.folder_path)
-        if not triplets:
+        
+        # Filter triplets to exclude unregistered TIFFs if a registered version exists
+        filtered_triplets = []
+        for tif, mat, txt in triplets:
+            stem = os.path.splitext(os.path.basename(tif))[0].lower()
+            if 'registered' not in stem and f"{stem}_registered" in registered_stems:
+                skipped_unregistered.append(os.path.basename(tif) + " (using registered version instead)")
+                continue
+            filtered_triplets.append((tif, mat, txt))
+        
+        processed_tifs = {tif for tif, _, _ in filtered_triplets}
+        skipped_missing = []
+        for tif in all_tifs:
+            if tif not in processed_tifs and os.path.basename(tif) not in [item.split()[0] for item in skipped_unregistered]:
+                skipped_missing.append(os.path.basename(tif) + " (missing matching mask .mat or metadata .txt file)")
+        
+        if not filtered_triplets:
             print(f"No matching (TIFF, MAT, TXT) sets found in {self.folder_path}.")
         else:
-            print(f"Found {len(triplets)} matching datasets to process.")
-            for tif, mat, txt in triplets:
+            print(f"Found {len(filtered_triplets)} matching datasets to process.")
+            processed_count = 0
+            for tif, mat, txt in filtered_triplets:
                 try:
                     self.processor.process(tif, mat, txt, out_dir)
+                    processed_count += 1
                 except Exception as e:
                     print(f"Failed to process {tif}: {e}")
+                    skipped_missing.append(os.path.basename(tif) + f" (Error: {e})")
+            
+            print("\n==================================================")
+            print("   BATCH PROCESSING EXECUTION SUMMARY             ")
+            print("==================================================")
+            print(f"Successfully Processed: {processed_count} datasets.")
+            print(f"Skipped Unregistered TIFFs (registered version used): {len(skipped_unregistered)}")
+            for item in skipped_unregistered:
+                print(f"  - {item}")
+            print(f"Skipped Due to Errors/Missing Files: {len(skipped_missing)}")
+            for item in skipped_missing:
+                print(f"  - {item}")
+            print("==================================================")
 
 
 # ---------------------------------------------------------------------------

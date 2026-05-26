@@ -31,6 +31,9 @@ cd Bolus_Tracking
 > **Docker is the highly recommended and preferred way to run the C++ pipeline.**
 > Using Docker guarantees that all library versions are identical, prevents dependency conflicts, and requires zero installation of C++ compilers or packages on your system.
 
+> [!NOTE]
+> **No MATLAB Prerequisite:** Both the C++ and Python pipelines natively parse MATLAB `.mat` mask files directly. You do not need to install MATLAB or run any mask conversion scripts to process your datasets.
+
 ### Prerequisites (One-Time Setup)
 Make sure you have Docker installed and running on your system:
 - **macOS / Windows**: Download and run [Docker Desktop](https://www.docker.com/products/docker-desktop/).

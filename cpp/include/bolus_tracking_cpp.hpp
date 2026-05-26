@@ -165,10 +165,12 @@ public:
     double max_t2p;
     double min_fwhm;
     double max_fwhm;
+    bool verbose;
 
     BolusFitter(double min_amp = 1e-6, double max_amp = 1023.0,
                 double min_t2p = 1e-6, double max_t2p = 1e6,
-                double min_fwhm = 0.5, double max_fwhm = 1e6);
+                double min_fwhm = 0.5, double max_fwhm = 1e6,
+                bool verbose = false);
 
     AutoEstimateResults auto_estimate_params(const std::vector<double>& tr, const std::vector<double>& t_us, double fr, int up_f = 20, bool low_cnr = false) const;
     std::vector<double> run_nonlinear_fit(const std::vector<double>& t, const std::vector<double>& y,

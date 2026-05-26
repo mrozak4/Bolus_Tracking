@@ -145,6 +145,30 @@ bool BatchProcessor::run() const {
     }
     
     std::vector<std::filesystem::path> tiff_files;
+    std::vector<std::string> registered_stems;
+    std::vector<std::string> skipped_unregistered;
+    std::vector<std::string> skipped_missing;
+
+    // First pass: collect registered stems
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(folder_path)) {
+        if (entry.is_regular_file()) {
+            std::string ext = entry.path().extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            if (ext == ".tif" || ext == ".tiff") {
+                std::string filename = entry.path().filename().string();
+                if (filename.empty() || filename.front() == '.') continue;
+                std::string name_lower = filename;
+                std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
+                if (name_lower.find("registered") != std::string::npos && !contains_ignored_pattern(name_lower)) {
+                    std::string stem = entry.path().stem().string();
+                    std::transform(stem.begin(), stem.end(), stem.begin(), ::tolower);
+                    registered_stems.push_back(stem);
+                }
+            }
+        }
+    }
+
+    // Second pass: collect TIFF files, skipping unregistered counterparts
     for (const auto& entry : std::filesystem::recursive_directory_iterator(folder_path)) {
         if (entry.is_regular_file()) {
             std::string filename = entry.path().filename().string();
@@ -156,6 +180,16 @@ bool BatchProcessor::run() const {
                 std::string p_str = entry.path().string();
                 std::transform(p_str.begin(), p_str.end(), p_str.begin(), ::tolower);
                 if (!contains_ignored_pattern(p_str)) {
+                    std::string stem = entry.path().stem().string();
+                    std::transform(stem.begin(), stem.end(), stem.begin(), ::tolower);
+                    if (stem.find("registered") == std::string::npos) {
+                        std::string target_reg = stem + "_registered";
+                        if (std::find(registered_stems.begin(), registered_stems.end(), target_reg) != registered_stems.end() ||
+                            std::find(registered_stems.begin(), registered_stems.end(), stem + "registered") != registered_stems.end()) {
+                            skipped_unregistered.push_back(filename + " (using registered version instead)");
+                            continue;
+                        }
+                    }
                     tiff_files.push_back(entry.path());
                 }
             }
@@ -218,15 +252,16 @@ bool BatchProcessor::run() const {
         }
         
         if (rois_file.empty() || meta_file.empty()) {
-            std::cerr << "Warning: Could not find matching rois.txt/.mat or metadata.txt for " << filename 
-                      << " (rois: " << (rois_file.empty() ? "missing" : "found")
-                      << ", meta: " << (meta_file.empty() ? "missing" : "found") << "). Skipping." << std::endl;
+            std::string reason = "Missing: ";
+            if (rois_file.empty()) reason += "ROIs (.mat or _rois.txt) ";
+            if (meta_file.empty()) reason += "metadata (.txt) ";
+            skipped_missing.push_back(filename + " (" + reason + ")");
             continue;
         }
         
         double fr = parse_frame_rate(meta_file);
         if (fr <= 0.0) {
-            std::cerr << "Warning: Failed to parse frame rate from " << meta_file << ". Skipping." << std::endl;
+            skipped_missing.push_back(filename + " (failed to parse frame rate from metadata)");
             continue;
         }
         
@@ -244,6 +279,19 @@ bool BatchProcessor::run() const {
         processed_count++;
     }
     
-    std::cout << "\nPure C++ Processing Complete! Successfully processed " << processed_count << " datasets." << std::endl;
+    std::cout << "\n==================================================" << std::endl;
+    std::cout << "   BATCH PROCESSING EXECUTION SUMMARY             " << std::endl;
+    std::cout << "==================================================" << std::endl;
+    std::cout << "Successfully Processed: " << processed_count << " datasets." << std::endl;
+    std::cout << "Skipped Unregistered TIFFs (registered version used): " << skipped_unregistered.size() << std::endl;
+    for (const auto& item : skipped_unregistered) {
+        std::cout << "  - " << item << std::endl;
+    }
+    std::cout << "Skipped Due to Errors/Missing Files: " << skipped_missing.size() << std::endl;
+    for (const auto& item : skipped_missing) {
+        std::cout << "  - " << item << std::endl;
+    }
+    std::cout << "==================================================" << std::endl;
+    
     return true;
 }

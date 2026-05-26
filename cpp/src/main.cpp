@@ -13,6 +13,7 @@ int main(int argc, char** argv) {
     bool folder_mode = false;
     std::string folder_path = "";
     double drift_window = 15.0;
+    bool verbose = false;
     std::vector<std::string> pos_args;
     
     double min_amp = 1e-6;
@@ -104,12 +105,14 @@ int main(int argc, char** argv) {
                 qc_settings.amp_fail = std::stod(argv[i + 1]);
                 i++;
             }
+        } else if (arg == "--verbose" || arg == "--debug") {
+            verbose = true;
         } else {
             pos_args.push_back(arg);
         }
     }
     
-    BolusFitter fitter(min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm);
+    BolusFitter fitter(min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm, verbose);
     
     if (folder_mode) {
         if (folder_path.empty()) {

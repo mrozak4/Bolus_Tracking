@@ -62,10 +62,12 @@ int GammaFunctor::operator()(const Eigen::VectorXd& x, Eigen::VectorXd& fvec) co
  */
 BolusFitter::BolusFitter(double min_amp, double max_amp,
                          double min_t2p, double max_t2p,
-                         double min_fwhm, double max_fwhm)
+                         double min_fwhm, double max_fwhm,
+                         bool verbose)
     : min_amp(min_amp), max_amp(max_amp),
       min_t2p(min_t2p), max_t2p(max_t2p),
-      min_fwhm(min_fwhm), max_fwhm(max_fwhm) {}
+      min_fwhm(min_fwhm), max_fwhm(max_fwhm),
+      verbose(verbose) {}
 
 /**
  * @brief Automatically estimates initial guess parameters from the upsampled trace.
@@ -309,6 +311,7 @@ std::vector<double> BolusFitter::run_nonlinear_fit_with_bounds(const std::vector
                                                                double b_min_fwhm, double b_max_fwhm,
                                                                bool& success, bool debug_print) const {
     success = false;
+    debug_print = debug_print || verbose;
     double m_init = params_init[3];
     double m_bound = std::max({0.5 * sd_base, 0.005 * m_init, 0.2});
     double L_m = m_init - m_bound;
@@ -384,9 +387,7 @@ std::vector<double> BolusFitter::run_nonlinear_fit(const std::vector<double>& t,
     double actual_max_t2p = (max_t2p >= 1e5 && !t.empty()) ? t.back() : max_t2p;
     double actual_max_fwhm = (max_fwhm >= 1e5 && !t.empty()) ? t.back() : max_fwhm;
     
-    if (std::abs(params_init[1] - 0.206693) < 1e-4) {
-        debug_print = true;
-    }
+    debug_print = debug_print || verbose;
     if (debug_print) {
         std::cout << "[DEBUG ROI] params_init: " << params_init[0] << ", " << params_init[1] << ", " << params_init[2] << ", " << params_init[3] << std::endl;
         std::cout << "  actual_max_t2p = " << actual_max_t2p << ", actual_max_fwhm = " << actual_max_fwhm << std::endl;

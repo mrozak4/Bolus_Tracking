@@ -66,11 +66,13 @@ void BolusVisualizer::save_svg_plot(int roi_id, const std::string& tiff_path,
                                     const std::vector<double>& mfi_denoised,
                                     const std::vector<double>& tl_us, const std::vector<double>& y_us,
                                     const FitRecord& rec, bool fit_success, double k) {
-    std::filesystem::create_directories("plots_cpp");
+    std::filesystem::path tiff_dir = std::filesystem::path(tiff_path).parent_path();
+    std::filesystem::path plots_dir = tiff_dir / "plots_cpp";
+    std::filesystem::create_directories(plots_dir);
     
     std::filesystem::path tp(tiff_path);
     std::string stem = tp.stem().string();
-    std::string out_path = "plots_cpp/" + stem + "_ROI_" + std::to_string(roi_id) + ".svg";
+    std::string out_path = (plots_dir / (stem + "_ROI_" + std::to_string(roi_id) + ".svg")).string();
     
     std::ofstream f(out_path);
     if (!f.is_open()) return;

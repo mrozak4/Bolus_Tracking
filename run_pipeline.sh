@@ -56,64 +56,6 @@ if [ -z "$TARGET_FOLDER" ]; then
     TARGET_FOLDER="."
 fi
 
-# 1. Convert Masks via MATLAB
-echo "-> Step 1: Converting MATLAB masks..."
-# Try to find MATLAB command depending on if we are on Mac or Linux
-if command -v matlab &> /dev/null; then
-    MATLAB_CMD="matlab"
-elif command -v matlab.exe &> /dev/null; then
-    MATLAB_CMD="matlab.exe"
-else
-    MATLAB_CMD=""
-    # Check standard macOS installation path
-    if [ -d "/Applications" ]; then
-        MATLAB_APP=$(ls -rd /Applications/MATLAB_*.app 2>/dev/null | head -n 1)
-        if [ -n "$MATLAB_APP" ] && [ -f "$MATLAB_APP/bin/matlab" ]; then
-            MATLAB_CMD="$MATLAB_APP/bin/matlab"
-        fi
-    fi
-    # Check standard Linux installation path
-    if [ -z "$MATLAB_CMD" ] && [ -d "/usr/local/MATLAB" ]; then
-        MATLAB_APP=$(ls -rd /usr/local/MATLAB/R* 2>/dev/null | head -n 1)
-        if [ -n "$MATLAB_APP" ] && [ -f "$MATLAB_APP/bin/matlab" ]; then
-            MATLAB_CMD="$MATLAB_APP/bin/matlab"
-        fi
-    fi
-    # Check standard Windows installation paths (Git Bash & WSL)
-    if [ -z "$MATLAB_CMD" ]; then
-        WINDOWS_MATLAB_DIR=""
-        if [ -d "/c/Program Files/MATLAB" ]; then
-            WINDOWS_MATLAB_DIR="/c/Program Files/MATLAB"
-        elif [ -d "/mnt/c/Program Files/MATLAB" ]; then
-            WINDOWS_MATLAB_DIR="/mnt/c/Program Files/MATLAB"
-        fi
-        
-        if [ -n "$WINDOWS_MATLAB_DIR" ]; then
-            MATLAB_APP=$(ls -rd "$WINDOWS_MATLAB_DIR"/R* 2>/dev/null | head -n 1)
-            if [ -n "$MATLAB_APP" ]; then
-                if [ -f "$MATLAB_APP/bin/matlab.exe" ]; then
-                    MATLAB_CMD="$MATLAB_APP/bin/matlab.exe"
-                elif [ -f "$MATLAB_APP/bin/matlab" ]; then
-                    MATLAB_CMD="$MATLAB_APP/bin/matlab"
-                fi
-            fi
-        fi
-    fi
-fi
-
-if [ -z "$MATLAB_CMD" ]; then
-    echo "WARNING: MATLAB not found in PATH or standard installation directories. Assuming masks are already converted."
-fi
-
-if [ -n "$MATLAB_CMD" ]; then
-    if [[ "$MATLAB_CMD" == *.exe ]]; then
-        # On Windows, run in batch mode to output directly to the console and terminate properly
-        "$MATLAB_CMD" -batch "run('matlab/convert_masks_for_python.m');"
-    else
-        $MATLAB_CMD -nodesktop -nosplash -r "run('matlab/convert_masks_for_python.m'); quit;"
-    fi
-fi
-
 # 2. Run Python processing
 echo "-> Step 2: Running Python Batch Processing..."
 

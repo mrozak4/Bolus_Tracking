@@ -173,7 +173,7 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
     int start_idx = auto_res.start_idx;
     int end_idx = auto_res.end_idx;
     
-    bool debug_roi = (roi_id == 10 || roi_id == 21 || roi_id == 27 || roi_id == 43 || roi_id == 44);
+    bool debug_roi = fitter.verbose;
     if (debug_roi) {
         std::cout << "[C++ ROI " << roi_id << " DEBUG] k = " << k << ", raw_baseline = " << raw_baseline 
                   << ", raw_sd_base = " << raw_sd_base << ", raw_amp = " << raw_amp 
