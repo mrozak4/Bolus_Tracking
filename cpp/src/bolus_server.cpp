@@ -423,10 +423,18 @@ static int g_upsample_factor = 20;
 static double g_drift_win = 15.0;
 
 /// Look up CSV record by ROI ID (not array index). Returns nullptr if not found.
+/// The pipeline writes roi_id+1 to CSV (0-based mask → 1-based CSV), so we
+/// look up both roi_id and roi_id+1 for compatibility.
 static const CsvRecord* find_record_for_roi(int roi_idx) {
     if (roi_idx < 0 || roi_idx >= (int)g_rois.size()) return nullptr;
     int roi_id = g_rois[roi_idx].id;
+    // Try exact match first (e.g. if CSV was produced with 1-based mask IDs)
     auto it = g_record_map.find(roi_id);
+    if (it != g_record_map.end() && it->second < g_records.size()) {
+        return &g_records[it->second];
+    }
+    // Try roi_id+1 (pipeline adds +1: mask 0 → CSV 1)
+    it = g_record_map.find(roi_id + 1);
     if (it != g_record_map.end() && it->second < g_records.size()) {
         return &g_records[it->second];
     }
