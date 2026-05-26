@@ -2,6 +2,8 @@
 
 > **L'interface graphique interactive principale pour le triage et le contrôle qualité des bolus.**
 
+![Capture d'écran de Bolus Tracking Studio](../docs/app_screenshot.png)
+
 Construit sur Electron (Chromium) avec un moteur de rendu SVG en C++, le studio offre une interface multiplateforme à faible empreinte mémoire qui reproduit fidèlement le thème visuel Mid-Century Modern (MCM) de l'application native d'origine.
 
 ---

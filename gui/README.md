@@ -2,6 +2,8 @@
 
 > **The primary interactive GUI for bolus tracking triage and quality control.**
 
+![Bolus Tracking Studio Screenshot](../docs/app_screenshot.png)
+
 Built on Electron (Chromium) with C++ SVG plot rendering, the studio provides a memory-efficient, cross-platform interface that maintains the exact Mid-Century Modern (MCM) visual design of the original native application.
 
 ---
