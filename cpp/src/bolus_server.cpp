@@ -671,49 +671,133 @@ static std::string resolve_path(const std::string& path,
     return path;
 }
 
-// ── scan_folder: Pre-flight scan ────────────────────────────────────────────
-
 static json handle_scan_folder(const json& params) {
     std::string folder = params.at("path").get<std::string>();
     if (!fs::is_directory(folder)) {
         return json{{"ok", false}, {"error", "Not a directory: " + folder}};
     }
 
-    std::string tiff = find_tiff_in_folder(folder);
-    std::string roi  = find_roi_in_folder(folder);
-    std::string csv  = find_csv_in_folder(folder);
-    std::string fr   = find_framerate_file_in_folder(folder);
+    // Collect all TIFFs, ROIs, and CSVs (recursive)
+    struct FileInfo { std::string path; std::string lower_name; };
+    std::vector<FileInfo> all_tiffs, all_rois, all_csvs;
+    std::string framerate_file;
 
-    // Count all TIFFs
-    int tiff_count = 0;
-    json tiff_list = json::array();
-    for (const auto& entry : fs::directory_iterator(folder)) {
+    for (const auto& entry : fs::recursive_directory_iterator(folder)) {
         if (!entry.is_regular_file()) continue;
+        std::string p = entry.path().string();
+        std::string lower = to_lower(entry.path().filename().string());
         std::string ext = to_lower(entry.path().extension().string());
+
         if (ext == ".tif" || ext == ".tiff") {
-            tiff_count++;
-            tiff_list.push_back(entry.path().filename().string());
+            // Skip MIP/MAX projection files and registered files
+            if (lower.find("max_") == 0 || lower.find("registered") != std::string::npos ||
+                lower.find("xyz_") == 0) continue;
+            all_tiffs.push_back({p, lower});
+        } else if (lower.find("_rois.txt") != std::string::npos) {
+            all_rois.push_back({p, lower});
+        } else if (lower.find("maskobj") != std::string::npos && ext == ".mat" &&
+                   lower.find("adjusted") == std::string::npos) {
+            all_rois.push_back({p, lower});
+        } else if (lower.find("_results") != std::string::npos && ext == ".csv") {
+            all_csvs.push_back({p, lower});
+        } else if (ext == ".txt" && lower.find("bolus") != std::string::npos &&
+                   lower.find("_results") == std::string::npos &&
+                   lower.find("_rois") == std::string::npos) {
+            if (framerate_file.empty()) framerate_file = p;
         }
     }
 
-    json result = {
-        {"ok", true},
-        {"data", {
-            {"folder", folder},
-            {"tiff_path", tiff},
-            {"tiff_found", !tiff.empty()},
-            {"tiff_count", tiff_count},
-            {"tiff_files", tiff_list},
-            {"roi_path", roi},
-            {"roi_found", !roi.empty()},
-            {"csv_path", csv},
-            {"csv_found", !csv.empty()},
-            {"framerate_path", fr},
-            {"framerate_found", !fr.empty()},
-            {"ready", !tiff.empty() && !roi.empty()}
-        }}
+    // Extract bolus identifier from filename (e.g. "bolus1", "bolus3")
+    auto get_bolus_id = [](const std::string& lower_name) -> std::string {
+        size_t pos = lower_name.find("bolus");
+        if (pos == std::string::npos) return "";
+        size_t end = pos + 5;
+        while (end < lower_name.size() && std::isdigit(lower_name[end])) end++;
+        return lower_name.substr(pos, end - pos);
     };
-    return result;
+
+    // Group into datasets by bolus ID
+    std::map<std::string, json> datasets;
+    for (const auto& t : all_tiffs) {
+        std::string bid = get_bolus_id(t.lower_name);
+        if (bid.empty()) bid = "unknown";
+        if (!datasets.count(bid)) {
+            datasets[bid] = json{
+                {"bolus_id", bid}, {"tiff_path", ""}, {"roi_path", ""},
+                {"csv_path", ""}, {"tiff_name", ""}, {"roi_name", ""},
+                {"csv_name", ""}, {"ready", false}
+            };
+        }
+        // Prefer shifted TIFFs
+        std::string current = datasets[bid]["tiff_path"].get<std::string>();
+        if (current.empty() || t.lower_name.find("shifted") != std::string::npos) {
+            datasets[bid]["tiff_path"] = t.path;
+            datasets[bid]["tiff_name"] = fs::path(t.path).filename().string();
+        }
+    }
+
+    // Match ROIs to datasets
+    for (const auto& r : all_rois) {
+        std::string bid = get_bolus_id(r.lower_name);
+        if (bid.empty()) continue;
+        if (!datasets.count(bid)) continue;
+        std::string current = datasets[bid]["roi_path"].get<std::string>();
+        // Prefer _rois.txt over .mat
+        if (current.empty() || (r.lower_name.find("_rois.txt") != std::string::npos)) {
+            datasets[bid]["roi_path"] = r.path;
+            datasets[bid]["roi_name"] = fs::path(r.path).filename().string();
+        }
+    }
+
+    // Match CSVs to datasets
+    for (const auto& c : all_csvs) {
+        std::string bid = get_bolus_id(c.lower_name);
+        if (bid.empty()) continue;
+        if (!datasets.count(bid)) continue;
+        std::string current = datasets[bid]["csv_path"].get<std::string>();
+        // Prefer _cpp.csv
+        if (current.empty() || c.lower_name.find("_cpp") != std::string::npos) {
+            datasets[bid]["csv_path"] = c.path;
+            datasets[bid]["csv_name"] = fs::path(c.path).filename().string();
+        }
+    }
+
+    // Mark readiness and build ordered array
+    json datasets_arr = json::array();
+    for (auto& [bid, ds] : datasets) {
+        ds["ready"] = !ds["tiff_path"].get<std::string>().empty() &&
+                      !ds["roi_path"].get<std::string>().empty();
+        datasets_arr.push_back(ds);
+    }
+
+    // Also provide legacy single-dataset fields (pick bolus1 or first available)
+    std::string best_tiff, best_roi, best_csv;
+    for (const auto& ds : datasets_arr) {
+        std::string bid = ds["bolus_id"].get<std::string>();
+        if (bid == "bolus1" || best_tiff.empty()) {
+            if (!ds["tiff_path"].get<std::string>().empty()) {
+                best_tiff = ds["tiff_path"].get<std::string>();
+                best_roi = ds["roi_path"].get<std::string>();
+                best_csv = ds["csv_path"].get<std::string>();
+                if (bid == "bolus1") break;  // bolus1 is preferred, stop looking
+            }
+        }
+    }
+
+    return json{{"ok", true}, {"data", {
+        {"folder", folder},
+        {"datasets", datasets_arr},
+        {"dataset_count", datasets_arr.size()},
+        {"tiff_path", best_tiff},
+        {"tiff_found", !best_tiff.empty()},
+        {"roi_path", best_roi},
+        {"roi_found", !best_roi.empty()},
+        {"csv_path", best_csv},
+        {"csv_found", !best_csv.empty()},
+        {"framerate_path", framerate_file},
+        {"framerate_found", !framerate_file.empty()},
+        {"ready", !best_tiff.empty() && !best_roi.empty()}
+    }}};
 }
 
 // ── Data Loading Handlers ───────────────────────────────────────────────────

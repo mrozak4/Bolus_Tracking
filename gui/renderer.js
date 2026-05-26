@@ -695,49 +695,48 @@ async function loadSubjectFolder(folderPath) {
 
     const scanResp = await serverCmd('scan_folder', { path: folderPath });
     if (!scanResp.ok) {
-        // scan_folder failed — fall back to direct loading
         pfResults.innerHTML = '<div class="preflight-warn">⚠ Pre-flight scan unavailable. Loading directly...</div>';
         const btnProceed = document.getElementById('btn-preflight-proceed');
         btnProceed.disabled = false;
-        btnProceed.onclick = () => directLoad(folderPath);
+        btnProceed.onclick = () => directLoad({ tiff: folderPath, roi: folderPath, csv: folderPath, fr: folderPath });
         return;
     }
 
     const scan = scanResp.data;
+    const datasets = scan.datasets || [];
 
-    // Display pre-flight results
     let html = '<div style="font-family: monospace; font-size: 13px; line-height: 1.8;">';
 
-    // TIFF status
-    if (scan.tiff_found) {
-        const tiffName = scan.tiff_path.split('/').pop();
-        html += `<div class="preflight-ok">✅ TIFF: ${tiffName} (${scan.tiff_count} TIFF file${scan.tiff_count > 1 ? 's' : ''} found)</div>`;
+    if (datasets.length === 0) {
+        html += '<div class="preflight-error">❌ No bolus datasets found in this folder</div>';
+    } else if (datasets.length === 1) {
+        // Single dataset — show simple view
+        const ds = datasets[0];
+        html += `<div class="preflight-ok">✅ TIFF: ${ds.tiff_name || 'not found'}</div>`;
+        html += `<div class="${ds.roi_path ? 'preflight-ok' : 'preflight-error'}">${ds.roi_path ? '✅' : '❌'} ROIs: ${ds.roi_name || 'not found'}</div>`;
+        html += `<div class="${ds.csv_path ? 'preflight-ok' : 'preflight-warn'}">${ds.csv_path ? '✅' : '⚠'} CSV: ${ds.csv_name || 'will compute from scratch'}</div>`;
     } else {
-        html += '<div class="preflight-error">❌ No TIFF file found</div>';
+        // Multiple datasets — show selection
+        html += `<div style="margin-bottom:8px;color:var(--accent-gold);">📦 ${datasets.length} bolus datasets found — select one:</div>`;
+        html += '<div id="dataset-selector" style="display:flex;flex-direction:column;gap:6px;">';
+        datasets.forEach((ds, i) => {
+            const ready = ds.ready;
+            const checked = (ds.bolus_id === 'bolus1' || i === 0) ? 'checked' : '';
+            html += `<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-panel);border-radius:var(--radius-sm);cursor:pointer;border:1px solid ${ready ? 'var(--accent-gold)' : 'var(--text-disabled)'};">`;
+            html += `<input type="radio" name="dataset-choice" value="${i}" ${checked} ${ready ? '' : 'disabled'}>`;
+            html += `<span style="font-weight:bold;color:${ready ? 'var(--text-primary)' : 'var(--text-disabled)'};">${ds.bolus_id.toUpperCase()}</span>`;
+            html += `<span style="color:var(--text-secondary);font-size:11px;">${ds.tiff_name || '(no TIFF)'}</span>`;
+            if (!ready) html += '<span style="color:var(--text-disabled);font-size:10px;">(missing files)</span>';
+            html += '</label>';
+        });
+        html += '</div>';
     }
 
-    // ROI status
-    if (scan.roi_found) {
-        const roiName = scan.roi_path.split('/').pop();
-        html += `<div class="preflight-ok">✅ ROIs: ${roiName}</div>`;
-    } else {
-        html += '<div class="preflight-error">❌ No ROI file found (_rois.txt or _MaskObj.mat)</div>';
-    }
-
-    // CSV status
-    if (scan.csv_found) {
-        const csvName = scan.csv_path.split('/').pop();
-        html += `<div class="preflight-ok">✅ CSV: ${csvName}</div>`;
-    } else {
-        html += '<div class="preflight-warn">⚠ No results CSV found (will compute from scratch)</div>';
-    }
-
-    // Framerate status
+    // Framerate
     if (scan.framerate_found) {
-        const frName = scan.framerate_path.split('/').pop();
-        html += `<div class="preflight-ok">✅ Framerate: ${frName}</div>`;
+        html += `<div class="preflight-ok" style="margin-top:8px;">✅ Framerate file found</div>`;
     } else {
-        html += '<div class="preflight-warn">⚠ No framerate file found (will use default 9.39 fps)</div>';
+        html += '<div class="preflight-warn" style="margin-top:8px;">⚠ No framerate file (default 9.39 fps)</div>';
     }
 
     html += '</div>';
@@ -751,16 +750,32 @@ async function loadSubjectFolder(folderPath) {
 
     pfResults.innerHTML = html;
 
+    // Store datasets for selection
+    state.availableDatasets = datasets;
+
     const btnProceed = document.getElementById('btn-preflight-proceed');
     btnProceed.disabled = !scan.ready;
-    btnProceed.onclick = () => directLoad(folderPath);
+    btnProceed.onclick = () => {
+        // Get selected dataset
+        let selectedIdx = 0;
+        const radioEl = document.querySelector('input[name="dataset-choice"]:checked');
+        if (radioEl) selectedIdx = parseInt(radioEl.value);
+
+        const ds = datasets[selectedIdx] || datasets[0];
+        directLoad({
+            tiff: ds.tiff_path || folderPath,
+            roi: ds.roi_path || folderPath,
+            csv: ds.csv_path || folderPath,
+            fr: scan.framerate_path || folderPath,
+        });
+    };
 }
 
-async function directLoad(folderPath) {
+async function directLoad(paths) {
     showToast('Loading data...');
 
     // Load TIFF
-    const tiffResp = await serverCmd('load_tiff', { path: folderPath });
+    const tiffResp = await serverCmd('load_tiff', { path: paths.tiff });
     if (!tiffResp.ok) {
         showToast('Failed to load TIFF: ' + (tiffResp.error || 'unknown'));
         showNoDataScreen();
@@ -772,7 +787,7 @@ async function directLoad(folderPath) {
     state.mipBase64 = tiffResp.data.mip_base64;
 
     // Load ROIs
-    const roiResp = await serverCmd('load_rois', { path: folderPath });
+    const roiResp = await serverCmd('load_rois', { path: paths.roi });
     if (!roiResp.ok) {
         showToast('Failed to load ROIs: ' + (roiResp.error || 'unknown'));
         showNoDataScreen();
@@ -780,14 +795,14 @@ async function directLoad(folderPath) {
     }
 
     // Load CSV if exists
-    const csvResp = await serverCmd('load_csv', { path: folderPath });
+    const csvResp = await serverCmd('load_csv', { path: paths.csv });
     if (csvResp.ok) {
         state.csvPath = csvResp.data.path || '';
         state.roiRecords = csvResp.data.records || [];
     }
 
     // Parse framerate
-    const frResp = await serverCmd('parse_framerate', { path: folderPath });
+    const frResp = await serverCmd('parse_framerate', { path: paths.fr });
     const framerate = frResp.ok ? frResp.data.framerate : 9.39;
 
     // Compute traces
