@@ -1045,7 +1045,8 @@ static json handle_render_plot(const json& params) {
     if (max_x <= min_x) max_x = min_x + 1.0;
 
     // Use detrended raw data (matches pipeline — raw and denoised share baseline)
-    const auto& y_plot_raw = c.y_raw_detrended;
+    const auto& y_plot_raw = c.y_raw;  // Use raw (non-detrended) to match pipeline _fit.svg
+    double k = c.drift_slope;  // linear drift for gamma model
 
     // Y range from visible data
     double min_y = 1e9, max_y = -1e9;
@@ -1057,8 +1058,9 @@ static json handle_render_plot(const json& params) {
     }
     for (size_t i = 0; i < c.t_us.size(); ++i) {
         if (c.t_us[i] >= min_x && c.t_us[i] <= max_x) {
-            if (c.y_us[i] < min_y) min_y = c.y_us[i];
-            if (c.y_us[i] > max_y) max_y = c.y_us[i];
+            double val = c.y_us[i] + k * c.t_us[i];  // add drift back
+            if (val < min_y) min_y = val;
+            if (val > max_y) max_y = val;
         }
     }
     if (min_y > max_y) { min_y = 0; max_y = 100; }
@@ -1158,20 +1160,21 @@ static json handle_render_plot(const json& params) {
         }
     }
 
-    // Denoised line
+    // Denoised line (computed on detrended data — add back drift for display)
     if (c.y_denoised.size() == c.t_raw.size()) {
         svg << "  <path d=\"";
         bool first = true;
         for (size_t i = 0; i < c.t_raw.size(); ++i) {
             if (c.t_raw[i] < min_x || c.t_raw[i] > max_x) continue;
-            double px = px_x(c.t_raw[i]), py = px_y(c.y_denoised[i]);
+            double val = c.y_denoised[i] + k * c.t_raw[i];  // add drift back
+            double px = px_x(c.t_raw[i]), py = px_y(val);
             svg << (first ? "M " : " L ") << px << " " << py;
             first = false;
         }
         svg << "\" fill=\"none\" stroke=\"" << denoise_col << "\" stroke-width=\"1.5\"/>\n";
     }
 
-    // Gamma Fit curve — data is detrended, so no drift k*t addition needed
+    // Gamma Fit curve — use k*t + gamma(t - click_start) to match pipeline _fit.svg
     bool has_fit = false;
     if (rec_ptr) {
         double f_amp = rec_ptr->f_amp, f_t2p = rec_ptr->f_t2p, f_fwhm = rec_ptr->f_fwhm, f_m = rec_ptr->f_m;
@@ -1185,7 +1188,7 @@ static json handle_render_plot(const json& params) {
                 double t = c.t_us[i];
                 if (t < min_x || t > max_x) continue;
                 double dt = t - fit_origin;
-                double val = evaluate_gamma_model(dt, f_amp, f_t2p, f_fwhm, f_m);
+                double val = k * t + evaluate_gamma_model(dt, f_amp, f_t2p, f_fwhm, f_m);
                 double px = px_x(t), py = px_y(val);
                 svg << (first ? "M " : " L ") << px << " " << py;
                 first = false;
