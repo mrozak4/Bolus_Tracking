@@ -471,8 +471,175 @@ html, body {
     padding: var(--space-sm) 0;
     border-bottom: 1px solid var(--border-warm);
     font-family: var(--font-mono);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.status-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-shrink: 0;
+}
+.status-nav .triage-info {
+    font-size: 12px;
+    min-width: 50px;
+    text-align: center;
 }
 
+/* ─── Crop Slider (aligned with plot x-axis) ─────────────────────────────── */
+.crop-controls {
+    /* Padding matches SVG plot: pad_l=70, pad_r=30 */
+    padding: 0 30px 0 70px;
+    position: relative;
+    margin: 2px 0 var(--space-sm) 0;
+}
+.crop-range-label {
+    display: block;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+.dual-range-wrapper {
+    position: relative;
+    height: 22px;
+}
+.dual-range {
+    position: absolute;
+    width: 100%;
+    top: 0;
+    height: 22px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    pointer-events: none;
+    z-index: 2;
+}
+.dual-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 22px;
+    background: var(--accent-green);
+    border-radius: 3px;
+    cursor: ew-resize;
+    pointer-events: all;
+    border: 1px solid rgba(0,0,0,0.3);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.dual-range::-webkit-slider-thumb:hover {
+    background: var(--accent-green-bright);
+    transform: scaleY(1.1);
+}
+.dual-range-track {
+    position: absolute;
+    top: 8px;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background: var(--bg-elevated);
+    border-radius: 3px;
+    border: 1px solid var(--border-medium);
+    z-index: 0;
+}
+.dual-range-fill {
+    position: absolute;
+    top: 8px;
+    height: 6px;
+    background: var(--accent-green);
+    opacity: 0.5;
+    border-radius: 3px;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* ─── 3-Column Controls Grid ─────────────────────────────────────────────── */
+.controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+.controls-col {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-warm);
+    border-radius: var(--radius-lg);
+    padding: var(--space-sm) var(--space-md);
+}
+.controls-col h4 {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent-burnt-orange);
+    letter-spacing: 0.3px;
+    margin: 0 0 var(--space-sm) 0;
+    text-transform: uppercase;
+}
+
+/* Marker readouts */
+.marker-readouts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-xs) var(--space-md);
+}
+.marker-readout {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+.marker-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+.dot-onset { background: var(--marker-onset, #e8c547); }
+.dot-peak { background: var(--marker-peak, #e85d47); }
+.dot-end { background: var(--marker-end, #e85d47); }
+.dot-baseline { background: var(--marker-baseline, #e847c5); }
+.readout-val {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 600;
+    min-width: 36px;
+}
+.readout-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* Controls buttons */
+.controls-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+.controls-buttons .btn {
+    width: 100%;
+    text-align: center;
+}
+.fit-actions {
+    flex-direction: column;
+}
+.fit-actions .btn {
+    width: 100%;
+}
+
+/* Denoise control (inside grid) */
+.denoise-control {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+.denoise-control .range-slider { flex: 1; min-width: 80px; }
+.slider-value {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-primary);
+    min-width: 32px;
+}
 /* Plot Container (matches ImGui ChildBg panel) */
 .plot-container {
     position: relative;
@@ -539,19 +706,6 @@ html, body {
     pointer-events: none;
 }
 
-/* Crop controls */
-.crop-controls {
-    display: flex;
-    align-items: center;
-    gap: var(--space-md);
-}
-.crop-controls label {
-    font-size: 12px;
-    color: var(--text-secondary);
-    white-space: nowrap;
-}
-.crop-controls .range-slider { flex: 1; }
-
 /* ─── Parameter Tables (matches ImGui table styling) ─────────────────────── */
 .params-section, .kinetics-section {
     background: var(--bg-secondary);
@@ -560,7 +714,6 @@ html, body {
     padding: var(--space-md) var(--space-lg);
 }
 
-/* Section headers: Burnt Orange bold text — exact match to ImGui TextColored */
 .params-header h3, .kinetics-section h3 {
     font-size: 13px;
     font-weight: 700;
@@ -589,68 +742,17 @@ html, body {
     font-size: 13px;
     border-bottom: 1px solid var(--border-warm);
 }
-
-/* Estimated (Initial) row: dimmer, italic */
 .row-estimated td:first-child {
     color: var(--text-muted);
     font-style: italic;
     font-family: var(--font-sans);
 }
-/* Fitted row: Burnt Orange label, bold */
 .row-fitted td:first-child {
     color: var(--accent-burnt-orange);
     font-weight: 700;
     font-family: var(--font-sans);
 }
 
-/* ─── Actions Section ────────────────────────────────────────────────────── */
-.actions-section {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-warm);
-    border-radius: var(--radius-lg);
-    padding: var(--space-md) var(--space-lg);
-}
-.actions-group h3 {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--accent-burnt-orange);
-    letter-spacing: 0.3px;
-}
-.action-desc {
-    font-size: 12px;
-    color: var(--text-secondary);
-    margin-top: var(--space-xs);
-}
-
-.actions-row { margin: var(--space-md) 0; }
-.denoise-control {
-    display: flex;
-    align-items: center;
-    gap: var(--space-md);
-}
-.denoise-control label { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
-.denoise-control .range-slider { flex: 1; max-width: 300px; }
-.slider-value {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    color: var(--text-primary);
-    min-width: 32px;
-}
-
-.actions-buttons {
-    display: flex;
-    gap: var(--space-sm);
-    flex-wrap: wrap;
-    margin-top: var(--space-md);
-}
-
-.actions-nav {
-    display: flex;
-    justify-content: space-between;
-    margin-top: var(--space-md);
-    padding-top: var(--space-md);
-    border-top: 1px solid var(--border-warm);
-}
 
 /* ─── No Data Screen ─────────────────────────────────────────────────────── */
 .no-data-screen {

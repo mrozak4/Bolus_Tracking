@@ -566,6 +566,31 @@ async function loadLocale(code) {
     }
 }
 
+// Translate a raw QC flag (PASS/WARN/FAIL/STALL/REVIEW) to the current locale
+function translateQC(flag) {
+    const t = state.tr;
+    if (!t) return flag;
+    const upper = (flag || '').toUpperCase();
+    if (upper === 'PASS') return t.qc_pass || flag;
+    if (upper === 'WARN') return t.qc_warn || flag;
+    if (upper === 'FAIL') return t.qc_fail || flag;
+    if (upper === 'STALL') return t.qc_stall || flag;
+    if (upper === 'REVIEW') return t.qc_review || flag;
+    return flag;
+}
+
+// Translate a fit source to the current locale
+function translateSource(src) {
+    const t = state.tr;
+    if (!t) return src;
+    const lower = (src || '').toLowerCase();
+    if (lower === 'auto') return t.source_auto || src;
+    if (lower === 'manual') return t.source_manual || src;
+    if (lower === 'override') return t.source_override || src;
+    if (lower === 'prior') return t.source_prior || src;
+    return src;
+}
+
 function applyLocale() {
     const t = state.tr;
     if (!t || !t.title_app) return;
@@ -594,8 +619,6 @@ function applyLocale() {
         'label-estimated-init': t.label_estimated_init,
         'label-fitted': t.label_fitted,
         'kinetics-title': t.text_kinetics_title,
-        'section-actions-title': t.title_manual_override,
-        'manual-override-desc': t.text_manual_override_desc,
         'label-denoise': t.label_denoise_strength,
         'btn-refit': t.btn_refit,
         'btn-override': t.btn_override,
@@ -612,12 +635,54 @@ function applyLocale() {
         'modal-reset-desc': t.modal_reset_desc,
         'btn-reset-confirm': t.btn_reset_confirm,
         'btn-close-mip': t.btn_close_dialog,
-        'label-crop-range': t.text_visual_crop_range,
+        // New grid section headers
+        'section-markers-title': t.section_markers,
+        'section-crop-title': t.section_crop,
+        'section-denoise-title': t.section_denoise,
+        'section-fit-actions-title': t.section_actions,
+        // Marker readout labels
+        'label-onset-marker': t.label_onset,
+        'label-peak-marker': t.label_peak,
+        'label-end-marker': t.label_end,
+        'label-base-marker': t.label_baseline,
+        // Dataset info labels
+        'label-dataset': t.label_dataset || 'Dataset:',
+        'label-roi-count': t.label_roi_count || 'ROI Count:',
+        'label-flagged': t.label_flagged || 'Flagged:',
+        'label-manual': t.label_manual || 'Manual:',
+        // Kinetics table headers
+        'col-onset-scan': t.col_onset_scan,
+        'col-tt-lower': t.col_tt_lower,
+        'col-tt-peak': t.col_tt_peak,
+        'col-tt-upper': t.col_tt_upper,
+        'col-vessel-type': t.col_vessel_type,
     };
 
     for (const [id, text] of Object.entries(map)) {
         const el = document.getElementById(id);
         if (el && text) el.textContent = text;
+    }
+
+    // Translate filter dropdown options
+    const filterSel = document.getElementById('filter-select');
+    if (filterSel) {
+        const opts = filterSel.options;
+        for (let i = 0; i < opts.length; i++) {
+            const v = opts[i].value;
+            if (v === 'all' && t.filter_all) opts[i].textContent = t.filter_all;
+            else if (v === 'flagged' && t.filter_flagged) opts[i].textContent = t.filter_flagged;
+            else if (v === 'fail' && t.filter_fail) opts[i].textContent = t.filter_fail;
+            else if (v === 'warn' && t.filter_warn) opts[i].textContent = t.filter_warn;
+            else if (v === 'pass' && t.filter_pass) opts[i].textContent = t.filter_pass;
+            else if (v === 'review' && t.filter_review) opts[i].textContent = t.filter_review;
+            else if (v === 'stall' && t.filter_stall) opts[i].textContent = t.filter_stall;
+        }
+    }
+
+    // Re-build sidebar to translate QC badges
+    if (state.dataLoaded) {
+        buildRoiList();
+        updateSidebarCounts();
     }
 }
 
@@ -860,6 +925,7 @@ function buildRoiList() {
         const roiId = state.roiIds[idx];
         const rec = (state.roiRecordMap || {})[roiId] || {};
         const qcFlag = rec.qc_flag || '—';
+        const qcDisplay = translateQC(qcFlag);
 
         const item = document.createElement('div');
         item.className = 'roi-item';
@@ -872,7 +938,7 @@ function buildRoiList() {
                 <span class="roi-item-id">ROI ${roiId}</span>
                 <span class="roi-item-info">${rec.ves_type || ''}</span>
             </div>
-            <span class="qc-badge ${badgeClass}">${qcFlag}</span>
+            <span class="qc-badge ${badgeClass}">${qcDisplay}</span>
         `;
 
         item.addEventListener('click', () => selectRoi(idx));
@@ -899,10 +965,13 @@ function applyFilter() {
 }
 
 function updateSidebarCounts() {
+    const t = state.tr || {};
     const total = state.roiIds.length;
     const active = state.filteredIndices.length;
     const manual = state.roiRecords.filter(r => r && r.fit_source === 'manual').length;
-    document.getElementById('sidebar-counts').textContent = `ROIs: ${total} | Active: ${active} | Manual: ${manual}`;
+    const sidebarTpl = t.text_sidebar_counts || 'ROIs: %d | Active: %d | Manual: %d';
+    document.getElementById('sidebar-counts').textContent =
+        sidebarTpl.replace('%d', total).replace('%d', active).replace('%d', manual);
     document.getElementById('val-roi-count').textContent = total;
     document.getElementById('val-flagged').textContent = state.roiRecords.filter(r => r && ['FAIL','WARN'].includes((r.qc_flag||'').toUpperCase())).length;
     document.getElementById('val-manual').textContent = manual;
@@ -954,8 +1023,10 @@ async function selectRoi(idx) {
     const rec = (state.roiRecordMap || {})[roiId] || {};
     const qc = rec.qc_flag || '—';
     const src = rec.fit_source || '—';
+    const t = state.tr || {};
+    const statusTpl = t.text_plot_status_header || 'Signal Time Series (SU) - ROI #%d | Status: %s (Source: %s)';
     document.getElementById('roi-status-text').textContent =
-        `Signal Time Series (SU) - ROI #${trace.roi_id} | Status: ${qc} (Source: ${src})`;
+        statusTpl.replace('%d', trace.roi_id).replace('%s', translateQC(qc)).replace('%s', translateSource(src));
 
     // Update parameters table — clearly separate Initial vs Fitted (BUG-7 fix)
     document.getElementById('val-est-amp').textContent = fmtVal(rec.init_amp);
@@ -1071,6 +1142,32 @@ async function renderPlot(idx) {
                 document.getElementById('label-base-val').textContent = baseVal.toFixed(1);
             } else {
                 baseEl.classList.remove('active');
+            }
+
+            // Update marker readout values in controls grid
+            const ro = document.getElementById('readout-onset-val');
+            const rp = document.getElementById('readout-peak-val');
+            const re = document.getElementById('readout-end-val');
+            const rb = document.getElementById('readout-base-val');
+            if (ro) ro.textContent = onsetVal > 0 ? onsetVal.toFixed(1) : '—';
+            if (rp) rp.textContent = peakVal > 0 ? peakVal.toFixed(1) : '—';
+            if (re) re.textContent = endVal > 0 ? endVal.toFixed(1) : '—';
+            if (rb) rb.textContent = (baseVal && !isNaN(baseVal)) ? baseVal.toFixed(1) : '—';
+
+            // Update crop range label with actual time values
+            const cropLabel = document.getElementById('crop-range-label');
+            if (cropLabel) {
+                const t = state.tr || {};
+                const tpl = t.text_visual_crop_range || 'Visual Crop Range';
+                const minT = coord.min_x.toFixed(1);
+                const maxT = coord.max_x.toFixed(1);
+                cropLabel.textContent = `${tpl}: ${minT}s - ${maxT}s`;
+            }
+
+            // Update ROI position counter
+            const posInfo = document.getElementById('roi-position-info');
+            if (posInfo) {
+                posInfo.textContent = `${state.selectedRoiIdx + 1} / ${state.roiIds.length}`;
             }
         }
     } else {
@@ -1368,15 +1465,27 @@ function bindEvents() {
         document.getElementById('denoise-value').textContent = Number(e.target.value).toFixed(1);
     });
 
-    // Crop range sliders
+    // Dual-thumb crop range slider
+    function updateCropFill() {
+        const fill = document.getElementById('dual-range-fill');
+        if (fill) {
+            fill.style.left = state.cropMin + '%';
+            fill.style.width = (state.cropMax - state.cropMin) + '%';
+        }
+    }
     document.getElementById('crop-min').addEventListener('input', (e) => {
-        state.cropMin = Number(e.target.value);
+        state.cropMin = Math.min(Number(e.target.value), state.cropMax - 1);
+        e.target.value = state.cropMin;
+        updateCropFill();
         if (state.selectedRoiIdx >= 0) renderPlot(state.selectedRoiIdx);
     });
     document.getElementById('crop-max').addEventListener('input', (e) => {
-        state.cropMax = Number(e.target.value);
+        state.cropMax = Math.max(Number(e.target.value), state.cropMin + 1);
+        e.target.value = state.cropMax;
+        updateCropFill();
         if (state.selectedRoiIdx >= 0) renderPlot(state.selectedRoiIdx);
     });
+    updateCropFill();
 
     // Preflight cancel
     document.getElementById('btn-preflight-cancel').addEventListener('click', showNoDataScreen);

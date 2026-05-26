@@ -87,19 +87,24 @@
 
                 <!-- Dataset info -->
                 <div id="dataset-info" class="dataset-info">
-                    <div id="info-dataset-loaded" class="info-row"><span>Dataset:</span><span id="val-dataset">—</span></div>
-                    <div id="info-roi-count" class="info-row"><span>ROI Count:</span><span id="val-roi-count">—</span></div>
-                    <div id="info-flagged-count" class="info-row"><span>Flagged:</span><span id="val-flagged">—</span></div>
-                    <div id="info-manual-count" class="info-row"><span>Manual:</span><span id="val-manual">—</span></div>
+                    <div id="info-dataset-loaded" class="info-row"><span id="label-dataset">Dataset:</span><span id="val-dataset">—</span></div>
+                    <div id="info-roi-count" class="info-row"><span id="label-roi-count">ROI Count:</span><span id="val-roi-count">—</span></div>
+                    <div id="info-flagged-count" class="info-row"><span id="label-flagged">Flagged:</span><span id="val-flagged">—</span></div>
+                    <div id="info-manual-count" class="info-row"><span id="label-manual">Manual:</span><span id="val-manual">—</span></div>
                 </div>
             </aside>
 
             <!-- ─── Main Area ────────────────────────────────────────── -->
             <main id="main-area" class="main-area">
 
-                <!-- Status header -->
+                <!-- Status header with ROI nav -->
                 <div id="plot-status-header" class="plot-status-header">
                     <span id="roi-status-text">Select an ROI to begin</span>
+                    <div class="status-nav">
+                        <button id="btn-prev-roi" class="btn btn-sm">&lt; Previous</button>
+                        <span id="roi-position-info" class="triage-info"></span>
+                        <button id="btn-next-roi" class="btn btn-sm">Next &gt;</button>
+                    </div>
                 </div>
 
                 <!-- SVG Plot Container (C++ rendered) -->
@@ -124,11 +129,72 @@
                     </div>
                 </div>
 
-                <!-- Crop range slider -->
+                <!-- Crop slider aligned with plot x-axis -->
                 <div id="crop-controls" class="crop-controls">
-                    <label id="label-crop-range">Visual Crop Range</label>
-                    <input type="range" id="crop-min" class="range-slider" min="0" max="100" value="0">
-                    <input type="range" id="crop-max" class="range-slider" min="0" max="100" value="100">
+                    <div class="dual-range-wrapper">
+                        <input type="range" id="crop-min" class="dual-range dual-range-min" min="0" max="100" value="0">
+                        <input type="range" id="crop-max" class="dual-range dual-range-max" min="0" max="100" value="100">
+                        <div class="dual-range-track"></div>
+                        <div id="dual-range-fill" class="dual-range-fill"></div>
+                    </div>
+                    <span id="crop-range-label" class="crop-range-label"></span>
+                </div>
+
+                <!-- 3-column control grid (matches old GUI layout) -->
+                <div class="controls-grid">
+                    <!-- Col 1: Marker readouts -->
+                    <div class="controls-col">
+                        <h4 id="section-markers-title">FITTING WINDOW &amp; INTERACTIVE MARKERS</h4>
+                        <div class="marker-readouts">
+                            <div class="marker-readout">
+                                <span class="marker-dot dot-onset"></span>
+                                <span id="readout-onset-val" class="readout-val">—</span>
+                                <span id="label-onset-marker" class="readout-label">Onset Marker (s)</span>
+                            </div>
+                            <div class="marker-readout">
+                                <span class="marker-dot dot-peak"></span>
+                                <span id="readout-peak-val" class="readout-val">—</span>
+                                <span id="label-peak-marker" class="readout-label">Peak Marker (s)</span>
+                            </div>
+                            <div class="marker-readout">
+                                <span class="marker-dot dot-end"></span>
+                                <span id="readout-end-val" class="readout-val">—</span>
+                                <span id="label-end-marker" class="readout-label">End Marker (s)</span>
+                            </div>
+                            <div class="marker-readout">
+                                <span class="marker-dot dot-baseline"></span>
+                                <span id="readout-base-val" class="readout-val">—</span>
+                                <span id="label-base-marker" class="readout-label">Baseline Value</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Col 2: Crop controls + Denoise -->
+                    <div class="controls-col">
+                        <h4 id="section-crop-title">VISUALIZATION CROP CONTROLS</h4>
+                        <div class="controls-buttons">
+                            <button id="btn-reset-crop" class="btn btn-secondary">Reset Crop</button>
+                            <button id="btn-crop-bounds" class="btn btn-secondary">Crop to Markers</button>
+                            <button id="btn-view-mip" class="btn btn-accent">View ROI MIP</button>
+                        </div>
+                        <h4 id="section-denoise-title">DENOISING OPTIONS</h4>
+                        <div class="denoise-control">
+                            <input type="range" id="denoise-slider" class="range-slider" min="0" max="3" step="0.1" value="1.0">
+                            <span id="denoise-value" class="slider-value">1.0x</span>
+                            <span id="label-denoise" class="readout-label">Denoise Strength</span>
+                        </div>
+                    </div>
+
+                    <!-- Col 3: Fitting actions -->
+                    <div class="controls-col">
+                        <h4 id="section-fit-actions-title">FITTING ACTIONS</h4>
+                        <div class="controls-buttons fit-actions">
+                            <button id="btn-refit" class="btn btn-primary">Re-Fit (LM)</button>
+                            <button id="btn-override" class="btn btn-success">Force PASS</button>
+                            <button id="btn-revert" class="btn btn-secondary">Revert to Original</button>
+                            <button id="btn-revert-loaded" class="btn btn-secondary">Revert to Loaded</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Parameters Table -->
@@ -149,15 +215,6 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr id="row-estimated" class="row-estimated">
-                                <td id="label-estimated-init">Estimated (Initial)</td>
-                                <td id="val-est-amp">—</td>
-                                <td id="val-est-t2p">—</td>
-                                <td id="val-est-fwhm">—</td>
-                                <td id="val-est-base">—</td>
-                                <td id="val-est-cnr">—</td>
-                                <td id="val-est-onset">—</td>
-                            </tr>
                             <tr id="row-fitted" class="row-fitted">
                                 <td id="label-fitted">Fitted</td>
                                 <td id="val-fit-amp">—</td>
@@ -166,6 +223,15 @@
                                 <td id="val-fit-base">—</td>
                                 <td id="val-fit-cnr">—</td>
                                 <td id="val-fit-onset">—</td>
+                            </tr>
+                            <tr id="row-estimated" class="row-estimated">
+                                <td id="label-estimated-init">Estimated (Initial)</td>
+                                <td id="val-est-amp">—</td>
+                                <td id="val-est-t2p">—</td>
+                                <td id="val-est-fwhm">—</td>
+                                <td id="val-est-base">—</td>
+                                <td id="val-est-cnr">—</td>
+                                <td id="val-est-onset">—</td>
                             </tr>
                         </tbody>
                     </table>
@@ -177,60 +243,29 @@
                     <table id="kinetics-table" class="params-table">
                         <thead>
                             <tr>
+                                <th id="col-auc">AUC</th>
+                                <th id="col-aucn">AUCn</th>
                                 <th id="col-onset-scan">Onset Scan (s)</th>
                                 <th id="col-tt-lower">TT Lower (s)</th>
                                 <th id="col-tt-peak">TT Peak (s)</th>
                                 <th id="col-tt-upper">TT Upper (s)</th>
-                                <th id="col-auc">AUC</th>
-                                <th id="col-aucn">AUCn</th>
                                 <th id="col-vessel-type">Vessel Type</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
+                                <td id="val-auc">—</td>
+                                <td id="val-aucn">—</td>
                                 <td id="val-onset-scan">—</td>
                                 <td id="val-tt-lower">—</td>
                                 <td id="val-tt-peak">—</td>
                                 <td id="val-tt-upper">—</td>
-                                <td id="val-auc">—</td>
-                                <td id="val-aucn">—</td>
                                 <td id="val-vessel-type">—</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
-                <!-- Action buttons -->
-                <div class="actions-section">
-                    <div class="actions-group">
-                        <h3 id="section-actions-title">MANUAL OVERRIDES &amp; FITTING WINDOW</h3>
-                        <p id="manual-override-desc" class="action-desc">Drag the Onset/Peak/End markers on the plot, then click 'Re-Fit' below.</p>
-                    </div>
-
-                    <div class="actions-row">
-                        <div class="denoise-control">
-                            <label id="label-denoise">Denoise Strength</label>
-                            <input type="range" id="denoise-slider" class="range-slider" min="0" max="3" step="0.1" value="1.0">
-                            <span id="denoise-value" class="slider-value">1.0</span>
-                        </div>
-                    </div>
-
-                    <div class="actions-buttons">
-                        <button id="btn-refit" class="btn btn-primary">Re-Fit (LM)</button>
-                        <button id="btn-override" class="btn btn-success">Force PASS</button>
-                        <button id="btn-revert" class="btn btn-secondary">Revert to Original</button>
-                        <button id="btn-revert-loaded" class="btn btn-secondary">Revert to Loaded</button>
-                        <button id="btn-reset-crop" class="btn btn-secondary">Reset Crop</button>
-                        <button id="btn-crop-bounds" class="btn btn-secondary">Crop to Markers</button>
-                        <button id="btn-view-mip" class="btn btn-accent">View ROI MIP</button>
-                    </div>
-
-                    <!-- ROI navigation -->
-                    <div class="actions-nav">
-                        <button id="btn-prev-roi" class="btn btn-sm">&lt;- Previous</button>
-                        <button id="btn-next-roi" class="btn btn-sm">Next -&gt;</button>
-                    </div>
-                </div>
             </main>
         </div>
 

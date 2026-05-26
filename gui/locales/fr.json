@@ -102,5 +102,12 @@
   "col_vessel_type": "Type vaisseau",
   "text_visual_crop_range": "Zone de rognage",
   "btn_prev_short": "< Précédent",
-  "btn_next_short": "Suivant >"
+  "btn_next_short": "Suivant >",
+  "label_dataset": "Jeu de données :",
+  "label_roi_count": "Nombre de ROI :",
+  "label_flagged": "À réviser :",
+  "label_manual": "Manuelles :",
+  "qc_stall": "STAGNATION",
+  "filter_stall": "STAGNATION uniquement",
+  "btn_view_roi_mip": "Voir ROI MIP"
 }

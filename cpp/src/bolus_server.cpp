@@ -1097,7 +1097,7 @@ static json handle_render_plot(const json& params) {
     svg << "  <rect width=\"100%\" height=\"100%\" fill=\"" << bg_col << "\"/>\n";
 
     // Grid
-    NiceTicks xt = BolusVisualizer::get_nice_ticks(min_x, max_x, 6);
+    NiceTicks xt = BolusVisualizer::get_nice_ticks(min_x, max_x, 12);
     NiceTicks yt = BolusVisualizer::get_nice_ticks(min_y, max_y, 6);
     for (double tx : xt.ticks) {
         double px = px_x(tx);
