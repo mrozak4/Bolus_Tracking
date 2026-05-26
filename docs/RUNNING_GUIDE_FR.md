@@ -183,10 +183,43 @@ npm start
 
 Voir **[gui/README_FR.md](../gui/README_FR.md)** pour la documentation architecturale complète.
 
+#### Aperçu de la disposition de l'interface graphique
+
+L'interface est organisée en trois régions principales :
+
+* **Barre supérieure** : Titre de l'application, sélecteur de langue et boutons d'action — **Charger** (ouvrir les données du sujet), **Vider** (décharger le jeu de données), **Sauvegarder** (exporter le CSV) et **Réinitialiser** (rétablir toutes les modifications manuelles).
+* **Barre latérale** (panneau gauche) :
+  - **Menu déroulant de filtre** : Afficher toutes les ROI ou filtrer par statut de CQ (ALERTE/ÉCHEC uniquement, STAGNATION uniquement, RÉVISION uniquement).
+  - **Navigation de triage** : Boutons Précédent/Suivant pour passer d'une ROI signalée à la suivante.
+  - **Liste des ROI** : Liste déroulante de toutes les ROI avec insignes de CQ colorés.
+  - **Information du jeu de données** : Sujet en cours, expérience, fréquence d'acquisition et nombre de ROI.
+* **Zone principale** (centre/droite) :
+  - **En-tête de statut** : Identifiant de la ROI en cours avec flèches de navigation Précédent/Suivant.
+  - **Graphique SVG** : Tracé rendu en C++ en pleine largeur avec des marqueurs verticaux glissables — début (vert sauge), pic (doré) et fin (terracotta). Les données brutes sont affichées en points sarcelle, la courbe débruitée en doré et la courbe Gamma ajustée en vert sauge.
+  - **Curseur de rognage** : Curseur de plage horizontal aligné avec l'axe x du graphique pour exclure interactivement le bruit de la ligne de base ou les queues de recirculation de la fenêtre d'ajustement.
+  - **Grille de contrôle à 3 colonnes** :
+    1. **Relevé des marqueurs** : Affichage numérique des temps actuels de début, de pic et de fin (en secondes).
+    2. **Rognage et débruitage** : Contrôles de la plage de rognage et curseur d'intensité du débruitage (0,5× à 3,0×).
+    3. **Actions d'ajustement** : Boutons Réajuster (LM), Forcer CONFORME et Rétablir.
+  - **Tableau des paramètres hémodynamiques** : Affiche l'amplitude ajustée, le temps au pic, la LMH, la ligne de base, le RSB, le RCB et l'AUC.
+  - **Tableau de cinétique** : Affiche les métriques de transit dérivées — temps de début (OnT), temps de début dans le balayage (OnTSc), bornes du temps de transit (TTlb, TTm, TThb) et classification suggérée du type de vaisseau.
+
+#### Système d'insignes de CQ
+
+Chaque ROI dans la barre latérale affiche un insigne de statut de CQ coloré :
+
+| Insigne | Couleur | Signification |
+| :--- | :--- | :--- |
+| **CONFORME** | Vert sauge | Modélisation réussie dans toutes les bornes physiologiques. |
+| **ALERTE** | Ambre/doré | Modélisation réussie mais un ou plusieurs paramètres ont dépassé les seuils d'avertissement. |
+| **ÉCHEC** | Rouge terracotta | Modélisation divergente, NaN retourné ou RCB sous le seuil d'échec. |
+| **STAGNATION** | Bleu atténué | Blocage capillaire détecté (flux sanguin lent ou interrompu — physiologique, pas une erreur). |
+| **RÉVISION** | Sarcelle | Marqué manuellement pour révision par l'opérateur. |
+
 #### Principales fonctionnalités de l'interface graphique :
-* **Barre latérale de triage** : Passez en revue les ROI avec des insignes de CQ couleur (CONFORME, ALERTE, ÉCHEC, RÉVISION, STAGNATION). Utilisez le menu déroulant pour isoler les cas signalés.
-* **Ajustement interactif des marqueurs** : Glissez les lignes verticales de début (vert sauge), de pic (doré) et de fin (terracotta) directement sur le graphique SVG.
-* **Rognage à la volée** : Ajustez le curseur de plage de rognage pour exclure le bruit de la ligne de base ou les queues de recirculation.
+* **Barre latérale de triage** : Passez en revue les ROI avec des insignes de CQ couleur. Utilisez le menu déroulant pour isoler les cas signalés.
+* **Ajustement interactif des marqueurs** : Glissez les lignes verticales de début, de pic et de fin directement sur le graphique SVG.
+* **Rognage à la volée** : Ajustez le curseur de plage de rognage (aligné avec l'axe x du graphique) pour exclure le bruit de la ligne de base ou les queues de recirculation.
 * **Remodélisation manuelle** : Cliquez sur **Réajuster** pour lancer un ajustement contraint de Levenberg-Marquardt dans votre fenêtre rognée en utilisant vos positions de marqueurs comme paramètres initiaux.
 * **Forcer la conformité** : Si une remodélisation affiche toujours ALERTE mais le tracé semble correct, cliquez sur **Forcer** pour le marquer manuellement comme CONFORME.
 * **Intensité du débruitage** : Ajustez le curseur **Denoise Strength** (0,5× à 3,0×) pour contrôler interactivement le lissage des traces.

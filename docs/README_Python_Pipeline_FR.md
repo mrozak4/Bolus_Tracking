@@ -2,9 +2,13 @@
 
 **[English](README_Python_Pipeline.md) | [Français (Québec)](README_Python_Pipeline_FR.md)**
 
+> ⚠️ **OBSOLÈTE — Référence patrimoniale uniquement.** Le pipeline Python n'est plus le flux de travail recommandé. Le **pipeline parallèle C++** (`bolus_tracking_cpp`) est l'implémentation principale de production — il est environ 11 fois plus rapide et prend en charge le flux complet de triage via l'interface graphique **Bolus Tracking Studio** basée sur Electron. Voir le **[RUNNING_GUIDE_FR.md](RUNNING_GUIDE_FR.md)** pour les instructions à jour.
+>
+> Le contenu ci-dessous est conservé à titre de référence pour les utilisateurs qui doivent prototyper en Python ou étendre le pipeline avec des scripts personnalisés.
+
 ---
 
-Ce document explique comment exécuter le pipeline de suivi de bolus automatisé en Python. Ce pipeline remplace le flux de travail manuel de l'interface graphique MATLAB, permettant un traitement par lots sans tête (headless) sur n'importe quel système (y compris votre machine d'alignement sous Linux).
+Ce document explique comment exécuter le pipeline de suivi de bolus automatisé en Python (hérité). Ce pipeline remplaçait à l'origine le flux de travail manuel de l'interface graphique MATLAB, permettant un traitement par lots sans tête (headless) sur n'importe quel système (y compris votre machine d'alignement sous Linux). **Pour les nouveaux projets, utilisez plutôt le pipeline C++.**
 
 ## Prérequis
 

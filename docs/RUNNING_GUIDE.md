@@ -209,10 +209,43 @@ npm start
 
 See **[gui/README.md](../gui/README.md)** for full architectural documentation.
 
+#### GUI Layout Overview
+
+The interface is organized into three main regions:
+
+* **Top Bar**: Application title, language selector dropdown, and action buttons — **Load** (open subject data), **Clear** (unload dataset), **Save** (export CSV), and **Reset** (revert all manual changes).
+* **Sidebar** (left panel):
+  - **Filter dropdown**: Show all ROIs, or isolate by QC status (WARN/FAIL only, STALL only, REVIEW only).
+  - **Triage navigation**: Previous/Next problem buttons to jump between flagged ROIs.
+  - **ROI list**: Scrollable list of all ROIs with colour-coded QC badges.
+  - **Dataset info**: Current subject, experiment, frame rate, and ROI count.
+* **Main Area** (center/right):
+  - **Status header**: Current ROI label with Previous/Next ROI navigation arrows.
+  - **SVG plot**: Full-width C++-rendered plot with draggable onset (sage green), peak (golden), and end (terracotta) vertical markers. Raw data shown as teal dots, denoised curve in golden, and gamma fit curve in sage green.
+  - **Crop slider**: Horizontal range slider aligned with the plot x-axis to interactively exclude baseline noise or recirculation tails from the fitting window.
+  - **3-column control grid**:
+    1. **Markers readout**: Numeric display of current onset, peak, and end times (seconds).
+    2. **Crop & Denoise**: Crop range controls and the Denoise Strength slider (0.5× to 3.0×).
+    3. **Fit actions**: Re-Fit (LM), Force Pass / Override, and Revert buttons.
+  - **Hemodynamic parameters table**: Displays fitted Amplitude, Time-to-Peak, FWHM, Baseline, SNR, CNR, and AUC.
+  - **Kinetics table**: Displays derived transit metrics — Onset Time (OnT), Onset Time in Scan (OnTSc), Transit Time bounds (TTlb, TTm, TThb), and suggested vessel type classification.
+
+#### QC Badge System
+
+Each ROI in the sidebar displays a colour-coded QC status badge:
+
+| Badge | Colour | Meaning |
+| :--- | :--- | :--- |
+| **PASS** | Sage green | Fit completed successfully within all physiological bounds. |
+| **WARN** | Amber/golden | Fit succeeded but one or more parameters crossed warning thresholds. |
+| **FAIL** | Terracotta red | Fit diverged, returned NaN, or CNR below failure threshold. |
+| **STALL** | Muted blue | Capillary stall detected (slow/interrupted blood flow — physiological, not an error). |
+| **REVIEW** | Teal | Manually flagged for operator review. |
+
 #### Key GUI Workflows:
-* **Triage Queue Sidebar**: Quickly review all ROIs with colour-coded QC badges (PASS, WARN, FAIL, REVIEW, STALL). Use the filter dropdown to isolate flagged cases.
-* **Interactive Marker Adjustments**: Drag onset (sage green), peak (golden), and end (terracotta) vertical lines directly on the SVG plot.
-* **On-the-Fly Fitting Cropping**: Adjust the crop range slider to exclude baseline noise or recirculation tails.
+* **Triage Queue Sidebar**: Quickly review all ROIs with colour-coded QC badges. Use the filter dropdown to isolate flagged cases.
+* **Interactive Marker Adjustments**: Drag onset, peak, and end vertical lines directly on the SVG plot.
+* **On-the-Fly Fitting Cropping**: Adjust the crop range slider (aligned with the plot x-axis) to exclude baseline noise or recirculation tails.
 * **Manual Re-fitting**: Click **Re-Fit** to run a constrained Levenberg-Marquardt fit within your crop window using your marker positions as initial parameters.
 * **Force Pass / Override**: If a re-fit still flags WARN but the trace looks correct, click **Override** to manually mark as PASS.
 * **Interactive Denoising Strength**: Adjust the **Denoise Strength** slider (0.5× to 3.0×) to interactively control trace smoothing.

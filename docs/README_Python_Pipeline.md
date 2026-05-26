@@ -2,9 +2,13 @@
 
 **[English](README_Python_Pipeline.md) | [Français (Québec)](README_Python_Pipeline_FR.md)**
 
+> ⚠️ **DEPRECATED — Legacy Reference Only.** The Python pipeline is no longer the recommended workflow. The **C++ parallel pipeline** (`bolus_tracking_cpp`) is the primary, production-grade implementation — it is ~11× faster and supports the full QC triage workflow via the **Electron-based Bolus Tracking Studio** GUI. See the **[RUNNING_GUIDE.md](RUNNING_GUIDE.md)** for current instructions.
+>
+> The content below is retained as a reference for users who need to prototype with Python or extend the pipeline with custom scripts.
+
 ---
 
-This document explains how to run the newly automated Python bolus tracking pipeline. This pipeline replaces the manual MATLAB GUI workflow, allowing for headless batch processing on any system (including your Linux registration machine).
+This document explains how to run the legacy Python bolus tracking pipeline. This pipeline originally replaced the manual MATLAB GUI workflow, allowing for headless batch processing on any system (including your Linux registration machine). **For new projects, use the C++ pipeline instead.**
 
 ## Prerequisites
 
