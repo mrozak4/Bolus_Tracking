@@ -1,0 +1,42 @@
+{
+  "name": "bolus-tracking-studio",
+  "version": "2.0.0",
+  "description": "Bolus Tracking Studio — Interactive capillary bolus tracking analysis with Mid-Century Modern design",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron . --js-flags='--max-old-space-size=256'",
+    "dev": "electron . --dev --js-flags='--max-old-space-size=512'",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux"
+  },
+  "author": "Stefanovic Lab — Sunnybrook Research Institute",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.0"
+  },
+  "build": {
+    "appId": "com.stefanovic-lab.bolus-tracking-studio",
+    "productName": "Bolus Tracking Studio",
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "../resources/AppIcon.icns",
+      "extraResources": [
+        { "from": "../build/bolus_server", "to": "bin/bolus_server" },
+        { "from": "../build/bolus_tracking_cpp", "to": "bin/bolus_tracking_cpp" }
+      ]
+    },
+    "extraResources": [
+      { "from": "../resources/fonts", "to": "fonts" },
+      { "from": "../resources/thx_crescendo.wav", "to": "sounds/thx_crescendo.wav" },
+      { "from": "../resources/minion_squeak.wav", "to": "sounds/minion_squeak.wav" },
+      { "from": "../resources/hallelujah.mp3", "to": "sounds/hallelujah.mp3" },
+      { "from": "../resources/app_icon.png", "to": "app_icon.png" }
+    ]
+  }
+}

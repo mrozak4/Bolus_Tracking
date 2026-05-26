@@ -13,3 +13,11 @@ imgui.ini
 .clangd
 compile_commands.json
 plots_cpp/
+
+# Electron GUI
+gui/node_modules/
+
+# Temp files
+clangd_check.log
+patch.diff
+AppIcon.iconset/

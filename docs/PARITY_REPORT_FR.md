@@ -45,8 +45,8 @@ Les deux chaînes de traitement affichent un accord numérique exact (dans les l
 ### Nous recommandons l'**implémentation C++** pour la production, l'analyse par lots et les révisions (GUI)
 Pour la recherche quotidienne, les études de cohortes et le triage de révision manuelle, l'**écosystème C++** est vivement recommandé :
 * **Efficacité temporelle** : La modélisation parallèle réduit les temps d'analyse des cohortes de plusieurs heures à quelques secondes.
-* **Interface graphique intégrée** : L'application moderne Dear ImGui (`bolus_tracking_gui`) permet aux opérateurs de réviser, filtrer (PASS/WARN/FAIL), réajuster manuellement (marqueurs de début, pic et fin de bolus) et rogner/zoomer les fenêtres d'ajustement au sein d'une même plateforme.
-* **Exécutable unique / Grande portabilité** : Peut être compilé et exécuté sur Windows, Linux et macOS sans se soucier des conflits de versions de packages Python.
+* **Interface graphique Electron** : Le **Bolus Tracking Studio** (`gui/`) basé sur Electron offre une interface de triage moderne et multiplateforme qui communique avec le dorsal C++ (`bolus_server`) pour le chargement TIFF, l'ajustement et le rendu SVG. Les opérateurs peuvent réviser, filtrer (PASS/WARN/FAIL/REVIEW/STALL), réajuster manuellement (marqueurs de début, pic et fin de bolus), rogner les fenêtres d'ajustement et sauvegarder directement — le tout avec le thème sombre MCM et la localisation en 44 langues. *(L'ancienne interface Dear ImGui dans `cpp/src/bolus_gui.cpp` est obsolète.)*
+* **Dorsal unique / Grande portabilité** : Le dorsal C++ peut être compilé sur Windows, Linux et macOS. L'interface Electron ne nécessite que Node.js ≥ 18.
 
 ### Nous recommandons l'**implémentation Python** pour le prototypage et l'extension des scripts
 * **Prototypage rapide** : Si vous expérimentez de nouvelles techniques de traitement de signal, des fonctions de perte personnalisées (par exemple, perte de Huber vs Cauchy) ou de nouveaux types d'affichage, l'environnement Python est rapide et ne nécessite pas de compilation.

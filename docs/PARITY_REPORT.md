@@ -45,8 +45,8 @@ Both pipelines show exact numerical agreement (within standard floating-point pr
 ### We Recommend the **C++ Implementation** for Production, Batch Analysis, and Reviews (GUI)
 For daily research, cohort studies, and manual review triage, the **C++ ecosystem** is highly recommended:
 * **Time Efficiency**: Parallel fitting reduces cohort-scale computational loads from hours to seconds.
-* **Integrated C++ GUI**: The modern C++ Dear ImGui application (`bolus_tracking_gui`) allows operators to review, filter (PASS/WARN/FAIL), manually re-fit (draggable onset, peak, end markers), crop/zoom fitting ranges on-the-fly, and save directly in one single platform—without context-switching.
-* **Single Executable / High Portability**: Can be built and run on Windows, Linux, and macOS without Python dependency conflicts or library configuration struggles.
+* **Electron GUI**: The **Electron-based Bolus Tracking Studio** (`gui/`) provides a modern, cross-platform triage interface that communicates with the C++ backend (`bolus_server`) for TIFF loading, fitting, and SVG plot rendering. It allows operators to review, filter (PASS/WARN/FAIL/REVIEW/STALL), manually re-fit (draggable onset, peak, end markers), crop fitting ranges, and save directly — all with the signature MCM dark theme and 44-language localization. *(The previous Dear ImGui GUI in `cpp/src/bolus_gui.cpp` is deprecated.)*
+* **Single Backend / High Portability**: The C++ backend can be built on Windows, Linux, and macOS. The Electron GUI requires only Node.js ≥ 18.
 
 ### We Recommend the **Python Implementation** for Prototyping and Scripting Extensions
 * **Rapid Prototyping**: If you are experimenting with new signal-processing methods, loss weights (e.g. Huber vs. Cauchy loss), or custom visualization backends, the Python environment is fast and doesn't require compilation.

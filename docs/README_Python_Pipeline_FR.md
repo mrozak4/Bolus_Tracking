@@ -71,6 +71,15 @@ Le script génère un fichier CSV (ex. `3554_bolus1_baseline_123-300_shifted_res
 
 ## Interface graphique interactive Python (Studio Tkinter et Matplotlib)
 
+> ⚠️ **OBSOLÈTE.** L'interface graphique Python tkinter n'est plus maintenue. Utilisez plutôt le **Bolus Tracking Studio** basé sur Electron :
+> ```bash
+> cd gui && npm install && npm start
+> ```
+> Voir **[gui/README_FR.md](../gui/README_FR.md)** pour la documentation complète.
+
+<details>
+<summary>Instructions de l'interface Python héritée (à titre de référence uniquement)</summary>
+
 L'interface graphique Python fournit un tableau de bord interactif pour parcourir visuellement les jeux de données, sélectionner les ROI, cliquer sur les tracés pour ajuster les marqueurs, lancer les modélisations et enregistrer les résultats.
 
 ### Comment lancer l'interface graphique Python :
@@ -94,6 +103,8 @@ L'interface graphique Python fournit un tableau de bord interactif pour parcouri
    - **Sélectionner la ROI** : Naviguez entre les différentes régions d'intérêt des capillaires.
    - **Ajustement interactif des marqueurs** : Cliquez sur **Adjust Markers** puis cliquez sur le graphique pour ajuster les points de début, de pic et de fin. La courbe se mettra à jour instantanément !
    - **Enregistrer et exporter** : Cliquez sur **💾 Save & Export Results** pour enregistrer le fichier CSV et exporter une capture d'écran haute résolution.
+
+</details>
 
 ---
 

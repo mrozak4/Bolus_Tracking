@@ -1,0 +1,744 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Bolus Tracking Studio — Mid-Century Modern Theme
+   Exact color-match to the native ImGui build (bolus_gui.cpp lines 1252-1305)
+   Font: Outfit Medium/Bold via Google Fonts (MCM geometric sans-serif)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Google Fonts: Outfit ────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+
+/* ─── CSS Custom Properties — pixel-matched to ImGui MCM theme ──────────── */
+:root {
+    /* === Background layers (warm charcoal / dark wood tones) ===
+       WindowBg:  0.18, 0.18, 0.17 → #2e2e2b
+       ChildBg:   0.22, 0.22, 0.20 → #383833
+       FrameBg:   0.26, 0.25, 0.23 → #42403b
+       Hovered:   0.32, 0.30, 0.28 → #524d47
+       Active:    0.38, 0.35, 0.32 → #615952  */
+    --bg-deep:       #242420;
+    --bg-primary:    #2e2e2b;
+    --bg-secondary:  #383833;
+    --bg-elevated:   #42403b;
+    --bg-hover:      #524d47;
+    --bg-active:     #615952;
+
+    /* === Text (warm cream) ===
+       Text:          0.95, 0.94, 0.90 → #f2f0e6
+       TextDisabled:  0.60, 0.58, 0.55 → #99948c  */
+    --text-primary:    #f2f0e6;
+    --text-secondary:  #b5b0a5;
+    --text-muted:      #99948c;
+    --text-inverse:    #2e2e2b;
+
+    /* === Accent: Burnt Orange (the signature MCM accent) ===
+       0.88, 0.55, 0.25 → #E08C40  */
+    --accent-burnt-orange: #E08C40;
+    --accent-orange-hover: #f29d4f;
+    --accent-orange-dim:   rgba(224, 140, 64, 0.35);
+
+    /* === Button / Sage Green (muted avocado) ===
+       Button:         0.38, 0.42, 0.35 → #616b59
+       ButtonHovered:  0.46, 0.52, 0.42 → #75856b
+       ButtonActive:   burnt orange  */
+    --btn-sage:        #616b59;
+    --btn-sage-hover:  #75856b;
+    --btn-sage-active: #8a9980;
+
+    /* === Slider / Grab: Sage Green ===
+       SliderGrab:       0.50, 0.58, 0.45 → #809473
+       SliderGrabActive: burnt orange  */
+    --grab-sage:       #809473;
+
+    /* === Border: Warm brown/bronze ===
+       Border: 0.35, 0.32, 0.28 → #595247 at 50% opacity  */
+    --border-warm:     rgba(89, 82, 71, 0.50);
+    --border-medium:   rgba(89, 82, 71, 0.70);
+    --border-bright:   rgba(224, 140, 64, 0.50);
+
+    /* === QC Status Colors (exact ImGui match) ===
+       PASS:   0.55, 0.62, 0.45 → #8c9e73
+       WARN:   0.92, 0.72, 0.30 → #ebb84d
+       FAIL:   0.80, 0.32, 0.22 → #cc5238
+       REVIEW: 0.37, 0.54, 0.54 → #5e8a8a
+       STALL:  (purple accent)   → #8a5e8a  */
+    --color-pass:    #8c9e73;
+    --color-warn:    #ebb84d;
+    --color-fail:    #cc5238;
+    --color-review:  #5e8a8a;
+    --color-stall:   #8a5e8a;
+
+    /* === Title / Header: Mustard-tinted ===
+       TitleBg:       0.28, 0.25, 0.22 → #474038
+       TitleBgActive: 0.32, 0.28, 0.24 → #52473d  */
+    --title-bg:      #474038;
+    --title-bg-active: #52473d;
+
+    /* === Scrollbar ===
+       ScrollbarBg:          same as WindowBg
+       ScrollbarGrab:        0.40, 0.38, 0.34 → #666157
+       ScrollbarGrabHovered: 0.50, 0.46, 0.42 → #80766b
+       ScrollbarGrabActive:  0.60, 0.55, 0.50 → #998c80  */
+    --scrollbar-thumb:       #666157;
+    --scrollbar-thumb-hover: #80766b;
+
+    /* === Marker colors (for interactive overlays) ===  */
+    --marker-onset:     #8c9e73;   /* sage green */
+    --marker-peak:      #ebb84d;   /* golden */
+    --marker-end:       #cc5238;   /* terracotta */
+    --marker-baseline:  #99948c;   /* muted cream */
+
+    /* === Typography ===  */
+    --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+
+    /* === Spacing (matches ImGui ItemSpacing/FramePadding/WindowPadding) ===  */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 12px;   /* ItemSpacing.x = 12 */
+    --space-lg: 16px;   /* WindowPadding = 16 */
+    --space-xl: 24px;
+
+    /* === Rounding (generous MCM radii) ===
+       WindowRounding: 14, ChildRounding: 12, FrameRounding: 10,
+       GrabRounding: 8, PopupRounding: 12, TabRounding: 8  */
+    --radius-sm: 8px;
+    --radius-md: 10px;
+    --radius-lg: 12px;
+    --radius-xl: 14px;
+
+    /* === Transitions ===  */
+    --transition-fast: 100ms ease;
+    --transition-normal: 180ms ease;
+}
+
+/* ─── Reset & Base ───────────────────────────────────────────────────────── */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+}
+
+.hidden { display: none !important; }
+
+/* ─── Scrollbar (matches ImGui ScrollbarGrab) ────────────────────────────── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); border-radius: var(--radius-md); }
+::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: var(--radius-md);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SPLASH SCREEN
+   ═══════════════════════════════════════════════════════════════════════════ */
+.splash-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #131316;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.splash-screen canvas { width: 100%; height: 100%; }
+
+.splash-skip {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    color: var(--text-primary);
+    opacity: 0.45;
+    font-size: 13px;
+    z-index: 10000;
+    pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   APP LAYOUT
+   ═══════════════════════════════════════════════════════════════════════════ */
+.app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: var(--bg-primary);
+}
+
+/* ─── Top Bar (matches ImGui MenuBarBg + title row) ──────────────────────── */
+.top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px var(--space-lg);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-warm);
+    flex-shrink: 0;
+    min-height: 40px;
+    gap: var(--space-sm);
+}
+
+.top-bar-left { flex-shrink: 0; }
+.top-bar-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+/* Title: Bold Outfit, Burnt Orange (0.88, 0.55, 0.25) */
+.app-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent-burnt-orange);
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+/* ─── Buttons (Sage green base, Burnt orange active) ─────────────────────── */
+.btn {
+    padding: 6px 14px;
+    border: 1px solid var(--border-warm);
+    border-radius: var(--radius-md);
+    background: var(--btn-sage);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+.btn:hover {
+    background: var(--btn-sage-hover);
+    border-color: var(--accent-burnt-orange);
+}
+.btn:active {
+    background: var(--accent-burnt-orange);
+    color: var(--text-inverse);
+    transform: scale(0.97);
+}
+
+/* Specific button variants */
+.btn-primary {
+    background: var(--btn-sage);
+    border-color: var(--border-medium);
+}
+.btn-secondary {
+    background: var(--bg-elevated);
+    border-color: var(--border-warm);
+}
+.btn-accent {
+    background: var(--accent-burnt-orange);
+    color: var(--text-inverse);
+    border-color: var(--accent-burnt-orange);
+}
+.btn-accent:hover { filter: brightness(1.12); }
+.btn-accent:active { filter: brightness(0.9); }
+
+.btn-success {
+    background: var(--color-pass);
+    color: var(--text-inverse);
+    border-color: var(--color-pass);
+}
+.btn-success:hover { filter: brightness(1.1); }
+
+.btn-danger {
+    background: var(--color-fail);
+    color: var(--text-primary);
+    border-color: var(--color-fail);
+}
+.btn-danger:hover { filter: brightness(1.15); }
+
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+
+/* ─── Controls (matches ImGui FrameBg) ───────────────────────────────────── */
+.control-select {
+    padding: 5px 10px;
+    border: 1px solid var(--border-warm);
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+.control-select:hover { border-color: var(--accent-burnt-orange); }
+.control-select:focus { outline: none; border-color: var(--accent-burnt-orange); }
+
+.range-slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 5px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-hover);
+    outline: none;
+}
+.range-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-sm);
+    background: var(--grab-sage);
+    cursor: pointer;
+    border: 1px solid var(--border-warm);
+}
+.range-slider::-webkit-slider-thumb:active {
+    background: var(--accent-burnt-orange);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PRE-FLIGHT PANEL
+   ═══════════════════════════════════════════════════════════════════════════ */
+.preflight-panel {
+    padding: var(--space-xl);
+    max-width: 700px;
+    margin: var(--space-xl) auto;
+}
+
+.preflight-header h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent-burnt-orange);
+    margin-bottom: var(--space-sm);
+}
+.preflight-desc { color: var(--text-secondary); margin-bottom: var(--space-lg); }
+
+.preflight-results {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-warm);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.8;
+    margin-bottom: var(--space-lg);
+    max-height: 400px;
+    overflow-y: auto;
+}
+.preflight-ok { color: var(--color-pass); }
+.preflight-warn { color: var(--color-warn); }
+.preflight-error { color: var(--color-fail); }
+
+.preflight-actions { display: flex; gap: var(--space-md); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MAIN CONTENT (Sidebar + Main Area)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.main-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* ─── Sidebar (matches ImGui ChildBg + table layout) ─────────────────────── */
+.sidebar {
+    width: 340px;
+    min-width: 280px;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-warm);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.sidebar-header {
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--border-warm);
+}
+
+/* Section headers: Burnt Orange bold, matching ImGui TextColored calls */
+.sidebar-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent-burnt-orange);
+    letter-spacing: 0.2px;
+}
+
+.sidebar-counts {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: var(--space-xs);
+    font-family: var(--font-mono);
+}
+
+.sidebar-filter {
+    padding: var(--space-sm) var(--space-lg);
+    border-bottom: 1px solid var(--border-warm);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+.sidebar-filter label { font-size: 12px; color: var(--text-secondary); }
+.sidebar-filter select { flex: 1; }
+
+.sidebar-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-sm) var(--space-lg);
+    border-bottom: 1px solid var(--border-warm);
+}
+.triage-info {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+/* ROI List (matches ImGui Table rows with status colors) */
+.roi-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-xs) 0;
+}
+
+.roi-item {
+    padding: 7px var(--space-lg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background var(--transition-fast);
+    border-left: 3px solid transparent;
+    font-size: 13px;
+}
+.roi-item:hover { background: var(--bg-hover); }
+.roi-item.selected {
+    background: var(--bg-active);
+    border-left-color: var(--accent-burnt-orange);
+}
+
+.roi-item-id { font-weight: 600; color: var(--text-primary); }
+.roi-item-info { font-size: 12px; color: var(--text-muted); }
+
+/* QC badges — exact ImGui status_color match */
+.qc-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: var(--radius-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.qc-pass    { background: var(--color-pass); color: var(--text-inverse); }
+.qc-warn    { background: var(--color-warn); color: var(--text-inverse); }
+.qc-fail    { background: var(--color-fail); color: var(--text-primary); }
+.qc-review  { background: var(--color-review); color: var(--text-primary); }
+.qc-stall   { background: var(--color-stall); color: var(--text-primary); }
+
+/* Dataset info */
+.dataset-info {
+    padding: var(--space-md) var(--space-lg);
+    border-top: 1px solid var(--border-warm);
+    font-size: 12px;
+}
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    color: var(--text-secondary);
+}
+.info-row span:last-child { color: var(--text-primary); font-family: var(--font-mono); }
+
+/* ─── Main Area ──────────────────────────────────────────────────────────── */
+.main-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+.plot-status-header {
+    font-size: 13px;
+    color: var(--text-secondary);
+    padding: var(--space-sm) 0;
+    border-bottom: 1px solid var(--border-warm);
+    font-family: var(--font-mono);
+}
+
+/* Plot Container (matches ImGui ChildBg panel) */
+.plot-container {
+    position: relative;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-warm);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    min-height: 380px;
+}
+
+.svg-plot { width: 100%; height: 100%; }
+.svg-plot svg { width: 100%; height: auto; display: block; }
+
+/* Draggable marker lines */
+.marker-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    cursor: col-resize;
+    z-index: 10;
+    transition: opacity var(--transition-fast);
+    display: none;
+}
+.marker-line.active { display: block; }
+
+.marker-onset   { background: var(--marker-onset); }
+.marker-peak    { background: var(--marker-peak); }
+.marker-end     { background: var(--marker-end); }
+.marker-baseline {
+    background: var(--marker-baseline);
+    top: auto;
+    left: 0;
+    right: 0;
+    width: auto;
+    height: 2px;
+    cursor: row-resize;
+}
+
+.marker-handle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 14px;
+    height: 22px;
+    background: inherit;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(242,240,230,0.35);
+}
+.marker-handle-h { width: 22px; height: 14px; }
+
+.marker-label {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    background: rgba(36,36,32,0.7);
+    padding: 1px 5px;
+    border-radius: 3px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+/* Crop controls */
+.crop-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+.crop-controls label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+.crop-controls .range-slider { flex: 1; }
+
+/* ─── Parameter Tables (matches ImGui table styling) ─────────────────────── */
+.params-section, .kinetics-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-warm);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md) var(--space-lg);
+}
+
+/* Section headers: Burnt Orange bold text — exact match to ImGui TextColored */
+.params-header h3, .kinetics-section h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-burnt-orange);
+    letter-spacing: 0.3px;
+    margin-bottom: var(--space-sm);
+}
+
+.params-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.params-table th {
+    text-align: left;
+    padding: 5px 8px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 12px;
+    border-bottom: 1px solid var(--border-medium);
+    background: var(--bg-elevated);
+}
+.params-table td {
+    padding: 5px 8px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    border-bottom: 1px solid var(--border-warm);
+}
+
+/* Estimated (Initial) row: dimmer, italic */
+.row-estimated td:first-child {
+    color: var(--text-muted);
+    font-style: italic;
+    font-family: var(--font-sans);
+}
+/* Fitted row: Burnt Orange label, bold */
+.row-fitted td:first-child {
+    color: var(--accent-burnt-orange);
+    font-weight: 700;
+    font-family: var(--font-sans);
+}
+
+/* ─── Actions Section ────────────────────────────────────────────────────── */
+.actions-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-warm);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md) var(--space-lg);
+}
+.actions-group h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-burnt-orange);
+    letter-spacing: 0.3px;
+}
+.action-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: var(--space-xs);
+}
+
+.actions-row { margin: var(--space-md) 0; }
+.denoise-control {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+.denoise-control label { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+.denoise-control .range-slider { flex: 1; max-width: 300px; }
+.slider-value {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-primary);
+    min-width: 32px;
+}
+
+.actions-buttons {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+    margin-top: var(--space-md);
+}
+
+.actions-nav {
+    display: flex;
+    justify-content: space-between;
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--border-warm);
+}
+
+/* ─── No Data Screen ─────────────────────────────────────────────────────── */
+.no-data-screen {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.no-data-content {
+    text-align: center;
+    color: var(--text-muted);
+}
+.no-data-icon { font-size: 48px; margin-bottom: var(--space-lg); opacity: 0.6; }
+.no-data-content p {
+    font-size: 14px;
+    max-width: 420px;
+    line-height: 1.6;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MODALS (matches ImGui PopupRounding: 12, ModalWindowDimBg)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(30, 30, 28, 0.60);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-warm);
+    border-radius: var(--radius-lg);
+    padding: var(--space-xl);
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+.modal-content h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent-burnt-orange);
+    margin-bottom: var(--space-md);
+}
+.modal-content p {
+    color: var(--text-secondary);
+    margin-bottom: var(--space-lg);
+    line-height: 1.5;
+}
+.modal-buttons {
+    display: flex;
+    gap: var(--space-md);
+    justify-content: flex-end;
+}
+
+.mip-canvas {
+    width: 100%;
+    max-height: 400px;
+    border: 1px solid var(--border-warm);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-lg);
+    background: #000;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOAST NOTIFICATIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(16px);
+    background: var(--bg-secondary);
+    border: 1px solid var(--accent-burnt-orange);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md) var(--space-xl);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 280ms ease, transform 280ms ease;
+}
+.toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}

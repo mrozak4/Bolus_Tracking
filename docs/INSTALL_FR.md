@@ -8,6 +8,35 @@ Ce guide décrit comment installer et configurer **Bolus Tracking Studio** sur m
 
 ---
 
+## Installation de l'interface Electron (Recommandé — Toutes les plateformes)
+
+L'interface graphique interactive principale fonctionne sur Electron (Chromium). C'est la méthode recommandée pour toutes les plateformes.
+
+### Prérequis :
+- **Node.js** ≥ 18 et **npm** ≥ 9 ([télécharger](https://nodejs.org/))
+- Le binaire C++ `bolus_server` (voir les instructions de compilation ci-dessous)
+
+### Compiler le dorsal C++ :
+```bash
+mkdir -p build && cd build
+cmake .. && make bolus_server -j4
+```
+
+### Installer et lancer :
+```bash
+cd gui
+npm install
+npm start
+```
+
+Voir **[gui/README_FR.md](../gui/README_FR.md)** pour la documentation complète.
+
+---
+
+## Hérité : Installation de l'interface native
+
+> ⚠️ **L'interface graphique native Dear ImGui est obsolète.** Les sections ci-dessous sont conservées à titre de référence. Utilisez l'interface Electron ci-dessus.
+
 ## Installation sur macOS (Recommandé)
 
 Sur macOS, vous pouvez compiler un paquet d'application natif exécutable (`.app`) avec une icône personnalisée.
@@ -41,7 +70,7 @@ Ce script va :
 Sur Linux, vous pouvez compiler l'application et ajouter un raccourci de lancement sur votre bureau.
 
 ### Prérequis :
-Assurez-vous que CMake, un compilateur C++17 et les bibliothèques de développement pour GLFW, OpenGL et LibTIFF sont installés sur votre système.
+Assurez-vous que CMake, un compilateur C++17 et les bibliothèques de développement pour GLFW, OpenGL et LibTIFF sont installés sur votre système. *(Requis uniquement pour l'interface native héritée, pas pour l'interface Electron.)*
 Sur Ubuntu/Debian, installez-les via :
 ```bash
 sudo apt-get update

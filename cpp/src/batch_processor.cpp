@@ -1,7 +1,9 @@
 #include "bolus_tracking_cpp.hpp"
+#include "mat_parser.hpp"
 
 #include <iostream>
 #include <fstream>
+#include <iomanip>
 #include <sstream>
 #include <vector>
 #include <map>
@@ -499,4 +501,238 @@ bool BatchProcessor::run_preflight_scan(bool& has_warnings, bool& has_errors) co
     std::cout << "==================================================\n" << std::endl;
 
     return !has_errors;
+}
+
+// ---------------------------------------------------------
+// write_rois_txt — Free function
+// ---------------------------------------------------------
+
+/**
+ * @brief Writes a vector of ROI polygons to the pipeline's text format.
+ *
+ * Format:
+ *   <n_rois>
+ *   <roi_id> <n_points>
+ *   <x1> <y1>
+ *   <x2> <y2>
+ *   ...
+ *
+ * This mirrors the output of matlab/convert_masks_for_python.m (lines 71-78).
+ */
+bool write_rois_txt(const std::string& output_path, const std::vector<ROI>& rois) {
+    std::ofstream out(output_path);
+    if (!out.is_open()) {
+        std::cerr << "ERROR: Could not open file for writing: " << output_path << std::endl;
+        return false;
+    }
+
+    out << rois.size() << "\n";
+    for (const auto& roi : rois) {
+        out << roi.id << " " << roi.poly.size() << "\n";
+        for (const auto& pt : roi.poly) {
+            out << std::fixed << std::setprecision(6) << pt.first << " " << pt.second << "\n";
+        }
+    }
+
+    out.close();
+    return true;
+}
+
+// ---------------------------------------------------------
+// BatchProcessor::run_prepare
+// ---------------------------------------------------------
+
+/**
+ * @brief Scans the subject directory for .mat mask files and converts them to _rois.txt format.
+ *
+ * @param dry_run If true, only report what would be done without writing files.
+ * @param force_overwrite If true, overwrite existing _rois.txt files.
+ * @return true if all conversions succeeded (or dry-run completed), false on any errors.
+ */
+bool BatchProcessor::run_prepare(bool dry_run, bool force_overwrite) const {
+    std::cout << "\n==================================================" << std::endl;
+    std::cout << "       FILE PREPARATION UTILITY" << std::endl;
+    if (dry_run) {
+        std::cout << "       MODE: DRY RUN (no files will be written)" << std::endl;
+    } else {
+        std::cout << "       MODE: APPLY" << (force_overwrite ? " (force overwrite)" : "") << std::endl;
+    }
+    std::cout << "==================================================" << std::endl;
+    std::cout << "Scanning folder: " << folder_path << std::endl;
+
+    if (!std::filesystem::exists(folder_path)) {
+        std::cerr << "ERROR: Folder does not exist: " << folder_path << std::endl;
+        return false;
+    }
+
+    // 1. Collect all .mat mask files
+    struct MatFileInfo {
+        std::filesystem::path mat_path;
+        std::filesystem::path expected_txt_path;
+        bool txt_exists;
+    };
+    std::vector<MatFileInfo> mat_files;
+
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(folder_path)) {
+        if (!entry.is_regular_file()) continue;
+
+        std::string filename = entry.path().filename().string();
+        if (filename.empty() || filename.front() == '.') continue;
+
+        std::string ext = entry.path().extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+        if (ext != ".mat") continue;
+
+        std::string filename_lower = filename;
+        std::transform(filename_lower.begin(), filename_lower.end(), filename_lower.begin(), ::tolower);
+
+        // Skip non-mask .mat files (e.g. bolus1_shift.mat, adjusted_ files)
+        // Only skip files ending with _shift.mat (registration transforms), not files with "shifted" in the name
+        if (filename_lower.find("_shift.mat") != std::string::npos &&
+            filename_lower.find("shifted") == std::string::npos) continue;
+        if (filename.substr(0, 9) == "adjusted_") continue;
+
+        // Match mask patterns: maskObj, mask, MaskObj
+        bool is_mask = (filename_lower.find("maskobj") != std::string::npos ||
+                        filename_lower.find("mask") != std::string::npos);
+        if (!is_mask) continue;
+
+        // Determine the expected _rois.txt output path
+        std::filesystem::path parent = entry.path().parent_path();
+        std::string stem = entry.path().stem().string();
+        std::filesystem::path txt_path = parent / (stem + "_rois.txt");
+
+        MatFileInfo info;
+        info.mat_path = entry.path();
+        info.expected_txt_path = txt_path;
+        info.txt_exists = std::filesystem::exists(txt_path);
+        mat_files.push_back(info);
+    }
+
+    if (mat_files.empty()) {
+        std::cout << "\nNo .mat mask files found in the directory tree." << std::endl;
+        std::cout << "Nothing to prepare." << std::endl;
+        return true;
+    }
+
+    // Sort by path for consistent ordering
+    std::sort(mat_files.begin(), mat_files.end(), [](const MatFileInfo& a, const MatFileInfo& b) {
+        return a.mat_path < b.mat_path;
+    });
+
+    // 2. Process each .mat file
+    int converted_count = 0;
+    int skipped_count = 0;
+    int error_count = 0;
+    int overwrite_count = 0;
+
+    std::cout << "\nFound " << mat_files.size() << " .mat mask file(s):\n" << std::endl;
+
+    for (const auto& info : mat_files) {
+        std::string rel_mat;
+        try {
+            rel_mat = std::filesystem::relative(info.mat_path, folder_path).string();
+        } catch (...) {
+            rel_mat = info.mat_path.filename().string();
+        }
+
+        std::string rel_txt;
+        try {
+            rel_txt = std::filesystem::relative(info.expected_txt_path, folder_path).string();
+        } catch (...) {
+            rel_txt = info.expected_txt_path.filename().string();
+        }
+
+        if (info.txt_exists && !force_overwrite) {
+            std::cout << "  [SKIP] " << rel_mat << std::endl;
+            std::cout << "         -> " << rel_txt << " already exists" << std::endl;
+            skipped_count++;
+            continue;
+        }
+
+        if (dry_run) {
+            if (info.txt_exists && force_overwrite) {
+                std::cout << "  [WOULD OVERWRITE] " << rel_mat << std::endl;
+            } else {
+                std::cout << "  [WOULD CONVERT] " << rel_mat << std::endl;
+            }
+            std::cout << "         -> " << rel_txt << std::endl;
+
+            // Still validate the .mat file is parseable
+            try {
+                auto rois = MatParser::load_rois_from_mat(info.mat_path.string());
+                if (rois.empty()) {
+                    std::cout << "         [WARN] MAT file parsed but contains 0 ROIs" << std::endl;
+                } else {
+                    std::cout << "         (" << rois.size() << " ROIs detected)" << std::endl;
+                }
+            } catch (const std::exception& e) {
+                std::cout << "         [ERROR] Failed to parse: " << e.what() << std::endl;
+                error_count++;
+            }
+            converted_count++;
+            continue;
+        }
+
+        // APPLY mode: actually convert
+        try {
+            auto rois = MatParser::load_rois_from_mat(info.mat_path.string());
+            if (rois.empty()) {
+                std::cout << "  [WARN] " << rel_mat << " -> 0 ROIs parsed (skipping)" << std::endl;
+                error_count++;
+                continue;
+            }
+
+            bool write_ok = write_rois_txt(info.expected_txt_path.string(), rois);
+            if (!write_ok) {
+                std::cout << "  [ERROR] " << rel_mat << " -> failed to write " << rel_txt << std::endl;
+                error_count++;
+                continue;
+            }
+
+            if (info.txt_exists) {
+                std::cout << "  [OVERWRITE] " << rel_mat << " -> " << rel_txt
+                          << " (" << rois.size() << " ROIs)" << std::endl;
+                overwrite_count++;
+            } else {
+                std::cout << "  [CONVERT] " << rel_mat << " -> " << rel_txt
+                          << " (" << rois.size() << " ROIs)" << std::endl;
+            }
+            converted_count++;
+        } catch (const std::exception& e) {
+            std::cout << "  [ERROR] " << rel_mat << " -> " << e.what() << std::endl;
+            error_count++;
+        }
+    }
+
+    // 3. Summary
+    std::cout << "\n--------------------------------------------------" << std::endl;
+    std::cout << "Preparation Summary:" << std::endl;
+    if (dry_run) {
+        std::cout << "  Would convert: " << converted_count << " file(s)" << std::endl;
+    } else {
+        std::cout << "  Converted:     " << converted_count << " file(s)" << std::endl;
+        if (overwrite_count > 0) {
+            std::cout << "  Overwritten:   " << overwrite_count << " file(s)" << std::endl;
+        }
+    }
+    std::cout << "  Skipped:       " << skipped_count << " file(s) (already exist)" << std::endl;
+    if (error_count > 0) {
+        std::cout << "  Errors:        " << error_count << " file(s)" << std::endl;
+    }
+    std::cout << "==================================================" << std::endl;
+
+    if (dry_run && converted_count > 0) {
+        std::cout << "\nThis was a dry run. To actually write files, re-run with --apply:" << std::endl;
+        std::cout << "  bolus_tracking_cpp --folder " << folder_path << " --prepare --apply" << std::endl;
+    }
+
+    // 4. Run preflight scan to show dataset pairing status after preparation
+    if (!dry_run && converted_count > 0) {
+        std::cout << "\nRunning post-preparation validation scan...\n" << std::endl;
+        bool pf_warn = false, pf_err = false;
+        run_preflight_scan(pf_warn, pf_err);
+    }
+
+    return error_count == 0;
 }

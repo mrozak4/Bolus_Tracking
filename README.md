@@ -50,13 +50,16 @@ We provide detailed documentation for each part of the codebase. Please refer to
   * **`cpp/src/batch_processor.cpp`**: Directory tree crawler, frame rate parsing, and dataset pairing logic.
   * **`cpp/src/main.cpp`**: Command-line execution entry point.
 * **`cpp/include/bolus_tracking_cpp.hpp`**: Unified C++ header declaring all pipeline structures, parameters, and class interfaces.
-* **`cpp/src/bolus_gui.cpp`**: Cross-platform interactive C++ GUI built with Dear ImGui and ImPlot to manually inspect and correct fits.
+* **`cpp/src/bolus_gui.cpp`**: ~~Cross-platform interactive C++ GUI built with Dear ImGui and ImPlot.~~ **DEPRECATED** — retained for reference. See `gui/` for the current GUI.
 * **`cpp/tests/test_bolus_tracking_cpp.cpp`**: C++ test suite verifying all math routines, fit models, and edge cases.
 * **`CMakeLists.txt`**: C++ build configuration file.
 * **`Dockerfile.cpp`**: Docker configuration for compiling, testing, and containerizing the C++ pipeline.
 
-### Python-Based Reference & GUI Tools
-* **`python/src/bolus_gui.py`**: A premium, interactive Python interface to visually browse datasets, select ROIs, click on plots to adjust markers, run fits, and save results.
+### Electron GUI (Primary Interactive Tool)
+* **`gui/`**: The **primary interactive GUI** for triage and quality control. Built on Electron (Chromium) with C++ SVG plot rendering and the MCM dark theme. See **[gui/README.md](gui/README.md)** for full documentation.
+
+### Python-Based Reference Tools
+* **`python/src/bolus_gui.py`**: ~~Interactive Python GUI.~~ **DEPRECATED** — retained for reference. Use the Electron GUI instead.
 * **`run_pipeline.sh`**: Command-line wrapper script that sets up python virtual environments and executes the reference Python batch pipeline.
 * **`python/src/batch_process.py`**: Scans folders for triplets (TIFF image, MAT mask, metadata TXT), extracts traces, runs fitting, and saves CSVs.
 * **`python/src/bolus_tracking.py`**: Core mathematical algorithms containing filtering, upsampling, peak/onset/end detections, and curve fitting.
@@ -84,31 +87,34 @@ This processes all subject datasets in parallel. To run the reference Python pip
 bash run_pipeline.sh
 ```
 
-### Launch C++ GUI
-
-#### On macOS (Clickable App Bundle)
-Build, package, and install the GUI as a native macOS app to Launchpad:
+### Launch Interactive GUI (Electron — Recommended)
 ```bash
-bash install_macos.sh
-open /Applications/BolusTrackingStudio.app  # Or open ~/Applications/BolusTrackingStudio.app
+cd gui && npm install && npm start
 ```
+This launches the Bolus Tracking Studio with the MCM dark theme, C++ SVG plots, splash screen animation, 44 languages, and full triage workflow. See **[gui/README.md](gui/README.md)** for details.
 
-#### On Linux, Windows, or Manual macOS Setup
-Build and run the executable locally:
+> [!NOTE]
+> **Prerequisites**: Node.js ≥ 18 and a built `bolus_server` binary (run `cd build && cmake .. && make bolus_server`).
+
+<details>
+<summary>Legacy GUIs (Deprecated)</summary>
+
+#### Legacy: C++ Dear ImGui GUI
 ```bash
 mkdir -p build && cd build
 cmake -DBUILD_GUI=ON ..
 make -j4
 ./bolus_tracking_gui
 ```
-This launches the high-performance Dear ImGui dashboard. You can select folders, triage ROIs by status (PASS/WARN/FAIL), drag vertical markers to adjust onset, peak, and end points, crop the fitting window on the fly, automatically save and resume your workflow progress via sidecar .gui_state files, adjust denoising filters interactively, reset/revert to automatic baseline states, clear subject workspaces, toggle between Canadian English, OQLF-compliant French, and over 40 other locales (including Ancient Egyptian, Hindi, Thai, Indonesian, Vietnamese, Tagalog, Tamil, and Bengali), and export parameters.
+> ⚠️ **Deprecated.** Requires GLFW, OpenGL, and native graphics libraries. Use the Electron GUI instead.
 
-### Launch Python GUI
-Run:
+#### Legacy: Python tkinter GUI
 ```bash
-.venv/bin/python bolus_gui.py
+.venv/bin/python python/src/bolus_gui.py
 ```
-This opens the Tkinter window to select datasets, navigate capillary ROIs, adjust onset/peak/end points by clicking on the graph, and export the results.
+> ⚠️ **Deprecated.** Slower, no multi-language support, limited QC workflow. Use the Electron GUI instead.
+
+</details>
 
 ---
 

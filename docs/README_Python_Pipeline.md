@@ -71,6 +71,15 @@ The script will output a CSV file (e.g., `3554_bolus1_baseline_123-300_shifted_r
 
 ## Interactive Python GUI (Tkinter & Matplotlib Studio)
 
+> ⚠️ **DEPRECATED.** The Python tkinter GUI is no longer maintained. Use the **Electron-based Bolus Tracking Studio** instead:
+> ```bash
+> cd gui && npm install && npm start
+> ```
+> See **[gui/README.md](../gui/README.md)** for full documentation.
+
+<details>
+<summary>Legacy Python GUI Instructions (for reference only)</summary>
+
 The Python GUI provides an interactive interface to visually browse datasets, select ROIs, click on plots to adjust markers, run fits, and save results.
 
 ### How to Launch the Python GUI:
@@ -94,6 +103,8 @@ The Python GUI provides an interactive interface to visually browse datasets, se
    - **Select Capillary ROI**: Navigate between the different capillary regions of interest.
    - **Interactive Marker Placement**: Click **Adjust Markers** and click anywhere on the plot to adjust onset/peak/end points visually. The fit will update instantly!
    - **Save & Export**: Click **💾 Save & Export Results** to write parameters to the CSV and save a high-resolution screenshot.
+
+</details>
 
 ---
 

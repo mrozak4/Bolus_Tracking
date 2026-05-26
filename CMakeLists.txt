@@ -93,6 +93,23 @@ target_include_directories(test_bolus_tracking_cpp PRIVATE cpp/include ${TIFF_IN
 target_link_libraries(test_bolus_tracking_cpp PRIVATE ${TIFF_LIBRARIES} Eigen3::Eigen ZLIB::ZLIB)
 
 # ========================================================
+# IPC Server for Electron GUI
+# ========================================================
+include(FetchContent)
+FetchContent_Declare(
+    json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.3
+    GIT_SHALLOW TRUE
+)
+set(JSON_BuildTests OFF CACHE INTERNAL "")
+FetchContent_MakeAvailable(json)
+
+add_executable(bolus_server cpp/src/bolus_server.cpp ${PIPELINE_SRCS} cpp/include/bolus_tracking_cpp.hpp)
+target_include_directories(bolus_server PRIVATE cpp/include ${TIFF_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS})
+target_link_libraries(bolus_server PRIVATE ${TIFF_LIBRARIES} Eigen3::Eigen ZLIB::ZLIB nlohmann_json::nlohmann_json)
+
+# ========================================================
 # GUI Build Configuration
 # ========================================================
 option(BUILD_GUI "Build the visual triage GUI" ON)

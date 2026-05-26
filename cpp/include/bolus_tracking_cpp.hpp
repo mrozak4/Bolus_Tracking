@@ -266,6 +266,12 @@ public:
     
     bool run() const;
     bool run_preflight_scan(bool& has_warnings, bool& has_errors) const;
+    bool run_prepare(bool dry_run = true, bool force_overwrite = false) const;
 };
+
+/**
+ * @brief Writes a vector of ROI polygons to a text file in the pipeline's expected format.
+ */
+bool write_rois_txt(const std::string& output_path, const std::vector<ROI>& rois);
 
 #endif // BOLUS_TRACKING_CPP_HPP

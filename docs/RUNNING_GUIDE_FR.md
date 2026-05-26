@@ -82,6 +82,26 @@ bash run_pipeline_cpp.sh sample-subject-2259 --preflight
 ```
 Si des erreurs sont détectées, le script affichera un rapport de diagnostic détaillé. Lors d'un traitement par lots standard, cette analyse de pré-vol est exécutée automatiquement au démarrage pour s'assurer que tous les jeux de données sont correctement formatés avant le calcul.
 
+**Préparation des fichiers (Conversion de masques MAT → TXT)** :
+Si vos données de sujet contiennent des fichiers de masque ROI MATLAB `.mat` et que vous souhaitez les convertir au format texte brut `_rois.txt` (pour la portabilité ou le contrôle de version), l'indicateur `--prepare` analyse le répertoire pour tous les fichiers de masque `.mat`, les décode à l'aide de l'analyseur MAT C++ intégré et écrit les fichiers `_rois.txt` équivalents. **Cela élimine totalement le besoin de MATLAB.**
+
+Par défaut, `--prepare` fonctionne en **mode simulation** — il affiche ce qui *serait* fait sans écrire aucun fichier :
+```bash
+# Simulation — voir ce qui serait converti
+./build/bolus_tracking_cpp --folder sample-subject-2259 --prepare
+
+# Écrire effectivement les fichiers _rois.txt
+./build/bolus_tracking_cpp --folder sample-subject-2259 --prepare --apply
+
+# Écraser les fichiers _rois.txt existants (ex : pour régénérer à partir de masques mis à jour)
+./build/bolus_tracking_cpp --folder sample-subject-2259 --prepare --apply --force
+```
+
+> [!TIP]
+> **Flux de travail rapide :** Pour un nouveau jeu de données de sujet avec des fichiers de masque `.mat`, exécutez ces trois commandes dans l'ordre :
+> 1. `--prepare` (simulation pour vérifier)
+> 2. `--prepare --apply` (convertir les masques)
+> 3. `--folder <chemin>` (lancer le pipeline)
 
 #### Commande manuelle (sans le script d'enveloppe) :
 Si vous souhaitez exécuter la commande Docker manuellement :
@@ -137,51 +157,63 @@ bash run_pipeline_cpp.sh sample-subject-2259 --qc-fwhm-max 20.0 --qc-cnr-min 6.0
 
 ---
 
-## 3. Exécuter l'interface graphique interactive C++ : Dear ImGui & ImPlot Studio
+## 3. Exécuter l'interface graphique interactive : Bolus Tracking Studio (Electron)
 
 > [!TIP]
-> **Recommandation d'application graphique** : L'interface graphique C++ (Bolus Tracking Studio) est l'**outil principal fortement recommandé** pour le triage et le contrôle qualité des modélisations. Basée sur le C++ natif, elle offre un rendu instantané, un ajustement ultra-réactif des marqueurs et du rognage de signal, des réajustements de Levenberg-Marquardt robustes et un support multilingue. L'interface Python (`python/src/bolus_gui.py`) is fournie uniquement comme alternative légère et plus lente de référence.
+> **Recommandation d'application graphique** : Le Bolus Tracking Studio basé sur Electron est l'**outil principal recommandé** pour le triage et le contrôle qualité des modélisations. Il utilise Chromium pour un rendu multiplateforme, des graphiques SVG en C++ pour la performance et le thème sombre MCM caractéristique. Les graphiques sont rendus entièrement en C++ — aucune bibliothèque JavaScript de visualisation n'est utilisée.
 
-Comme les applications graphiques requièrent un accès à l'affichage système, elles doivent être exécutées localement sur votre système d'exploitation hôte. L'interface graphique C++ est un tableau de bord visuel haute performance basé sur le moteur de modélisation C++. Elle utilise Dear ImGui et ImPlot pour afficher les signaux, réviser et trier les cas problématiques, ajuster les paramètres de modélisation et rogner dynamiquement les plages de données. La mise en page utilise une structure réactive qui ajuste automatiquement la hauteur du graphique et utilise des tableaux alignés pour la barre latérale et les en-têtes, garantissant que tous les paramètres cinétiques, étiquettes et boutons de navigation (`< Précédent` / `Suivant >`) restent entièrement visibles et jamais tronqués, quelle que soit la taille de la fenêtre.
+L'interface graphique Electron communique avec `bolus_server` (un dorsal C++ à état persistant) via JSON délimité par lignes sur stdin/stdout. Cette architecture maintient tous les calculs lourds (chargement TIFF, extraction de traces, ajustement, rendu SVG) en C++ natif tout en offrant une interface web moderne et accessible.
 
-#### Comment compiler et lancer l'interface graphique C++ :
+#### Prérequis
+- **Node.js** ≥ 18 et **npm** ≥ 9
+- Le binaire C++ `bolus_server` doit d'abord être compilé :
+  ```bash
+  mkdir -p build && cd build
+  cmake .. && make bolus_server -j4
+  ```
 
-##### Option A : Script d'installation automatique (macOS uniquement)
-Si vous êtes sur macOS, vous pouvez automatiquement compiler, empaqueter et installer l'application native dans votre dossier d'applications avec son icône personnalisée :
+#### Comment lancer l'interface graphique Electron :
 ```bash
-bash install_macos.sh
+cd gui
+npm install   # première fois uniquement
+npm start
 ```
-Ce script compile l'application, génère le paquet `BolusTrackingStudio.app` et l'installe dans `/Applications/` (ou `~/Applications/` si non accessible) pour un lancement direct depuis le **Launchpad**, le Finder ou Spotlight.
 
-##### Option B : Compilation manuelle (macOS, Linux, Windows)
-1. Assurez-vous que CMake, un compilateur C++17 et la bibliothèque LibTIFF sont installés.
-2. Compilez les fichiers localement :
-   ```bash
-   mkdir -p build && cd build
-   cmake -DBUILD_GUI=ON ..
-   make -j4
-   ```
-3. Lancez l'application :
-   ```bash
-   ./bolus_tracking_gui
-   ```
-   *(Vous pouvez facultativement passer le chemin d'un fichier CSV en paramètre pour le charger directement : `./bolus_tracking_gui /chemin/vers/results_cpp.csv`)*
+Voir **[gui/README_FR.md](../gui/README_FR.md)** pour la documentation architecturale complète.
 
 #### Principales fonctionnalités de l'interface graphique :
-* **Barre latérale de la file d'attente de triage** : Passez en revue les ROI. Cochez "Show WARN/FAIL only" pour filtrer la liste et vous concentrer exclusivement sur les cas nécessitant une intervention.
-* **Ajustement interactif des marqueurs** : Faites glisser les trois lignes verticales directement sur le graphique :
-  * **Vert** : Temps de début du bolus (Onset)
-  * **Jaune** : Temps de pic (Peak)
-  * **Rouge** : Temps de fin de premier passage (End)
-* **Rognage à la volée de la fenêtre de modélisation** : Déplacez les crochets bleu (début) et magenta (fin) en bas du graphique pour restreindre la fenêtre d'ajustement (ex: exclure un bruit de ligne de base ou un pic de recirculation tardif).
-* **Zoom et réinitialisation** : Double-cliquez sur le tracé pour réinitialiser les axes, ou cliquez sur le bouton **Undo Crop** pour restaurer la fenêtre de données complète.
-* **Remodélisation manuelle (Réajuster (LM))** : Cliquez pour relancer une modélisation contrainte utilisant vos marqueurs déplacés manuellement comme valeurs d'initialisation et vos limites de rognage comme fenêtre de modélisation active. Les paramètres exportés restent toujours calés par rapport à l'échelle de temps absolue non rognée.
-* **Modélisation automatique par lots** : Chargez un dossier, cliquez sur **Run Auto Fit Batch** pour modéliser toutes les ROI automatiquement et mettre à jour la file en temps réel.
-* **Ajustement de l'intensité du débruitage** : Ajustez le curseur **Denoise Strength** (0.5x à 3.0x) pour lisser interactivement le signal brut avant l'ajustement.
-* **Rétablir les valeurs d'origine (Revert to Original)** : Cliquez sur ce bouton pour annuler les corrections manuelles sur la ROI sélectionnée, restaurer les paramètres automatiques d'origine et effacer les marqueurs manuels.
-* **Réinitialiser toutes les modifications (Reset All)** : Dans la barre de menu supérieure, cliquez sur ce bouton pour restaurer l'intégralité du jeu de données chargé à son état d'origine. Une boîte de dialogue de confirmation évite les pertes accidentelles.
-* **Vider les données du sujet (Clear Subject)** : Dans la barre de menu supérieure, cliquez sur ce bouton pour décharger les fichiers CSV, TIFF et ROI, ramenant l'interface graphique à son écran d'accueil d'origine.
-* **Localisation multilingue** : Sélectionnez votre langue préférée dans le menu déroulant de la barre de menu supérieure (prenant en charge l'anglais canadien, le français conforme à l'OQLF et plus de 40 autres langues comme l'égyptien ancien, l'indonésien, le vietnamien, le tagalog, le thaï, le hindi, le tamoul et le bengali) pour mettre à jour instantanément toute l'interface utilisateur.
+* **Barre latérale de triage** : Passez en revue les ROI avec des insignes de CQ couleur (CONFORME, ALERTE, ÉCHEC, RÉVISION, STAGNATION). Utilisez le menu déroulant pour isoler les cas signalés.
+* **Ajustement interactif des marqueurs** : Glissez les lignes verticales de début (vert sauge), de pic (doré) et de fin (terracotta) directement sur le graphique SVG.
+* **Rognage à la volée** : Ajustez le curseur de plage de rognage pour exclure le bruit de la ligne de base ou les queues de recirculation.
+* **Remodélisation manuelle** : Cliquez sur **Réajuster** pour lancer un ajustement contraint de Levenberg-Marquardt dans votre fenêtre rognée en utilisant vos positions de marqueurs comme paramètres initiaux.
+* **Forcer la conformité** : Si une remodélisation affiche toujours ALERTE mais le tracé semble correct, cliquez sur **Forcer** pour le marquer manuellement comme CONFORME.
+* **Intensité du débruitage** : Ajustez le curseur **Denoise Strength** (0,5× à 3,0×) pour contrôler interactivement le lissage des traces.
+* **Rétablir / Réinitialiser** : Rétablissez des ROI individuelles ou réinitialisez toutes les modifications. Une fenêtre de confirmation prévient les pertes accidentelles.
+* **Vider les données du sujet** : Déchargez tous les jeux de données et revenez à l'écran d'accueil.
+* **Localisation multilingue** : 44 langues incluant l'anglais canadien, le français conforme à l'OQLF et des modes de fantaisie (Pirate, Yoda, Klingon, Minion). L'égyptien ancien est exclu.
+* **Effets sonores** : Crescendo THX à l'écran d'accueil, couinement de Minion aux clics, Hallelujah lors de la sauvegarde CSV.
+* **Raccourcis clavier** : Touches fléchées / `n`/`p` pour la navigation entre ROI, `r` pour la remodélisation.
+
+<details>
+<summary>Interfaces graphiques héritées (obsolètes)</summary>
+
+##### Ancien : Interface graphique C++ Dear ImGui
+L'interface native originale construite sur Dear ImGui, ImPlot et GLFW. Nécessite des bibliothèques graphiques natives.
+```bash
+mkdir -p build && cd build
+cmake -DBUILD_GUI=ON .. && make -j4
+./bolus_tracking_gui
+```
+> ⚠️ **Obsolète.** Conservé dans `cpp/src/bolus_gui.cpp` à titre de référence. Utilisez l'interface Electron.
+
+##### Ancien : Interface graphique Python tkinter
+L'interface Python de référence utilisant tkinter et matplotlib.
+```bash
+.venv/bin/python python/src/bolus_gui.py
+```
+> ⚠️ **Obsolète.** Conservé dans `python/src/bolus_gui.py` à titre de référence. Utilisez l'interface Electron.
+
+</details>
 
 ---
 
@@ -238,8 +270,9 @@ Pour modifier la durée de la ligne de base utilisée pour corriger la dérive (
 
 ## 5. Description technique des fichiers du projet
 
-* `cpp/src/bolus_gui.cpp` : L'interface graphique C++ interactive sous Dear ImGui et ImPlot.
-* `python/src/bolus_gui.py` : L'interface graphique Python de référence basée sur Tkinter et Matplotlib.
+* `gui/` : **L'interface graphique interactive principale** (Bolus Tracking Studio) basée sur Electron. Voir [gui/README_FR.md](../gui/README_FR.md).
+* `cpp/src/bolus_gui.cpp` : ~~L'interface graphique C++ interactive sous Dear ImGui et ImPlot.~~ **OBSOLÈTE.**
+* `python/src/bolus_gui.py` : ~~L'interface graphique Python de référence basée sur Tkinter et Matplotlib.~~ **OBSOLÈTE.**
 * `run_pipeline.sh` : Script de contrôle principal configurant l'environnement virtuel Python et lançant le traitement.
 * `python/src/batch_process.py` : Script Python principal lisant les images TIFF, extrayant le signal des ROI et enregistrant les résultats et graphiques.
 * `python/src/bolus_tracking.py` : Moteur mathématique sous Python (débruitage, estimation, modélisation Gamma et optimisation).

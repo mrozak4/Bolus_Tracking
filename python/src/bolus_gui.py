@@ -1,3 +1,22 @@
+"""
+╔══════════════════════════════════════════════════════════════════════════╗
+║  DEPRECATED — This Python/tkinter GUI is no longer maintained.         ║
+║                                                                        ║
+║  The primary GUI is now the Electron-based Bolus Tracking Studio:      ║
+║    cd gui && npm install && npm start                                   ║
+║                                                                        ║
+║  This file is retained for reference only. Do not use for new work.    ║
+║  See gui/README.md for the new GUI documentation.                      ║
+╚══════════════════════════════════════════════════════════════════════════╝
+"""
+
+import warnings as _dep_warnings
+_dep_warnings.warn(
+    "bolus_gui.py (tkinter) is DEPRECATED. Use the Electron GUI instead: cd gui && npm start",
+    DeprecationWarning,
+    stacklevel=2
+)
+
 import os
 import re
 import glob

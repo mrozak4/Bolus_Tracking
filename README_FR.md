@@ -50,13 +50,16 @@ Nous fournissons une documentation détaillée pour chaque partie du code. Veuil
   * **`cpp/src/batch_processor.cpp`** : Analyseur de répertoire, analyse des métadonnées de fréquence d'acquisition et appariement de fichiers.
   * **`cpp/src/main.cpp`** : Point d'entrée de l'exécution en ligne de commande.
 * **`cpp/include/bolus_tracking_cpp.hpp`** : En-tête C++ unifié déclarant toutes les structures, paramètres et interfaces de classe du pipeline.
-* **`cpp/src/bolus_gui.cpp`** : Interface graphique interactive multiplateforme en C++ construite avec Dear ImGui et ImPlot pour inspecter et corriger manuellement les modélisations.
+* **`cpp/src/bolus_gui.cpp`** : ~~Interface graphique interactive en C++ construite avec Dear ImGui et ImPlot.~~ **OBSOLÈTE** — conservé à titre de référence. Voir `gui/` pour l'interface actuelle.
 * **`cpp/tests/test_bolus_tracking_cpp.cpp`** : Suite de tests unitaires C++ vérifiant les calculs mathématiques, les modèles d'ajustement et les cas limites.
 * **`CMakeLists.txt`** : Fichier de configuration de compilation CMake.
 * **`Dockerfile.cpp`** : Configuration Docker pour compiler, tester et conteneuriser le pipeline C++.
 
-### Outils de référence et d'interface graphique en Python
-* **`python/src/bolus_gui.py`** : Interface Python interactive haut de gamme pour parcourir visuellement les jeux de données, sélectionner les ROI, ajuster les marqueurs graphiques et exporter les résultats.
+### Interface graphique Electron (outil interactif principal)
+* **`gui/`** : L'**interface graphique interactive principale** pour le triage et le contrôle qualité. Construite sur Electron (Chromium) avec rendu SVG en C++ et le thème sombre MCM. Voir **[gui/README_FR.md](gui/README_FR.md)** pour la documentation complète.
+
+### Outils de référence en Python
+* **`python/src/bolus_gui.py`** : ~~Interface Python interactive.~~ **OBSOLÈTE** — conservé à titre de référence. Utilisez l'interface graphique Electron.
 * **`run_pipeline.sh`** : Script enveloppe pour configurer l'environnement virtuel Python et exécuter le pipeline par lots de référence.
 * **`python/src/batch_process.py`** : Scanne les répertoires pour identifier les triplets (image TIFF, masque MAT, métadonnées TXT), extrait les signaux, exécute les modélisations et enregistre les CSV.
 * **`python/src/bolus_tracking.py`** : Algorithmes mathématiques centraux (filtrage, suréchantillonnage, détection du début/pic/fin et modélisation de courbe).
@@ -84,31 +87,34 @@ Cela traite tous les sujets en parallèle. Pour exécuter plutôt le pipeline Py
 bash run_pipeline.sh
 ```
 
-### Lancer l'interface graphique C++
-
-#### Sur macOS (Paquet d'application exécutable)
-Compiler, empaqueter et installer l'interface graphique en tant qu'application macOS native accessible depuis le Launchpad :
+### Lancer l'interface graphique interactive (Electron — Recommandé)
 ```bash
-bash install_macos.sh
-open /Applications/BolusTrackingStudio.app  # Ou dans ~/Applications/
+cd gui && npm install && npm start
 ```
+Cela lance le Bolus Tracking Studio avec le thème sombre MCM, les graphiques SVG en C++, l'animation d'écran d'accueil, 44 langues et le flux de travail complet de triage. Voir **[gui/README_FR.md](gui/README_FR.md)** pour les détails.
 
-#### Sur Linux, Windows ou configuration manuelle sur macOS
-Compiler et exécuter l'exécutable localement :
+> [!NOTE]
+> **Prérequis** : Node.js ≥ 18 et un binaire `bolus_server` compilé (exécutez `cd build && cmake .. && make bolus_server`).
+
+<details>
+<summary>Interfaces graphiques héritées (obsolètes)</summary>
+
+#### Ancien : Interface graphique C++ Dear ImGui
 ```bash
 mkdir -p build && cd build
 cmake -DBUILD_GUI=ON ..
 make -j4
 ./bolus_tracking_gui
 ```
-Cela lance le tableau de bord haute performance construit sur Dear ImGui et ImPlot. Vous pouvez y sélectionner des dossiers, trier les ROI par statut (PASS/WARN/FAIL), glisser les marqueurs verticaux (début du bolus, pic, fin), rogner la fenêtre de modélisation à la volée, sauvegarder et restaurer automatiquement l'état de session via des fichiers .gui_state, ajuster interactivement le débruitage, réinitialiser ou rétablir les états automatiques, vider le plan de travail, basculer entre l'anglais canadien, le français conforme à l'OQLF et plus de 40 autres langues (y compris l'égyptien ancien, le hindi, le thaï, l'indonésien, le vietnamien, le tagalog, le tamoul et le bengali), et exporter les paramètres.
+> ⚠️ **Obsolète.** Nécessite GLFW, OpenGL et des bibliothèques graphiques natives. Utilisez l'interface Electron.
 
-### Lancer l'interface graphique Python
-Exécuter :
+#### Ancien : Interface graphique Python tkinter
 ```bash
-.venv/bin/python bolus_gui.py
+.venv/bin/python python/src/bolus_gui.py
 ```
-Cela ouvre la fenêtre Tkinter pour charger les jeux de données, parcourir les capillaires, déplacer les marqueurs par simple clic et sauvegarder les résultats.
+> ⚠️ **Obsolète.** Plus lente, sans prise en charge multilingue. Utilisez l'interface Electron.
+
+</details>
 
 ---
 

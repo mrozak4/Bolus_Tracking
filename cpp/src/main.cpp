@@ -15,6 +15,9 @@ int main(int argc, char** argv) {
     double drift_window = 15.0;
     bool verbose = false;
     bool preflight_mode = false;
+    bool prepare_mode = false;
+    bool apply_mode = false;
+    bool force_overwrite = false;
     std::vector<std::string> pos_args;
     
     double min_amp = 1e-6;
@@ -110,6 +113,12 @@ int main(int argc, char** argv) {
             verbose = true;
         } else if (arg == "--preflight" || arg == "--validate") {
             preflight_mode = true;
+        } else if (arg == "--prepare") {
+            prepare_mode = true;
+        } else if (arg == "--apply") {
+            apply_mode = true;
+        } else if (arg == "--force") {
+            force_overwrite = true;
         } else {
             pos_args.push_back(arg);
         }
@@ -134,6 +143,24 @@ int main(int argc, char** argv) {
         bool has_errs = false;
         batch_processor.run_preflight_scan(has_warns, has_errs);
         return has_errs ? 1 : 0;
+    }
+    
+    if (prepare_mode) {
+        if (folder_path.empty()) {
+            if (!pos_args.empty()) {
+                folder_path = pos_args[0];
+            } else {
+                folder_path = ".";
+            }
+        }
+        if (!std::filesystem::exists(folder_path)) {
+            std::cerr << "Folder does not exist: " << folder_path << std::endl;
+            return 1;
+        }
+        BatchProcessor batch_processor(folder_path, drift_window, enable_plots, fitter, qc_settings);
+        bool dry_run = !apply_mode;
+        bool success = batch_processor.run_prepare(dry_run, force_overwrite);
+        return success ? 0 : 1;
     }
     
     if (folder_mode) {
@@ -165,6 +192,9 @@ int main(int argc, char** argv) {
     
     std::cerr << "Usage for single file:\n  " << argv[0] << " <tiff_path> <rois_txt_path> <fr> <up_f> <out_csv_path> [--plot] [--drift <seconds>] [--min-amp <val>] [--max-amp <val>] [--min-t2p <val>] [--max-t2p <val>] [--min-fwhm <val>] [--max-fwhm <val>] [qc_options...]\n"
               << "Usage for folder batch processing:\n  " << argv[0] << " --folder <path_to_folder> [--plot] [--drift <seconds>] [bounds_options...] [qc_options...]\n\n"
+              << "File preparation (convert .mat masks to _rois.txt):\n  " << argv[0] << " --folder <path> --prepare              (dry run - show what would be done)\n"
+              << "  " << argv[0] << " --folder <path> --prepare --apply       (convert files)\n"
+              << "  " << argv[0] << " --folder <path> --prepare --apply --force (overwrite existing)\n\n"
               << "Bounds Options (Defaults):\n"
               << "  --min-amp (1e-6)   --max-amp (1023.0)\n"
               << "  --min-t2p (1e-6)   --max-t2p (dynamically set)\n"

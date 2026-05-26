@@ -83,6 +83,27 @@ bash run_pipeline_cpp.sh sample-subject-2259 --preflight
 ```
 If errors are found, the script will print a diagnostic report. When running a standard batch process, this pre-flight scan is executed automatically at the start to ensure all datasets are correctly formatted before processing.
 
+**File Preparation (MAT → TXT Mask Conversion)**:
+If your subject data contains MATLAB `.mat` ROI mask files and you prefer to convert them to the plain-text `_rois.txt` format (for portability or version control), the `--prepare` flag scans the directory for all `.mat` mask files, parses them using the built-in C++ MAT parser, and writes out the equivalent `_rois.txt` files. **This eliminates the need for MATLAB entirely.**
+
+By default, `--prepare` runs in **dry-run mode** — it reports what *would* be done without writing any files:
+```bash
+# Dry run — see what would be converted
+./build/bolus_tracking_cpp --folder sample-subject-2259 --prepare
+
+# Actually write the _rois.txt files
+./build/bolus_tracking_cpp --folder sample-subject-2259 --prepare --apply
+
+# Overwrite existing _rois.txt files (e.g. to regenerate from updated masks)
+./build/bolus_tracking_cpp --folder sample-subject-2259 --prepare --apply --force
+```
+
+> [!TIP]
+> **Quick Start Workflow:** For a new subject dataset with `.mat` mask files, run these three commands in order:
+> 1. `--prepare` (dry-run to verify)
+> 2. `--prepare --apply` (convert masks)
+> 3. `--folder <path>` (run the pipeline)
+
 
 #### Manual command:
 If you want to run the Docker command manually:
@@ -135,7 +156,7 @@ bash run_pipeline_cpp.sh sample-subject-2259 --qc-fwhm-max 20.0 --qc-cnr-min 6.0
 * **`FAIL`**: The fit returned NaN, failed solver convergence, or had CNR < 3.0.
 
 ##### Triaging & Correcting Fits:
-If a batch run yields `WARN` or `FAIL` flags, you can easily inspect and correct them using the native C++ GUI app (see **[INSTALL.md](INSTALL.md)** for installation instructions).
+If a batch run yields `WARN` or `FAIL` flags, you can easily inspect and correct them using the Electron GUI (see Section 3 below).
 
 **Step-by-step Triage Workflow:**
 1. **Load the Processed Data:** 
@@ -157,55 +178,67 @@ If a batch run yields `WARN` or `FAIL` flags, you can easily inspect and correct
 ---
 
 > [!NOTE]
-> **Python Reference Pipeline**: If you want to run the original Python-based batch processing pipeline or launch the Tkinter/Matplotlib GUI, please see the dedicated **[README_Python_Pipeline.md](README_Python_Pipeline.md)**.
+> **Python Reference Pipeline**: If you want to run the original Python-based batch processing pipeline, please see the dedicated **[README_Python_Pipeline.md](README_Python_Pipeline.md)**. Note that the Python tkinter GUI (`bolus_gui.py`) is **deprecated** in favour of the Electron GUI described below.
 
 ---
 
-## 3. Running the C++ Interactive GUI: Dear ImGui & ImPlot Studio
+## 3. Running the Interactive GUI: Bolus Tracking Studio (Electron)
 
 > [!TIP]
-> **GUI Application Recommendation**: The C++ GUI (Bolus Tracking Studio) is the **highly recommended primary tool** for fit triage and quality control. Built on native C++, it offers instantaneous rendering, highly responsive marker dragging/cropping, robust Levenberg-Marquardt refits, and multi-language support. The Python GUI (`python/src/bolus_gui.py`) is provided as a lightweight, slower reference fallback.
+> **GUI Application Recommendation**: The Electron-based Bolus Tracking Studio is the **primary recommended tool** for fit triage and quality control. It uses Chromium for cross-platform rendering, C++ SVG plots for performance, and the signature MCM dark theme. Plots are rendered entirely in C++ — no JavaScript charting libraries are used.
 
-Since GUI applications require display access, they are run locally on your host operating system. The C++ GUI is a high-performance visual dashboard built on top of the ultra-fast C++ fitting engine. It uses Dear ImGui and ImPlot to display traces, triage problem fits, adjust fitting parameters, and crop data ranges interactively. The layout features a dynamic responsive design that auto-scales the plot height and utilizes aligned grid tables for the sidebar and headers, ensuring all parameters, labels, and navigation buttons (`< Previous` / `Next >`) remain fully visible and never cut off on different screen sizes.
+The Electron GUI communicates with `bolus_server` (a stateful C++ backend) via line-delimited JSON over stdin/stdout. This architecture keeps all heavy computation (TIFF loading, trace extraction, fitting, SVG rendering) in native C++ while providing a modern, accessible web-based interface.
 
-#### How to Build and Launch the C++ GUI:
+#### Prerequisites
+- **Node.js** ≥ 18 and **npm** ≥ 9
+- The `bolus_server` C++ binary must be built first:
+  ```bash
+  mkdir -p build && cd build
+  cmake .. && make bolus_server -j4
+  ```
 
-##### Option A: Automatic Installer (macOS Only)
-If you are on macOS, you can automatically build, package, and install a native clickable app bundle with a custom icon in one command:
+#### How to Launch the Electron GUI:
 ```bash
-bash install_macos.sh
+cd gui
+npm install   # first time only
+npm start
 ```
-This script compiles the GUI, builds `BolusTrackingStudio.app` in the repository folder, and installs it into `/Applications/` (or `~/Applications/` if not writable) so you can launch it directly from **Launchpad**, Finder, or Spotlight.
 
-##### Option B: Manual Compilation (macOS, Linux, Windows)
-1. Make sure you have CMake, a C++17 compiler, and LibTIFF installed on your system.
-2. Compile the binaries locally:
-   ```bash
-   mkdir -p build && cd build
-   cmake -DBUILD_GUI=ON ..
-   make -j4
-   ```
-3. Run the GUI:
-   ```bash
-   ./bolus_tracking_gui
-   ```
-   *(You can optionally pass a CSV file path directly on launch to load it immediately: `./bolus_tracking_gui /path/to/results_cpp.csv`)*
+See **[gui/README.md](../gui/README.md)** for full architectural documentation.
 
 #### Key GUI Workflows:
-* **Triage Queue Sidebar**: Quickly review all ROIs. Check "Show WARN/FAIL only" to hide already successful fits and focus exclusively on problem cases.
-* **Interactive Marker Adjustments**: Drag the three vertical lines on the plot:
-  * **Onset (Green)**
-  * **Peak (Yellow)**
-  * **End (Red)**
-* **On-the-Fly Fitting Cropping**: Adjust the blue/magenta brackets at the bottom or sides of the plot to define a cropped fitting sub-window (e.g., to exclude baseline noise or late recirculation).
-* **Resetting / Visual Zoom**: Double-click the plot to reset the axis limits, or click the **Undo Crop** button to restore the full signal range.
-* **Manual Re-fitting**: Click **Re-Fit (LM)** to execute a constrained fit using your manually dragged markers as the initial parameters and your visual crop bounds as the active fit window. All exported parameters remain mapped relative to the *uncropped* absolute time scale.
-* **Batch Auto-Fitting**: Load a folder, click **Run Auto Fit Batch** to process the folder automatically, and watch the results list update in real time.
-* **Interactive Denoising Strength**: Adjust the **Denoise Strength** slider (0.5x to 3.0x) in the control panel to interactively alter the noise-filtering factor for raw trace smoothing.
-* **Revert to Original (Autoassignments)**: Click the **Revert to Original** button to discard all manual corrections for the selected ROI, restore the baseline automatic fit parameters, and remove the manual triage marker tags.
-* **Reset All Changes**: Click the **Reset All** button in the top menu bar to restore the entire loaded dataset back to its pristine, pre-triaged automatic state. A confirmation dialog prevents accidental data loss.
-* **Clear Subject Data**: Click the **Clear Subject** button in the top menu bar to unload all datasets, ROIs, and TIFF frames, returning the visual dashboard to its empty welcome screen.
-* **Multilingual Localization**: Select your preferred language from the dropdown menu in the top menu bar (supporting Canadian English, OQLF-compliant French, and over 40 other locales including Ancient Egyptian, Indonesian, Vietnamese, Tagalog, Thai, Hindi, Tamil, and Bengali) to instantly update the entire user interface.
+* **Triage Queue Sidebar**: Quickly review all ROIs with colour-coded QC badges (PASS, WARN, FAIL, REVIEW, STALL). Use the filter dropdown to isolate flagged cases.
+* **Interactive Marker Adjustments**: Drag onset (sage green), peak (golden), and end (terracotta) vertical lines directly on the SVG plot.
+* **On-the-Fly Fitting Cropping**: Adjust the crop range slider to exclude baseline noise or recirculation tails.
+* **Manual Re-fitting**: Click **Re-Fit** to run a constrained Levenberg-Marquardt fit within your crop window using your marker positions as initial parameters.
+* **Force Pass / Override**: If a re-fit still flags WARN but the trace looks correct, click **Override** to manually mark as PASS.
+* **Interactive Denoising Strength**: Adjust the **Denoise Strength** slider (0.5× to 3.0×) to interactively control trace smoothing.
+* **Revert / Reset**: Revert individual ROIs or reset all changes. A confirmation modal prevents accidental data loss.
+* **Clear Subject Data**: Unload all datasets and return to the welcome screen.
+* **Multilingual Localization**: 44 languages including Canadian English, OQLF-compliant French, and novelty modes (Pirate, Yoda, Klingon, Minion). Ancient Egyptian is excluded.
+* **Sound Effects**: THX crescendo on splash, minion squeak on clicks, Hallelujah on CSV save.
+* **Keyboard Shortcuts**: Arrow keys / `n`/`p` for ROI navigation, `r` for re-fit.
+
+<details>
+<summary>Legacy GUIs (Deprecated)</summary>
+
+##### Legacy: C++ Dear ImGui GUI
+The original native GUI built on Dear ImGui, ImPlot, and GLFW. Requires native graphics libraries.
+```bash
+mkdir -p build && cd build
+cmake -DBUILD_GUI=ON .. && make -j4
+./bolus_tracking_gui
+```
+> ⚠️ **Deprecated.** Retained in `cpp/src/bolus_gui.cpp` for reference. Use the Electron GUI instead.
+
+##### Legacy: Python tkinter GUI
+The Python reference GUI using tkinter and matplotlib.
+```bash
+.venv/bin/python python/src/bolus_gui.py
+```
+> ⚠️ **Deprecated.** Retained in `python/src/bolus_gui.py` for reference. Use the Electron GUI instead.
+
+</details>
 
 ---
 
@@ -299,8 +332,9 @@ cd ..
 ## 5. Technical Overview of the Files
 
 Here is what each file does:
-* `cpp/src/bolus_gui.cpp`: The C++ interactive GUI built on Dear ImGui and ImPlot.
-* `python/src/bolus_gui.py`: The Python-based interactive GUI built on Tkinter and Matplotlib.
+* `gui/`: **The primary Electron-based interactive GUI** (Bolus Tracking Studio). See [gui/README.md](../gui/README.md).
+* `cpp/src/bolus_gui.cpp`: ~~The C++ interactive GUI built on Dear ImGui and ImPlot.~~ **DEPRECATED.**
+* `python/src/bolus_gui.py`: ~~The Python-based interactive GUI built on Tkinter and Matplotlib.~~ **DEPRECATED.**
 * `run_pipeline.sh`: The master control script that prepares the Python virtual environment and kicks off the processing.
 * `python/src/batch_process.py`: The high-level script that scans for datasets, reads TIFF image stacks, extracts the mean signal from each ROI, fits the Gamma curve, and saves results/plots.
 * `python/src/bolus_tracking.py`: The core computational engine containing all denoising, thresholding, onset/peak/end detection, and mathematical optimization logic.

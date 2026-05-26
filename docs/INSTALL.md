@@ -8,6 +8,35 @@ This guide describes how to install and configure **Bolus Tracking Studio** on m
 
 ---
 
+## Electron GUI Installation (Recommended — All Platforms)
+
+The primary interactive GUI runs on Electron (Chromium). This is the recommended method for all platforms.
+
+### Prerequisites:
+- **Node.js** ≥ 18 and **npm** ≥ 9 ([download](https://nodejs.org/))
+- The `bolus_server` C++ binary (see build instructions below)
+
+### Build the C++ backend:
+```bash
+mkdir -p build && cd build
+cmake .. && make bolus_server -j4
+```
+
+### Install and launch:
+```bash
+cd gui
+npm install
+npm start
+```
+
+See **[gui/README.md](../gui/README.md)** for full documentation.
+
+---
+
+## Legacy: Native GUI Installation
+
+> ⚠️ **The native Dear ImGui GUI is deprecated.** The sections below are retained for reference. Use the Electron GUI above instead.
+
 ## macOS Installation (Recommended)
 
 On macOS, you can build a native clickable `.app` bundle with a custom icon.
@@ -41,7 +70,7 @@ This script will:
 On Linux, you can compile the app and add a desktop launcher shortcut.
 
 ### Prerequisites:
-Make sure you have CMake, a C++17 compiler, and the development libraries for GLFW, OpenGL, and LibTIFF installed.
+Make sure you have CMake, a C++17 compiler, and the development libraries for GLFW, OpenGL, and LibTIFF installed. *(Only required for the legacy native GUI, not the Electron GUI.)*
 On Ubuntu/Debian, install them via:
 ```bash
 sudo apt-get update
