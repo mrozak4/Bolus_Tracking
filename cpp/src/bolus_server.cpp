@@ -1010,7 +1010,7 @@ static json handle_render_plot(const json& params) {
         svg << "\" fill=\"none\" stroke=\"" << denoise_col << "\" stroke-width=\"1.8\"/>\n";
     }
 
-    // Upsampled / fit curve
+    // Upsampled spline (denoised interpolation)
     if (!c.t_us.empty()) {
         svg << "  <path d=\"";
         bool first = true;
@@ -1020,30 +1020,102 @@ static json handle_render_plot(const json& params) {
             svg << (first ? "M " : " L ") << px << " " << py;
             first = false;
         }
-        svg << "\" fill=\"none\" stroke=\"" << fit_col << "\" stroke-width=\"2.5\"/>\n";
+        svg << "\" fill=\"none\" stroke=\"" << denoise_col << "\" stroke-width=\"1.8\" stroke-opacity=\"0.6\"/>\n";
+    }
+
+    // Actual Gamma Fit curve using fitted parameters from CSV records
+    const char* gamma_col = "#d95f5f";  // Warm red for gamma fit
+    bool has_fit = false;
+    double onset_t = 0, peak_t = 0, end_t = 0;
+    if (roi_idx < (int)g_records.size()) {
+        const auto& rec = g_records[roi_idx];
+        double f_amp = rec.f_amp, f_t2p = rec.f_t2p, f_fwhm = rec.f_fwhm, f_m = rec.f_m;
+        onset_t = rec.click_onset;
+        peak_t = rec.click_peak;
+        end_t = rec.click_end;
+
+        // Check if fitted params are valid (not NaN)
+        if (!std::isnan(f_amp) && !std::isnan(f_t2p) && !std::isnan(f_fwhm) && f_t2p > 0 && f_fwhm > 0) {
+            has_fit = true;
+            svg << "  <path d=\"";
+            bool first = true;
+            // Render gamma curve from onset to end
+            double fit_start = onset_t;
+            double fit_end = end_t > onset_t ? end_t : max_x;
+            int n_pts = 300;
+            for (int i = 0; i <= n_pts; ++i) {
+                double t = fit_start + (fit_end - fit_start) * i / n_pts;
+                if (t < min_x || t > max_x) continue;
+                double t_shifted = t - onset_t;  // gamma model expects t relative to onset
+                double y = evaluate_gamma_model(t_shifted, f_amp, f_t2p, f_fwhm, f_m);
+                double px = px_x(t), py = px_y(y);
+                svg << (first ? "M " : " L ") << px << " " << py;
+                first = false;
+            }
+            svg << "\" fill=\"none\" stroke=\"" << gamma_col << "\" stroke-width=\"2.5\" stroke-dasharray=\"6,3\"/>\n";
+        }
+    }
+
+    // Marker lines (onset, peak, end)
+    const char* marker_col_onset = "#4ec9b0";  // Teal for onset
+    const char* marker_col_peak  = "#E08C40";  // Burnt orange for peak
+    const char* marker_col_end   = "#d95f5f";  // Red for end
+
+    auto draw_marker = [&](double t_val, const char* color, const char* label) {
+        if (t_val > 0 && t_val >= min_x && t_val <= max_x) {
+            double px = px_x(t_val);
+            svg << "  <line x1=\"" << px << "\" y1=\"" << pad_t << "\" x2=\"" << px << "\" y2=\"" << h - pad_b
+                << "\" stroke=\"" << color << "\" stroke-width=\"1.5\" stroke-dasharray=\"4,3\" stroke-opacity=\"0.8\"/>\n";
+            svg << "  <text x=\"" << px + 4 << "\" y=\"" << pad_t + 14
+                << "\" font-family=\"sans-serif\" font-size=\"10\" fill=\"" << color << "\">" << label << "</text>\n";
+        }
+    };
+
+    if (roi_idx < (int)g_records.size()) {
+        draw_marker(g_records[roi_idx].click_onset, marker_col_onset, "Onset");
+        draw_marker(g_records[roi_idx].click_peak,  marker_col_peak,  "Peak");
+        draw_marker(g_records[roi_idx].click_end,   marker_col_end,   "End");
     }
 
     // Legend
+    int legend_items = has_fit ? 4 : 3;
+    int legend_h = 18 * legend_items + 12;
     int lx = w - pad_r - 160, ly = pad_t + 10;
-    svg << "  <rect x=\"" << lx << "\" y=\"" << ly << "\" width=\"150\" height=\"65\" rx=\"4\" "
+    svg << "  <rect x=\"" << lx << "\" y=\"" << ly << "\" width=\"150\" height=\"" << legend_h << "\" rx=\"4\" "
         << "fill=\"" << bg_col << "\" fill-opacity=\"0.9\" stroke=\"" << grid_col << "\"/>\n";
-    svg << "  <line x1=\"" << lx+8 << "\" y1=\"" << ly+15 << "\" x2=\"" << lx+28 << "\" y2=\"" << ly+15
+
+    int li = 0;
+    // Raw
+    svg << "  <line x1=\"" << lx+8 << "\" y1=\"" << ly+15+li*18 << "\" x2=\"" << lx+28 << "\" y2=\"" << ly+15+li*18
         << "\" stroke=\"" << raw_col << "\" stroke-width=\"2\"/>\n";
-    svg << "  <text x=\"" << lx+34 << "\" y=\"" << ly+19
+    svg << "  <text x=\"" << lx+34 << "\" y=\"" << ly+19+li*18
         << "\" font-size=\"11\" fill=\"" << text_col << "\">Raw (Detrended)</text>\n";
-    svg << "  <line x1=\"" << lx+8 << "\" y1=\"" << ly+33 << "\" x2=\"" << lx+28 << "\" y2=\"" << ly+33
+    li++;
+    // Denoised
+    svg << "  <line x1=\"" << lx+8 << "\" y1=\"" << ly+15+li*18 << "\" x2=\"" << lx+28 << "\" y2=\"" << ly+15+li*18
         << "\" stroke=\"" << denoise_col << "\" stroke-width=\"2\"/>\n";
-    svg << "  <text x=\"" << lx+34 << "\" y=\"" << ly+37
+    svg << "  <text x=\"" << lx+34 << "\" y=\"" << ly+19+li*18
         << "\" font-size=\"11\" fill=\"" << text_col << "\">Denoised</text>\n";
-    svg << "  <line x1=\"" << lx+8 << "\" y1=\"" << ly+51 << "\" x2=\"" << lx+28 << "\" y2=\"" << ly+51
-        << "\" stroke=\"" << fit_col << "\" stroke-width=\"2.5\"/>\n";
-    svg << "  <text x=\"" << lx+34 << "\" y=\"" << ly+55
-        << "\" font-size=\"11\" fill=\"" << text_col << "\">Gamma Fit</text>\n";
+    li++;
+    // Upsampled spline
+    svg << "  <line x1=\"" << lx+8 << "\" y1=\"" << ly+15+li*18 << "\" x2=\"" << lx+28 << "\" y2=\"" << ly+15+li*18
+        << "\" stroke=\"" << denoise_col << "\" stroke-width=\"1.8\" stroke-opacity=\"0.6\"/>\n";
+    svg << "  <text x=\"" << lx+34 << "\" y=\"" << ly+19+li*18
+        << "\" font-size=\"11\" fill=\"" << text_col << "\">Spline (Upsampled)</text>\n";
+    li++;
+    // Gamma fit (only if we have fitted params)
+    if (has_fit) {
+        svg << "  <line x1=\"" << lx+8 << "\" y1=\"" << ly+15+li*18 << "\" x2=\"" << lx+28 << "\" y2=\"" << ly+15+li*18
+            << "\" stroke=\"" << gamma_col << "\" stroke-width=\"2.5\" stroke-dasharray=\"6,3\"/>\n";
+        svg << "  <text x=\"" << lx+34 << "\" y=\"" << ly+19+li*18
+            << "\" font-size=\"11\" fill=\"" << text_col << "\">Gamma Fit</text>\n";
+    }
 
     svg << "</svg>\n";
 
     return json{{"ok", true}, {"data", {{"svg", svg.str()}}}};
 }
+
 
 static json handle_auto_estimate(const json& params) {
     int roi_idx = params.at("roi_index").get<int>();
