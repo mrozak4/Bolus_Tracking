@@ -1527,6 +1527,16 @@ void BolusApp::run() {
             ImGui::Render();
             int display_w, display_h;
             glfwGetFramebufferSize(m_window, &display_w, &display_h);
+            {
+                static int win_print = 0;
+                if (win_print++ < 3) {
+                    int win_x, win_y, win_w, win_h;
+                    glfwGetWindowPos(m_window, &win_x, &win_y);
+                    glfwGetWindowSize(m_window, &win_w, &win_h);
+                    fprintf(stderr, "GLFW POS: (%d, %d)  SIZE: (%d, %d)  FB: (%d, %d)\n",
+                            win_x, win_y, win_w, win_h, display_w, display_h);
+                }
+            }
             glViewport(0, 0, display_w, display_h);
             glClearColor(0.12f, 0.12f, 0.13f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
@@ -3150,6 +3160,14 @@ void BolusApp::draw_sidebar() {
         }
     }
     ImGui::PopItemWidth();
+    {
+        ImVec2 combo_min = ImGui::GetItemRectMin();
+        ImVec2 combo_max = ImGui::GetItemRectMax();
+        static int combo_print = 0;
+        if (combo_print++ < 10) {
+            fprintf(stderr, "BBOX COMBO: %f, %f to %f, %f\n", combo_min.x, combo_min.y, combo_max.x, combo_max.y);
+        }
+    }
     
     int manual_count = 0;
     for (const auto& r : m_records) {
@@ -3438,6 +3456,12 @@ void BolusApp::draw_main_area() {
             ImPlot::TagX(m_onset_marker, ImVec4(0.55f, 0.62f, 0.45f, 1.0f), m_tr.tag_onset.c_str(), m_onset_marker);
             ImPlot::TagX(m_peak_marker, ImVec4(0.92f, 0.72f, 0.30f, 1.0f), m_tr.tag_peak.c_str(), m_peak_marker);
             ImPlot::TagX(m_end_marker, ImVec4(0.80f, 0.32f, 0.22f, 1.0f), m_tr.tag_end.c_str(), m_end_marker);
+            {
+                ImVec2 o_px = ImPlot::PlotToPixels(m_onset_marker, 0);
+                ImVec2 p_px = ImPlot::PlotToPixels(m_peak_marker, 0);
+                ImVec2 e_px = ImPlot::PlotToPixels(m_end_marker, 0);
+                fprintf(stderr, "MARKER PIXELS: Onset=%f, Peak=%f, End=%f\n", o_px.x, p_px.x, e_px.x);
+            }
             ImPlot::TagY(m_baseline_marker, ImVec4(0.68f, 0.48f, 0.68f, 1.0f), m_tr.tag_base.c_str(), m_baseline_marker);
             
             ImPlot::EndPlot();
@@ -3456,6 +3480,9 @@ void BolusApp::draw_main_area() {
                 double limit_max = c.t_raw.empty() ? 120.0 : c.t_raw.back();
                 RangeSlider("PlotCropSlider", &m_crop_min, &m_crop_max, 0.0, limit_max, ImVec2(avail_w, 24.0f), m_tr.text_visual_crop_range.c_str());
             }
+            ImVec2 slider_min = ImGui::GetItemRectMin();
+            ImVec2 slider_max = ImGui::GetItemRectMax();
+            fprintf(stderr, "BBOX SLIDER: %f, %f to %f, %f\n", slider_min.x, slider_min.y, slider_max.x, slider_max.y);
         }
         ImGui::Dummy(ImVec2(0.0f, 6.0f));
         

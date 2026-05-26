@@ -157,7 +157,7 @@ Ce script compile l'application, génère le paquet `BolusTrackingStudio.app` et
   * **Rouge** : Temps de fin de premier passage (End)
 * **Rognage à la volée de la fenêtre de modélisation** : Déplacez les crochets bleu (début) et magenta (fin) en bas du graphique pour restreindre la fenêtre d'ajustement (ex: exclure un bruit de ligne de base ou un pic de recirculation tardif).
 * **Zoom et réinitialisation** : Double-cliquez sur le tracé pour réinitialiser les axes, ou cliquez sur le bouton **Undo Crop** pour restaurer la fenêtre de données complète.
-* **Remodélisation manuelle (Re-fit Manual)** : Cliquez pour relancer une modélisation contrainte utilisant vos marqueurs déplacés manuellement comme valeurs d'initialisation et vos limites de rognage comme fenêtre de modélisation active. Les paramètres exportés restent toujours calés par rapport à l'échelle de temps absolue non rognée.
+* **Remodélisation manuelle (Réajuster (LM))** : Cliquez pour relancer une modélisation contrainte utilisant vos marqueurs déplacés manuellement comme valeurs d'initialisation et vos limites de rognage comme fenêtre de modélisation active. Les paramètres exportés restent toujours calés par rapport à l'échelle de temps absolue non rognée.
 * **Modélisation automatique par lots** : Chargez un dossier, cliquez sur **Run Auto Fit Batch** pour modéliser toutes les ROI automatiquement et mettre à jour la file en temps réel.
 * **Ajustement de l'intensité du débruitage** : Ajustez le curseur **Denoise Strength** (0.5x à 3.0x) pour lisser interactivement le signal brut avant l'ajustement.
 * **Rétablir les valeurs d'origine (Revert to Original)** : Cliquez sur ce bouton pour annuler les corrections manuelles sur la ROI sélectionnée, restaurer les paramètres automatiques d'origine et effacer les marqueurs manuels.
@@ -184,8 +184,9 @@ Si des capillaires sont marqués `AVERT.` ou `ÉCHEC` après l'exécution par lo
      * **Ligne verte** : Début du bolus.
      * **Ligne jaune** : Pic du bolus.
      * **Ligne rouge** : Fin du premier passage.
-5. **Lancer la remodélisation manuelle** :
-   * Cliquez sur **Re-fit Manual**. Le résolveur C++ s'exécute *uniquement* à l'intérieur de la fenêtre rognée en utilisant vos marqueurs comme paramètres initiaux. Le graphique et le statut de la ROI se mettent à jour instantanément.
+5. **Lancer la remodélisation manuelle :**
+   * Cliquez sur **Réajuster (LM)**. Le résolveur C++ s'exécute *uniquement* à l'intérieur de la fenêtre rognée en utilisant vos marqueurs comme paramètres initiaux. Le graphique et le statut de la ROI se mettent à jour instantanément.
+   * *Forcer la conformité (Force PASS) :* Si la remodélisation affiche toujours un statut `AVERT.` mais que vous confirmez visuellement que l'ajustement est correct, cliquez sur **Forcer CONFORME** (ou **Force PASS** en anglais) pour verrouiller la ROI comme valide.
 6. **Sauvegarder et exporter** :
    * Une fois les ajustements terminés, cliquez sur **Save Final CSV**. Les paramètres révisés sont enregistrés. Les temps calculés restent calibrés par rapport à l'échelle temporelle d'origine non rognée.
 

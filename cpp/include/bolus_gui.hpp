@@ -313,6 +313,7 @@ private:
 
     ImFont* m_font_regular = nullptr;
     ImFont* m_font_bold = nullptr;
+    ImFont* m_font_huge = nullptr;
 
     std::string m_csv_path;
     std::string m_tiff_path;
@@ -330,7 +331,7 @@ private:
     std::vector<RoiState> m_gui_roi_states_backup;
 
     int m_selected_roi_idx = -1;
-    int m_qc_filter_type = 1; // 0=All, 1=Flagged, 2=FAIL, 3=WARN, 4=PASS, 5=REVIEW
+    int m_qc_filter_type = 0; // 0=All, 1=Flagged, 2=FAIL, 3=WARN, 4=PASS, 5=REVIEW
     std::vector<int> m_triage_queue;
     int m_queue_pos = -1;
 

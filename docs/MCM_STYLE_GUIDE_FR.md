@@ -40,6 +40,7 @@ Pour prendre en charge les traductions localisées, d'autres polices sont fusion
 *   **Bengali** : Fusion des plages de police système Bengali (`0x0980` à `0x09FF`).
 *   **Tamoul** : Fusion des plages de police système Tamoul (`0x0B80` à `0x0BFF`).
 *   **Thaï** : Fusion des plages de police système Thaï (`0x0E00` à `0x0E7F`).
+*   **Égyptien ancien (hiéroglyphes)** : Fusion dynamique des plages de police système (`0x13000` à `0x1342F`). *Note : Pour contrer les traits fins des hiéroglyphes et les rendre très lisibles sur fond sombre, les couleurs de texte par défaut (crème chaleureuse) sont surchargées avec du blanc brillant `(1.00f, 1.00f, 1.00f, 1.00f)` et du gris clair `(0.80f, 0.80f, 0.80f, 1.00f)`.*
 
 ---
 

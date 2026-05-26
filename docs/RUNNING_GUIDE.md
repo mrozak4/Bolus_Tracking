@@ -135,7 +135,7 @@ If a batch run yields `WARN` or `FAIL` flags, you can easily inspect and correct
 3. **Inspect the Raw Signal:** Click on any flagged ROI. Inspect the trace to identify if the issue is due to pre-bolus baseline noise, a recirculation tail, or incorrect initial marker detection.
 4. **Define a Crop Window (On-the-Fly Cropping):** Adjust the blue and magenta vertical brackets on the plot boundaries to crop out noise or secondary recirculation tails. Double-clicking the plot resets the zoom, and the **Undo Crop** button resets the active crop window.
 5. **Manually Drag the Fitting Markers:** Drag the three vertical lines (**Green** for onset, **Yellow** for peak, **Red** for clearance/end) to visually align with the first-pass bolus.
-6. **Run the Constrained Re-fit:** Click **Re-fit Manual**. The Levenberg-Marquardt optimizer runs exclusively within your crop window using your markers as initial parameters. The ROI status in the queue will update dynamically.
+6. **Run the Constrained Re-fit:** Click **Re-Fit (LM)**. The Levenberg-Marquardt optimizer runs exclusively within your crop window using your markers as initial parameters. The ROI status in the queue will update dynamically.
 7. **Save Changes:** Click **Save Final CSV** in the toolbar to write the updated parameters back to your results file.
 8. **Resume Anytime:** The GUI automatically saves your triage progress (including active selection, visual crop boundaries, customized fitting markers, and queue filters) in a sidecar `.gui_state` file. You can close the app at any point and resume exactly where you left off when you reload the CSV.
 
@@ -181,7 +181,7 @@ This script compiles the GUI, builds `BolusTrackingStudio.app` in the repository
   * **End (Red)**
 * **On-the-Fly Fitting Cropping**: Adjust the blue/magenta brackets at the bottom or sides of the plot to define a cropped fitting sub-window (e.g., to exclude baseline noise or late recirculation).
 * **Resetting / Visual Zoom**: Double-click the plot to reset the axis limits, or click the **Undo Crop** button to restore the full signal range.
-* **Manual Re-fitting**: Click **Re-fit Manual** to execute a constrained fit using your manually dragged markers as the initial parameters and your visual crop bounds as the active fit window. All exported parameters remain mapped relative to the *uncropped* absolute time scale.
+* **Manual Re-fitting**: Click **Re-Fit (LM)** to execute a constrained fit using your manually dragged markers as the initial parameters and your visual crop bounds as the active fit window. All exported parameters remain mapped relative to the *uncropped* absolute time scale.
 * **Batch Auto-Fitting**: Load a folder, click **Run Auto Fit Batch** to process the folder automatically, and watch the results list update in real time.
 * **Interactive Denoising Strength**: Adjust the **Denoise Strength** slider (0.5x to 3.0x) in the control panel to interactively alter the noise-filtering factor for raw trace smoothing.
 * **Revert to Original (Autoassignments)**: Click the **Revert to Original** button to discard all manual corrections for the selected ROI, restore the baseline automatic fit parameters, and remove the manual triage marker tags.
@@ -229,8 +229,9 @@ If a subject folder has capillary fits flagged as `WARN` or `FAIL`, use the C++ 
      * **Red line:** Clearance/End time
    * These lines serve as the initial guess parameters for the constrained optimizer.
 5. **Run the Constrained Re-fit:**
-   * Click **Re-fit Manual**. The C++ optimizer will run a Levenberg-Marquardt fitting step *exclusively* within the cropped window you defined in Step 3, using your dragged markers from Step 4 as initial values.
+   * Click **Re-Fit (LM)**. The C++ optimizer will run a Levenberg-Marquardt fitting step *exclusively* within the cropped window you defined in Step 3, using your dragged markers from Step 4 as initial values.
    * The fit will immediately update on screen. If it satisfies the QC constraints, its status in the sidebar will update (e.g. to a green `PASS` or `WARN` manually-fit status).
+   * *Override (Force PASS):* If the Re-Fit still results in a `WARN` but you visually confirm the parameters are correct, click **Force PASS** (or **Forcer CONFORME** in French) to manually lock the ROI as a valid pass.
 6. **Save and Export:**
    * When you are satisfied with the manually adjusted fits, click **Save CSV** in the sidebar. The updated fitting parameters (Amplitude, FWHM, Time to Peak, AUC, etc.) are written directly to the output CSV. Note that all timing parameters are exported relative to the *original, uncropped* absolute time scale so that manual crop bounds do not bias the physical transit times.
 

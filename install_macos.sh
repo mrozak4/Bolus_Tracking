@@ -15,20 +15,9 @@ echo "============================================="
 echo "Step 1: Compiling C++ GUI application..."
 mkdir -p "$REPO_DIR/build"
 cd "$REPO_DIR/build"
-cmake -DBUILD_GUI=ON ..
+cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=ON ..
 make -j4
-
-# 2. Generate AppIcon.icns if not present or rebuild it
 cd "$REPO_DIR"
-if [ -f "resources/app_icon.png" ]; then
-    echo "Step 2: Generating AppIcon.icns from app_icon.png..."
-    bash resources/create_app_icon.sh
-elif [ -f "resources/AppIcon.icns" ]; then
-    echo "Step 2 Warning: app_icon.png not found. Using existing AppIcon.icns."
-else
-    echo "Step 2 Warning: No app icon found. Continuing without icon."
-fi
-
 # 3. Create .app Bundle Directory Structure
 echo "Step 3: Creating macOS .app bundle structure..."
 rm -rf "$APP_BUNDLE"
@@ -38,6 +27,15 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 # 4. Copy Executable and Icon
 echo "Step 4: Copying binaries and resources..."
 cp "$REPO_DIR/build/bolus_tracking_gui" "$APP_BUNDLE/Contents/MacOS/bolus_tracking_gui"
+
+if [ -f "resources/AppIcon.icns" ]; then
+    echo "Step 2: Using existing AppIcon.icns."
+elif [ -f "resources/app_icon.png" ]; then
+    echo "Step 2: Generating AppIcon.icns from app_icon.png..."
+    bash resources/create_app_icon.sh || echo "Step 2 Warning: Failed to generate AppIcon.icns. Continuing."
+else
+    echo "Step 2 Warning: No app icon found. Continuing without icon."
+fi
 
 if [ -f "resources/AppIcon.icns" ]; then
     cp "$REPO_DIR/resources/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"

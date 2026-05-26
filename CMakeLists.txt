@@ -4,6 +4,18 @@ project(BolusTrackingCpp CXX)
 set(CMAKE_OSX_ARCHITECTURES "x86_64")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+if(APPLE)
+    execute_process(COMMAND xcrun --show-sdk-path OUTPUT_VARIABLE MACOS_SDK_PATH OUTPUT_STRIP_TRAILING_WHITESPACE)
+    add_compile_options("-nostdinc++" "-isystem" "${MACOS_SDK_PATH}/usr/include/c++/v1")
+endif()
+
+
+# Default to Release build type if not specified
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "Setting build type to 'Release' as none was specified.")
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

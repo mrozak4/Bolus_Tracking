@@ -41,6 +41,7 @@ To support localized translations, additional font sets are merged into the prim
 *   **Bengali**: System Bengali font ranges (`0x0980` to `0x09FF`) merged.
 *   **Tamil**: System Tamil font ranges (`0x0B80` to `0x0BFF`) merged.
 *   **Thai**: System Thai font ranges (`0x0E00` to `0x0E7F`) merged.
+*   **Ancient Egyptian**: System font ranges (`0x13000` to `0x1342F`) merged dynamically. *Note: To counteract the thin stroke weights of the hieroglyphs and make them highly readable against the dark background, standard Warm Cream text colors are overridden with pure bright white `(1.00f, 1.00f, 1.00f, 1.00f)` and light grey `(0.80f, 0.80f, 0.80f, 1.00f)`.*
 
 ---
 

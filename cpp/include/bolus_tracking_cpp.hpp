@@ -194,6 +194,7 @@ public:
 class ROIMaskRasterizer {
 public:
     static std::vector<int> get_mask_pixels(const std::vector<std::pair<double, double>>& poly, int width, int height);
+    static std::vector<int> get_active_pixels(const std::vector<std::pair<double, double>>& poly, int width, int height);
 };
 
 /**

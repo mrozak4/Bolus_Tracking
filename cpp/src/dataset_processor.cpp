@@ -69,21 +69,16 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
                                                const std::vector<std::vector<float>>& frames, int width, int height,
                                                double fr, int up_f, const std::string& tiff_path,
                                                double prior_t2p, double prior_fwhm) const {
-    std::vector<int> mask = ROIMaskRasterizer::get_mask_pixels(poly, width, height);
-    
-    int mask_size = 0;
-    for (int val : mask) mask_size += val;
+    std::vector<int> active_indices = ROIMaskRasterizer::get_active_pixels(poly, width, height);
+    int mask_size = static_cast<int>(active_indices.size());
     
     std::vector<double> mfi_raw(frames.size(), 0.0);
     if (mask_size > 0) {
         for (size_t f = 0; f < frames.size(); ++f) {
             double sum = 0.0;
-            for (int r = 0; r < height; ++r) {
-                for (int c = 0; c < width; ++c) {
-                    if (mask[r * width + c]) {
-                        sum += frames[f][r * width + c];
-                    }
-                }
+            const auto& frame = frames[f];
+            for (int idx : active_indices) {
+                sum += frame[idx];
             }
             mfi_raw[f] = sum / mask_size;
         }
