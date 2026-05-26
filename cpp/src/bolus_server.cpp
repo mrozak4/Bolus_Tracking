@@ -552,8 +552,168 @@ static json downsample_array(const std::vector<double>& arr, size_t max_points =
 // Command Handlers
 // ============================================================================
 
+// ── Folder Resolution Helpers ───────────────────────────────────────────────
+// When the GUI passes a folder path, these find the appropriate file inside.
+
+namespace fs = std::filesystem;
+
+static std::string to_lower(const std::string& s) {
+    std::string r = s;
+    std::transform(r.begin(), r.end(), r.begin(), ::tolower);
+    return r;
+}
+
+/// Find the first TIFF file in a folder (prefers bolus1, prefers _shifted)
+static std::string find_tiff_in_folder(const std::string& folder) {
+    std::vector<std::string> tiffs;
+    for (const auto& entry : fs::directory_iterator(folder)) {
+        if (!entry.is_regular_file()) continue;
+        std::string ext = to_lower(entry.path().extension().string());
+        if (ext == ".tif" || ext == ".tiff") {
+            tiffs.push_back(entry.path().string());
+        }
+    }
+    if (tiffs.empty()) return "";
+    // Prefer bolus1 baseline shifted
+    for (const auto& t : tiffs) {
+        std::string lower = to_lower(fs::path(t).filename().string());
+        if (lower.find("bolus1") != std::string::npos &&
+            lower.find("baseline") != std::string::npos &&
+            lower.find("shifted") != std::string::npos) return t;
+    }
+    // Fallback: any bolus1
+    for (const auto& t : tiffs) {
+        if (to_lower(fs::path(t).filename().string()).find("bolus1") != std::string::npos) return t;
+    }
+    return tiffs[0];
+}
+
+/// Find ROI file (_rois.txt or _MaskObj.mat) in a folder
+static std::string find_roi_in_folder(const std::string& folder) {
+    // Prefer _rois.txt files
+    for (const auto& entry : fs::directory_iterator(folder)) {
+        if (!entry.is_regular_file()) continue;
+        std::string lower = to_lower(entry.path().filename().string());
+        if (lower.find("_rois.txt") != std::string::npos) return entry.path().string();
+    }
+    // Fallback: _MaskObj.mat
+    for (const auto& entry : fs::directory_iterator(folder)) {
+        if (!entry.is_regular_file()) continue;
+        std::string lower = to_lower(entry.path().filename().string());
+        if (lower.find("maskobj") != std::string::npos && lower.find(".mat") != std::string::npos) {
+            // Prefer the non-adjusted version
+            if (lower.find("adjusted") == std::string::npos) return entry.path().string();
+        }
+    }
+    // Fallback: any .mat
+    for (const auto& entry : fs::directory_iterator(folder)) {
+        if (!entry.is_regular_file()) continue;
+        std::string ext = to_lower(entry.path().extension().string());
+        if (ext == ".mat") return entry.path().string();
+    }
+    return "";
+}
+
+/// Find results CSV in a folder
+static std::string find_csv_in_folder(const std::string& folder) {
+    for (const auto& entry : fs::directory_iterator(folder)) {
+        if (!entry.is_regular_file()) continue;
+        std::string lower = to_lower(entry.path().filename().string());
+        if (lower.find("_results") != std::string::npos && lower.find(".csv") != std::string::npos) {
+            // Prefer the C++ results
+            if (lower.find("_cpp") != std::string::npos) return entry.path().string();
+        }
+    }
+    // Fallback: any results csv
+    for (const auto& entry : fs::directory_iterator(folder)) {
+        if (!entry.is_regular_file()) continue;
+        std::string lower = to_lower(entry.path().filename().string());
+        if (lower.find("_results") != std::string::npos && lower.find(".csv") != std::string::npos) {
+            return entry.path().string();
+        }
+    }
+    return "";
+}
+
+/// Find framerate text file in a folder
+static std::string find_framerate_file_in_folder(const std::string& folder) {
+    for (const auto& entry : fs::directory_iterator(folder)) {
+        if (!entry.is_regular_file()) continue;
+        std::string lower = to_lower(entry.path().filename().string());
+        std::string ext = to_lower(entry.path().extension().string());
+        if (ext == ".txt" && lower.find("bolus") != std::string::npos &&
+            lower.find("_results") == std::string::npos &&
+            lower.find("_rois") == std::string::npos) {
+            return entry.path().string();
+        }
+    }
+    return "";
+}
+
+/// If path is a directory, resolve to a file; otherwise return as-is
+static std::string resolve_path(const std::string& path,
+                                std::string (*finder)(const std::string&)) {
+    if (fs::is_directory(path)) {
+        return finder(path);
+    }
+    return path;
+}
+
+// ── scan_folder: Pre-flight scan ────────────────────────────────────────────
+
+static json handle_scan_folder(const json& params) {
+    std::string folder = params.at("path").get<std::string>();
+    if (!fs::is_directory(folder)) {
+        return json{{"ok", false}, {"error", "Not a directory: " + folder}};
+    }
+
+    std::string tiff = find_tiff_in_folder(folder);
+    std::string roi  = find_roi_in_folder(folder);
+    std::string csv  = find_csv_in_folder(folder);
+    std::string fr   = find_framerate_file_in_folder(folder);
+
+    // Count all TIFFs
+    int tiff_count = 0;
+    json tiff_list = json::array();
+    for (const auto& entry : fs::directory_iterator(folder)) {
+        if (!entry.is_regular_file()) continue;
+        std::string ext = to_lower(entry.path().extension().string());
+        if (ext == ".tif" || ext == ".tiff") {
+            tiff_count++;
+            tiff_list.push_back(entry.path().filename().string());
+        }
+    }
+
+    json result = {
+        {"ok", true},
+        {"data", {
+            {"folder", folder},
+            {"tiff_path", tiff},
+            {"tiff_found", !tiff.empty()},
+            {"tiff_count", tiff_count},
+            {"tiff_files", tiff_list},
+            {"roi_path", roi},
+            {"roi_found", !roi.empty()},
+            {"csv_path", csv},
+            {"csv_found", !csv.empty()},
+            {"framerate_path", fr},
+            {"framerate_found", !fr.empty()},
+            {"ready", !tiff.empty() && !roi.empty()}
+        }}
+    };
+    return result;
+}
+
+// ── Data Loading Handlers ───────────────────────────────────────────────────
+
 static json handle_load_tiff(const json& params) {
     std::string path = params.at("path").get<std::string>();
+
+    // If path is a directory, find the TIFF inside
+    path = resolve_path(path, find_tiff_in_folder);
+    if (path.empty()) {
+        return json{{"ok", false}, {"error", "No TIFF file found in folder"}};
+    }
 
     // FIX: Free old data BEFORE loading new to avoid 2x memory spike
     g_tiff = TiffData{};
@@ -585,7 +745,14 @@ static json handle_load_tiff(const json& params) {
 
 static json handle_load_rois(const json& params) {
     std::string path = params.at("path").get<std::string>();
-    std::string ext = std::filesystem::path(path).extension().string();
+
+    // If path is a directory, find the ROI file inside
+    path = resolve_path(path, find_roi_in_folder);
+    if (path.empty()) {
+        return json{{"ok", false}, {"error", "No ROI file found in folder"}};
+    }
+
+    std::string ext = fs::path(path).extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
     if (ext == ".mat") {
@@ -607,13 +774,22 @@ static json handle_load_rois(const json& params) {
 
 static json handle_load_csv(const json& params) {
     std::string path = params.at("path").get<std::string>();
+
+    // If path is a directory, find the CSV inside
+    path = resolve_path(path, find_csv_in_folder);
+    if (path.empty()) {
+        // No CSV is not an error — just return empty records
+        return json{{"ok", true}, {"data", {{"records", json::array()}, {"count", 0}}}};
+    }
+
     g_records = read_results_csv(path);
     json records_arr = json::array();
     for (const auto& r : g_records) {
         records_arr.push_back(record_to_json(r));
     }
-    return json{{"ok", true}, {"data", {{"records", records_arr}, {"count", g_records.size()}}}};
+    return json{{"ok", true}, {"data", {{"records", records_arr}, {"count", g_records.size()}, {"path", path}}}};
 }
+
 
 static json handle_save_csv(const json& params) {
     std::string path = params.at("path").get<std::string>();
@@ -955,6 +1131,11 @@ static json handle_run_fit(const json& params) {
 
 static json handle_parse_framerate(const json& params) {
     std::string path = params.at("path").get<std::string>();
+    // If path is a directory, find the framerate text file inside
+    path = resolve_path(path, find_framerate_file_in_folder);
+    if (path.empty()) {
+        return json{{"ok", true}, {"data", {{"framerate", 9.39}}}};  // default
+    }
     double fr = parse_frame_rate_from_meta(path);
     return json{{"ok", true}, {"data", {{"framerate", fr}}}};
 }
@@ -1009,6 +1190,7 @@ int main() {
 
             json result;
             if (action == "ping")              result = handle_ping(params);
+            else if (action == "scan_folder")  result = handle_scan_folder(params);
             else if (action == "load_tiff")    result = handle_load_tiff(params);
             else if (action == "load_rois")    result = handle_load_rois(params);
             else if (action == "load_csv")     result = handle_load_csv(params);

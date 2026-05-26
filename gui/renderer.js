@@ -694,35 +694,64 @@ async function loadSubjectFolder(folderPath) {
 
     const scanResp = await serverCmd('scan_folder', { path: folderPath });
     if (!scanResp.ok) {
-        pfResults.innerHTML = `<div class="preflight-error">❌ Failed to scan folder: ${scanResp.error}</div>`;
+        // scan_folder failed — fall back to direct loading
+        pfResults.innerHTML = '<div class="preflight-warn">⚠ Pre-flight scan unavailable. Loading directly...</div>';
+        const btnProceed = document.getElementById('btn-preflight-proceed');
+        btnProceed.disabled = false;
+        btnProceed.onclick = () => directLoad(folderPath);
         return;
     }
 
     const scan = scanResp.data;
 
-    // If scan_folder doesn't exist yet, fall back to direct loading
-    if (!scan) {
-        pfResults.innerHTML = '<div class="preflight-warn">⚠ Pre-flight scan not available. Loading directly...</div>';
-        await directLoad(folderPath);
-        return;
+    // Display pre-flight results
+    let html = '<div style="font-family: monospace; font-size: 13px; line-height: 1.8;">';
+
+    // TIFF status
+    if (scan.tiff_found) {
+        const tiffName = scan.tiff_path.split('/').pop();
+        html += `<div class="preflight-ok">✅ TIFF: ${tiffName} (${scan.tiff_count} TIFF file${scan.tiff_count > 1 ? 's' : ''} found)</div>`;
+    } else {
+        html += '<div class="preflight-error">❌ No TIFF file found</div>';
     }
 
-    // Display pre-flight results
-    let html = '';
-    for (const ds of scan.datasets || []) {
-        const icon = ds.ready ? '✓' : '✗';
-        const cls = ds.ready ? 'preflight-ok' : 'preflight-error';
-        html += `<div class="${cls}">${icon} ${ds.name}: ${ds.status}</div>`;
+    // ROI status
+    if (scan.roi_found) {
+        const roiName = scan.roi_path.split('/').pop();
+        html += `<div class="preflight-ok">✅ ROIs: ${roiName}</div>`;
+    } else {
+        html += '<div class="preflight-error">❌ No ROI file found (_rois.txt or _MaskObj.mat)</div>';
     }
-    if (scan.warnings) {
-        for (const w of scan.warnings) {
-            html += `<div class="preflight-warn">⚠ ${w}</div>`;
-        }
+
+    // CSV status
+    if (scan.csv_found) {
+        const csvName = scan.csv_path.split('/').pop();
+        html += `<div class="preflight-ok">✅ CSV: ${csvName}</div>`;
+    } else {
+        html += '<div class="preflight-warn">⚠ No results CSV found (will compute from scratch)</div>';
     }
-    pfResults.innerHTML = html || '<div class="preflight-ok">✓ Ready to process</div>';
+
+    // Framerate status
+    if (scan.framerate_found) {
+        const frName = scan.framerate_path.split('/').pop();
+        html += `<div class="preflight-ok">✅ Framerate: ${frName}</div>`;
+    } else {
+        html += '<div class="preflight-warn">⚠ No framerate file found (will use default 9.39 fps)</div>';
+    }
+
+    html += '</div>';
+
+    // Overall status
+    if (scan.ready) {
+        html += '<div class="preflight-ok" style="margin-top: 10px; font-weight: bold;">✓ Ready to load</div>';
+    } else {
+        html += '<div class="preflight-error" style="margin-top: 10px; font-weight: bold;">✗ Missing required files — cannot proceed</div>';
+    }
+
+    pfResults.innerHTML = html;
 
     const btnProceed = document.getElementById('btn-preflight-proceed');
-    btnProceed.disabled = false;
+    btnProceed.disabled = !scan.ready;
     btnProceed.onclick = () => directLoad(folderPath);
 }
 
