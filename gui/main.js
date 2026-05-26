@@ -31,23 +31,31 @@ function getResourcePath(relativePath) {
 }
 
 function getServerBinaryPath() {
+    const ext = process.platform === 'win32' ? '.exe' : '';
     if (app.isPackaged) {
-        return path.join(process.resourcesPath, 'bin', 'bolus_server');
+        return path.join(process.resourcesPath, 'bin', `bolus_server${ext}`);
     }
-    // Dev mode: look in build/ directory
-    const buildPath = path.join(__dirname, '..', 'build', 'bolus_server');
+    // Dev mode: look in build/ directory (or build/Release on Windows)
+    const buildPath = path.join(__dirname, '..', 'build', `bolus_server${ext}`);
     if (fs.existsSync(buildPath)) return buildPath;
+    const winPath = path.join(__dirname, '..', 'build', 'Release', `bolus_server${ext}`);
+    if (fs.existsSync(winPath)) return winPath;
+    
     // Fallback: check PATH
-    return 'bolus_server';
+    return `bolus_server${ext}`;
 }
 
 function getPipelineBinaryPath() {
+    const ext = process.platform === 'win32' ? '.exe' : '';
     if (app.isPackaged) {
-        return path.join(process.resourcesPath, 'bin', 'bolus_tracking_cpp');
+        return path.join(process.resourcesPath, 'bin', `bolus_tracking_cpp${ext}`);
     }
-    const buildPath = path.join(__dirname, '..', 'build', 'bolus_tracking_cpp');
+    const buildPath = path.join(__dirname, '..', 'build', `bolus_tracking_cpp${ext}`);
     if (fs.existsSync(buildPath)) return buildPath;
-    return 'bolus_tracking_cpp';
+    const winPath = path.join(__dirname, '..', 'build', 'Release', `bolus_tracking_cpp${ext}`);
+    if (fs.existsSync(winPath)) return winPath;
+    
+    return `bolus_tracking_cpp${ext}`;
 }
 
 // ─── Server Process Management ──────────────────────────────────────────────

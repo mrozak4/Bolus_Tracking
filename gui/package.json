@@ -31,6 +31,22 @@
         { "from": "../build/bolus_tracking_cpp", "to": "bin/bolus_tracking_cpp" }
       ]
     },
+    "linux": {
+      "target": ["AppImage"],
+      "icon": "../resources/app_icon.png",
+      "extraResources": [
+        { "from": "../build/bolus_server", "to": "bin/bolus_server" },
+        { "from": "../build/bolus_tracking_cpp", "to": "bin/bolus_tracking_cpp" }
+      ]
+    },
+    "win": {
+      "target": ["nsis"],
+      "icon": "../resources/app_icon.png",
+      "extraResources": [
+        { "from": "../build/Release/bolus_server.exe", "to": "bin/bolus_server.exe" },
+        { "from": "../build/Release/bolus_tracking_cpp.exe", "to": "bin/bolus_tracking_cpp.exe" }
+      ]
+    },
     "extraResources": [
       { "from": "../resources/fonts", "to": "fonts" },
       { "from": "../resources/thx_crescendo.wav", "to": "sounds/thx_crescendo.wav" },

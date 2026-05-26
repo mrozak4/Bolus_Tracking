@@ -1,113 +1,105 @@
-# ══════════════════════════════════════════════════════════════════════════════
-#  Bolus Tracking Studio — Automated macOS Release Builder
-#
-#  Triggers on version tags (v*). Compiles the C++ backend, packages the
-#  Electron GUI as a signed .dmg, and uploads it to a GitHub Release.
-#
-#  End users download the .dmg, drag to Applications, done.
-# ══════════════════════════════════════════════════════════════════════════════
-
-name: Build macOS Release
+name: Build Cross-Platform Releases
 
 on:
   push:
     tags:
-      - 'v*'          # Trigger on version tags like v2.0.0, v2.1.0-beta
-  workflow_dispatch:   # Allow manual trigger from Actions tab
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   build-macos:
-    runs-on: macos-14   # Apple Silicon (M1+) runner
+    runs-on: macos-14
     timeout-minutes: 30
-
     steps:
-      # ── Checkout ──────────────────────────────────────────────────────────
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # ── Install C++ dependencies ──────────────────────────────────────────
-      - name: Install C++ build dependencies
+      - uses: actions/checkout@v4
+      - name: Install C++ dependencies
+        run: brew install cmake eigen libtiff
+      - name: Compile C++
         run: |
-          brew install cmake eigen libtiff
-
-      # ── Build C++ backend ─────────────────────────────────────────────────
-      - name: Compile bolus_server and bolus_tracking_cpp
-        run: |
-          mkdir -p build
-          cd build
+          mkdir -p build && cd build
           cmake -DCMAKE_BUILD_TYPE=Release ..
-          make bolus_server -j$(sysctl -n hw.ncpu)
-          make bolus_tracking_cpp -j$(sysctl -n hw.ncpu)
-          echo "✓ bolus_server built"
-          ls -lh bolus_server bolus_tracking_cpp
-
-      # ── Setup Node.js ─────────────────────────────────────────────────────
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+          make bolus_server bolus_tracking_cpp -j$(sysctl -n hw.ncpu)
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      # ── Install npm dependencies ──────────────────────────────────────────
-      - name: Install Electron dependencies
-        working-directory: gui
-        run: npm ci --no-audit --no-fund
-
-      # ── Package Electron app ──────────────────────────────────────────────
-      - name: Build .dmg with electron-builder
+      - name: Install and Build Electron
         working-directory: gui
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          npm ci --no-audit --no-fund
           npx electron-builder --mac --publish never
-          echo "✓ Build complete"
-          ls -lh dist/
-
-      # ── List outputs ──────────────────────────────────────────────────────
-      - name: Find build artifacts
-        id: artifacts
-        run: |
-          DMG=$(find gui/dist -name "*.dmg" | head -1)
-          ZIP=$(find gui/dist -name "*.zip" | head -1)
-          echo "dmg=$DMG" >> "$GITHUB_OUTPUT"
-          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
-          echo "Found DMG: $DMG"
-          echo "Found ZIP: $ZIP"
-
-      # ── Upload DMG artifact (always available) ────────────────────────────
-      - name: Upload DMG as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: BolusTrackingStudio-macOS
-          path: gui/dist/*.dmg
-          if-no-files-found: warn
-
-      # ── Create GitHub Release (only on tags) ──────────────────────────────
-      - name: Create GitHub Release
+      - name: Create Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           name: "Bolus Tracking Studio ${{ github.ref_name }}"
-          body: |
-            ## Bolus Tracking Studio ${{ github.ref_name }}
-
-            ### macOS Installation (One Step)
-            1. Download `BolusTrackingStudio-*.dmg` below
-            2. Open the `.dmg` file
-            3. Drag **Bolus Tracking Studio** to your **Applications** folder
-            4. Launch from Launchpad, Spotlight, or Finder
-
-            > **Note:** On first launch, macOS may show a security warning.
-            > Go to **System Settings → Privacy & Security** and click **Open Anyway**.
-
-            ### What's Included
-            - Electron-based interactive GUI with MCM dark theme
-            - C++ analysis engine (bolus_server) embedded inside the app
-            - 44 language translations
-            - Full batch processing pipeline (bolus_tracking_cpp)
-          files: |
-            gui/dist/*.dmg
-            gui/dist/*.zip
+          files: gui/dist/*.dmg
           draft: false
-          prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') || contains(github.ref_name, 'rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install C++ dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake libtiff-dev libeigen3-dev zlib1g-dev
+      - name: Compile C++
+        run: |
+          mkdir -p build && cd build
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+          make bolus_server bolus_tracking_cpp -j$(nproc)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install and Build Electron
+        working-directory: gui
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm ci --no-audit --no-fund
+          npx electron-builder --linux --publish never
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Bolus Tracking Studio ${{ github.ref_name }}"
+          files: gui/dist/*.AppImage
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install C++ dependencies
+        run: vcpkg install tiff:x64-windows eigen3:x64-windows zlib:x64-windows
+      - name: Compile C++
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DCMAKE_BUILD_TYPE=Release ..
+          cmake --build . --config Release --target bolus_server bolus_tracking_cpp
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install and Build Electron
+        working-directory: gui
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm ci --no-audit --no-fund
+          npx electron-builder --win --publish never
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Bolus Tracking Studio ${{ github.ref_name }}"
+          files: gui/dist/*.exe
+          draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
