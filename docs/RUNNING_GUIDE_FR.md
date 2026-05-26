@@ -75,6 +75,14 @@ bash run_pipeline_cpp.sh sample-subject-2259
 bash run_pipeline_cpp.sh . --plot
 ```
 
+**Analyse de pré-vol et validation du jeu de données** :
+Pour analyser un dossier de sujet ou un répertoire parent et vérifier que tous les triplets de fichiers (TIFF, ROIs et Métadonnées) sont correctement nommés, associés et valides *sans* lancer le pipeline de modélisation, utilisez l'indicateur `--preflight` (ou `--validate`). Cela vérifie les fréquences d'images, les conventions de correspondance, la casse et élimine les doublons non enregistrés :
+```bash
+bash run_pipeline_cpp.sh sample-subject-2259 --preflight
+```
+Si des erreurs sont détectées, le script affichera un rapport de diagnostic détaillé. Lors d'un traitement par lots standard, cette analyse de pré-vol est exécutée automatiquement au démarrage pour s'assurer que tous les jeux de données sont correctement formatés avant le calcul.
+
+
 #### Commande manuelle (sans le script d'enveloppe) :
 Si vous souhaitez exécuter la commande Docker manuellement :
 ```bash
@@ -121,11 +129,18 @@ bash run_pipeline_cpp.sh sample-subject-2259 --qc-fwhm-max 20.0 --qc-cnr-min 6.0
 
 * **`PASS`** : Modélisation réussie sans atteindre les bornes, RCB > 5.0, LMH entre 0.5–15.0 s, et TAP entre 0.1–10.0 s.
 - **`WARN`** : Modélisation réussie, mais un ou plusieurs paramètres ont atteint les limites d'avertissement (ex : LMH > 15 s, RCB entre 3.0 et 5.0, ou paramètre proche d'une borne du solveur — évalué par rapport aux bornes de recherche relâchées `Amplitude: [1.0, max_amp]`, `TAP: [0.01, 12.0]` et `LMH: [0.1, 20.0]` si une passe d'ajustement de secours a été exécutée).
+- **`STALL`** : La morphologie du signal indique un blocage/arrêt capillaire (flux sanguin lent ou interrompu). Les capillaires en état de stagnation représentent des variations physiologiques réelles et non des erreurs; leurs paramètres cinétiques de transit lent sont donc conservés (les ajustements par prior de population sont ignorés pour éviter d'écraser la dynamique lente). Marqué si :
+  * *Début tardif & transit lent* : $TAP > 2.5 \times$ médiane (ou $> 12.0$ s) ET $TAP\_debut > mediane\_debut + 3.0$ s (ou $> 2.5 \times$ médiane).
+  * *Instabilité de la ligne de base* : Écart-type du bruit de la ligne de base $SD > 15.0$ avant l'arrivée du bolus (indique une obstruction par globules blancs ou interruption de flux).
+  * *Montée en échelon* : $TAP < 0.8$ s ET $LMH > 6.0$ s (très longue élimination / montée abrupte).
 - **`FAIL`** : Modélisation divergente, retour de valeur non définie (`NaN`), ou RCB < 3.0.
 
 ---
 
 ## 3. Exécuter l'interface graphique interactive C++ : Dear ImGui & ImPlot Studio
+
+> [!TIP]
+> **Recommandation d'application graphique** : L'interface graphique C++ (Bolus Tracking Studio) est l'**outil principal fortement recommandé** pour le triage et le contrôle qualité des modélisations. Basée sur le C++ natif, elle offre un rendu instantané, un ajustement ultra-réactif des marqueurs et du rognage de signal, des réajustements de Levenberg-Marquardt robustes et un support multilingue. L'interface Python (`python/src/bolus_gui.py`) is fournie uniquement comme alternative légère et plus lente de référence.
 
 Comme les applications graphiques requièrent un accès à l'affichage système, elles doivent être exécutées localement sur votre système d'exploitation hôte. L'interface graphique C++ est un tableau de bord visuel haute performance basé sur le moteur de modélisation C++. Elle utilise Dear ImGui et ImPlot pour afficher les signaux, réviser et trier les cas problématiques, ajuster les paramètres de modélisation et rogner dynamiquement les plages de données. La mise en page utilise une structure réactive qui ajuste automatiquement la hauteur du graphique et utilise des tableaux alignés pour la barre latérale et les en-têtes, garantissant que tous les paramètres cinétiques, étiquettes et boutons de navigation (`< Précédent` / `Suivant >`) restent entièrement visibles et jamais tronqués, quelle que soit la taille de la fenêtre.
 

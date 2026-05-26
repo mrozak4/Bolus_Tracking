@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <map>
 #include <regex>
 #include <algorithm>
 #include <filesystem>
@@ -98,6 +99,10 @@ bool BatchProcessor::contains_ignored_pattern(const std::string& path) const {
  * @brief Runs recursive scanning, pairing, and batch processing for all matching triplets.
  */
 bool BatchProcessor::run() const {
+    bool pf_warn = false;
+    bool pf_err = false;
+    run_preflight_scan(pf_warn, pf_err);
+
     std::cout << "Pure C++ Pipeline - Scanning: " << folder_path << std::endl;
     std::cout << "Drift window duration: " << drift_window << " seconds." << std::endl;
     if (enable_plots) {
@@ -294,4 +299,204 @@ bool BatchProcessor::run() const {
     std::cout << "==================================================" << std::endl;
     
     return true;
+}
+
+/**
+ * @brief Performs a validation scan over the target directory and outputs a pairing/sanity report.
+ */
+bool BatchProcessor::run_preflight_scan(bool& has_warnings, bool& has_errors) const {
+    has_warnings = false;
+    has_errors = false;
+    
+    std::cout << "\n==================================================" << std::endl;
+    std::cout << "        PRE-FLIGHT PIPELINE VALIDATION            " << std::endl;
+    std::cout << "==================================================" << std::endl;
+    std::cout << "Scanning folder: " << folder_path << std::endl;
+
+    if (!std::filesystem::exists(folder_path)) {
+        std::cerr << "ERROR: Folder does not exist: " << folder_path << std::endl;
+        has_errors = true;
+        return false;
+    }
+
+    // Collect files
+    std::vector<std::filesystem::path> all_tifs;
+    std::vector<std::filesystem::path> all_rois;
+    std::vector<std::filesystem::path> all_metas;
+    std::vector<std::string> registered_stems;
+
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(folder_path)) {
+        if (entry.is_regular_file()) {
+            std::string ext = entry.path().extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            std::string filename = entry.path().filename().string();
+            if (filename.empty() || filename.front() == '.') continue;
+            std::string name_lower = filename;
+            std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
+
+            if (ext == ".tif" || ext == ".tiff") {
+                if (!contains_ignored_pattern(name_lower)) {
+                    all_tifs.push_back(entry.path());
+                    if (name_lower.find("registered") != std::string::npos) {
+                        std::string stem = entry.path().stem().string();
+                        std::transform(stem.begin(), stem.end(), stem.begin(), ::tolower);
+                        registered_stems.push_back(stem);
+                    }
+                }
+            } else if (ext == ".txt") {
+                if (name_lower.find("_rois.txt") != std::string::npos || name_lower.find("_rois_cpp.txt") != std::string::npos) {
+                    all_rois.push_back(entry.path());
+                } else if (name_lower.find("_rois") == std::string::npos) {
+                    all_metas.push_back(entry.path());
+                }
+            } else if (ext == ".mat") {
+                if (name_lower.find("maskobj") != std::string::npos || name_lower.find("mask") != std::string::npos) {
+                    all_rois.push_back(entry.path());
+                }
+            }
+        }
+    }
+
+    // Pair files logically
+    // A dataset key is defined by: top_relative_dir + "|" + identifier
+    struct DatasetGroup {
+        std::string identifier;
+        std::string top_dir;
+        std::vector<std::filesystem::path> tifs;
+        std::vector<std::filesystem::path> rois;
+        std::vector<std::filesystem::path> metas;
+    };
+    std::map<std::string, DatasetGroup> groups;
+
+    auto insert_file = [&](const std::filesystem::path& p, int type) {
+        std::string filename = p.filename().string();
+        std::string id = extract_identifier(filename);
+        if (id.empty()) return;
+        std::transform(id.begin(), id.end(), id.begin(), ::tolower);
+        std::string top = get_top_relative_dir(p, folder_path);
+        std::string key = top + "|" + id;
+        if (groups.find(key) == groups.end()) {
+            groups[key] = {id, top, {}, {}, {}};
+        }
+        if (type == 0) groups[key].tifs.push_back(p);
+        else if (type == 1) groups[key].rois.push_back(p);
+        else if (type == 2) groups[key].metas.push_back(p);
+    };
+
+    for (const auto& p : all_tifs) insert_file(p, 0);
+    for (const auto& p : all_rois) insert_file(p, 1);
+    for (const auto& p : all_metas) insert_file(p, 2);
+
+    int count = 0;
+    for (const auto& pair : groups) {
+        const auto& g = pair.second;
+        count++;
+        std::string folder_label = g.top_dir.empty() ? "(Root)" : g.top_dir;
+        std::cout << "\nDataset " << count << ": " << g.identifier << " in " << folder_label << std::endl;
+
+        // Check TIFFs
+        bool has_reg_tif = false;
+        bool has_unreg_tif = false;
+        std::filesystem::path reg_tif_path;
+        std::filesystem::path unreg_tif_path;
+
+        for (const auto& t : g.tifs) {
+            std::string stem = t.stem().string();
+            std::transform(stem.begin(), stem.end(), stem.begin(), ::tolower);
+            if (stem.find("registered") != std::string::npos) {
+                has_reg_tif = true;
+                reg_tif_path = t;
+            } else {
+                has_unreg_tif = true;
+                unreg_tif_path = t;
+            }
+        }
+
+        if (g.tifs.empty()) {
+            std::cout << "  [ERROR] TIFF file is missing!" << std::endl;
+            has_errors = true;
+        } else {
+            for (const auto& t : g.tifs) {
+                std::cout << "  -> TIFF: " << t.filename().string() << std::endl;
+            }
+            if (has_reg_tif && has_unreg_tif) {
+                std::cout << "  [WARN] Both registered and unregistered TIFFs exist. Unregistered TIFF (" 
+                          << unreg_tif_path.filename().string() << ") will be skipped." << std::endl;
+                has_warnings = true;
+            }
+        }
+
+        // Check ROIs
+        if (g.rois.empty()) {
+            std::cout << "  [ERROR] ROI Mask file (.mat or _rois.txt) is missing!" << std::endl;
+            has_errors = true;
+        } else {
+            for (const auto& r : g.rois) {
+                std::cout << "  -> ROIs: " << r.filename().string() << std::endl;
+                // Capitalization warnings on maskObj
+                std::string fname = r.filename().string();
+                if (r.extension().string() == ".mat") {
+                    if (fname.find("MaskObj") == std::string::npos && fname.find("maskObj") == std::string::npos) {
+                        std::cout << "  [WARN] MAT file name '" << fname << "' does not explicitly contain 'maskObj' (matching might be fragile)." << std::endl;
+                        has_warnings = true;
+                    }
+                }
+            }
+        }
+
+        // Check Metadata
+        if (g.metas.empty()) {
+            std::cout << "  [ERROR] Metadata file (.txt) is missing!" << std::endl;
+            has_errors = true;
+        } else {
+            for (const auto& m : g.metas) {
+                double fr = parse_frame_rate(m.string());
+                if (fr <= 0.0) {
+                    std::cout << "  [ERROR] Metadata " << m.filename().string() << " exists but failed to parse camera frame rate!" << std::endl;
+                    has_errors = true;
+                } else {
+                    std::cout << "  -> Meta: " << m.filename().string() << " (Parsed Frame Rate: " << fr << " Hz)" << std::endl;
+                }
+            }
+        }
+
+        // Check case sensitivity mismatch in spelling
+        if (!g.tifs.empty() && !g.metas.empty()) {
+            std::string t_name = g.tifs[0].filename().string();
+            std::string m_name = g.metas[0].filename().string();
+            bool t_co2 = (t_name.find("CO2") != std::string::npos);
+            bool m_co2 = (m_name.find("CO2") != std::string::npos);
+            bool t_co2_l = (t_name.find("co2") != std::string::npos);
+            bool m_co2_l = (m_name.find("co2") != std::string::npos);
+            if ((t_co2 && m_co2_l) || (t_co2_l && m_co2)) {
+                std::cout << "  [WARN] Case mismatch in condition name (e.g. CO2 vs co2) between TIFF and Metadata. Normalization will handle this but naming consistency is recommended." << std::endl;
+                has_warnings = true;
+            }
+        }
+    }
+
+    // Check for completely unmatched/unpaired TIFFs
+    for (const auto& t : all_tifs) {
+        std::string filename = t.filename().string();
+        std::string id = extract_identifier(filename);
+        if (id.empty()) {
+            std::cout << "\n[WARN] TIFF file does not match expected bolus naming convention (skipped): " << filename << std::endl;
+            has_warnings = true;
+        }
+    }
+
+    std::cout << "\n--------------------------------------------------" << std::endl;
+    std::cout << "Pre-flight scan finished. Summary:" << std::endl;
+    std::cout << "  Total logical datasets: " << groups.size() << std::endl;
+    std::cout << "  Status: ";
+    if (has_errors) {
+        std::cout << "ERRORS FOUND (Pipeline will fail/skip some datasets)" << std::endl;
+    } else if (has_warnings) {
+        std::cout << "PASS WITH WARNINGS" << std::endl;
+    } else {
+        std::cout << "ALL OK" << std::endl;
+    }
+    std::cout << "==================================================\n" << std::endl;
+
+    return !has_errors;
 }

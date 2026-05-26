@@ -232,6 +232,8 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
     rec.exp = parse_experiment(tiff_path);
     rec.roi_size = mask_size;
     rec.ves_type = "U";
+    rec.stall_flag = 0;
+    rec.raw_sd_base = raw_sd_base;
     
     rec.init_amp = auto_res.init_params[0];
     rec.init_t2p = auto_res.init_params[1];
@@ -527,6 +529,10 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
         for (size_t i = 0; i < results.size(); ++i) {
             const auto& rec = results[i];
             if (rec.qc_flag == "FAIL" || rec.qc_flag == "WARN") {
+                // Divergence Check: skip refit if the initial T2P is already > 3x the median
+                if (!std::isnan(rec.f_t2p) && rec.f_t2p > 3.0 * median_t2p) {
+                    continue;
+                }
                 prior_futures.push_back({i, std::async(std::launch::async, &DatasetProcessor::process_single_roi, this,
                                                       rois[i].id + 1, rois[i].poly, std::ref(frames),
                                                       (int)width, (int)height, fr, up_f, tiff_path,
@@ -560,6 +566,56 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
     std::chrono::duration<double> diff = end_time - start_time;
     std::cout << "Parallel fitting complete in " << diff.count() << " seconds!" << std::endl;
     
+    // --- Capillary Stall Heuristics ---
+    double med_t2p = 3.0;
+    double med_fwhm = 5.0;
+    std::vector<double> pass_t2ps;
+    std::vector<double> pass_fwhms;
+    std::vector<double> valid_onts;
+    for (const auto& rec : results) {
+        if (rec.qc_flag == "PASS") {
+            pass_t2ps.push_back(rec.f_t2p);
+            pass_fwhms.push_back(rec.f_fwhm);
+            valid_onts.push_back(rec.ont);
+        }
+    }
+    if (!pass_t2ps.empty()) {
+        med_t2p = SignalProcessor::compute_median(pass_t2ps);
+        med_fwhm = SignalProcessor::compute_median(pass_fwhms);
+    }
+    double median_ont = 0.0;
+    if (!valid_onts.empty()) {
+        median_ont = SignalProcessor::compute_median(valid_onts);
+    }
+    
+    for (auto& rec : results) {
+        bool is_stall = false;
+        // Heuristic A: Late onset & slow transit
+        if (!std::isnan(rec.ont) && !std::isnan(rec.f_t2p)) {
+            bool late_ont = (rec.ont > median_ont + 3.0) || (median_ont > 0.0 && rec.ont > 2.5 * median_ont);
+            bool slow_transit = (rec.f_t2p > 2.5 * med_t2p) || (rec.f_t2p > 12.0);
+            if (late_ont && slow_transit) {
+                is_stall = true;
+            }
+        }
+        // Heuristic B: Baseline Instability
+        if (!std::isnan(rec.raw_sd_base) && rec.raw_sd_base > 15.0) {
+            is_stall = true;
+        }
+        // Heuristic C: Step-function rise
+        if (!std::isnan(rec.f_t2p) && !std::isnan(rec.f_fwhm)) {
+            if (rec.f_t2p < 0.8 && rec.f_fwhm > 6.0) {
+                is_stall = true;
+            }
+        }
+        
+        if (is_stall) {
+            rec.stall_flag = 1;
+            rec.qc_flag = "STALL";
+            rec.ves_type = "S";
+        }
+    }
+    
     double min_ont = 999999.0;
     for (const auto& rec : results) {
         if (!std::isnan(rec.ont) && rec.ont < min_ont) {
@@ -576,7 +632,7 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
     out << "ROI,SubjNum,Exp,InitAmp,InitT2p,InitFWHM,InitM,InitSNR,InitCNR,"
         << "Click1_Start_T,Click2_Onset_T,Click3_Peak_T,Click4_End_T,"
         << "F_Amp,F_T2p,F_FWHM,F_M,F_SNR,F_CNR,"
-        << "AUC,AUCn,TTlb,TTm,TThb,OnT,OnTSc,ROISize,Denoise_RMS,VesType,QC_Flag,Fit_Source\n";
+        << "AUC,AUCn,TTlb,TTm,TThb,OnT,OnTSc,ROISize,Denoise_RMS,VesType,QC_Flag,Fit_Source,Stall_Flag\n";
     
     for (auto& rec : results) {
         if (!std::isnan(rec.ont) && min_ont < 99999.0) {
@@ -593,7 +649,7 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
             << rec.f_amp << "," << rec.f_t2p << "," << rec.f_fwhm << "," << rec.f_m << "," << rec.f_snr << "," << rec.f_cnr << ","
             << rec.auc << "," << rec.aucn << "," << rec.ttlb << "," << rec.ttm << "," << rec.tthb << "," << rec.ont << "," << rec.ont_sc << ","
             << rec.roi_size << "," << rec.denoise_rms << "," << rec.ves_type << ","
-            << rec.qc_flag << "," << rec.fit_source << "\n";
+            << rec.qc_flag << "," << rec.fit_source << "," << rec.stall_flag << "\n";
     }
     out.close();
     std::cout << "Saved C++ results to: " << out_csv << std::endl;

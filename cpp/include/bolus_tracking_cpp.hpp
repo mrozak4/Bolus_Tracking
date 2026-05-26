@@ -35,6 +35,7 @@ struct FitRecord {
     double f_snr;
     double f_cnr;
     double denoise_rms;
+    double raw_sd_base;
     
     // Legacy MATLAB fields
     double auc;
@@ -48,6 +49,7 @@ struct FitRecord {
     std::string ves_type;
     std::string qc_flag;
     std::string fit_source;
+    int stall_flag;
 };
 
 struct QCSettings {
@@ -263,6 +265,7 @@ public:
     bool contains_ignored_pattern(const std::string& path) const;
     
     bool run() const;
+    bool run_preflight_scan(bool& has_warnings, bool& has_errors) const;
 };
 
 #endif // BOLUS_TRACKING_CPP_HPP

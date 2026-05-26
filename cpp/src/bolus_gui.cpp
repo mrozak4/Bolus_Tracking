@@ -570,6 +570,8 @@ std::vector<CsvRecord> read_results_csv(const std::string& path) {
     int idx_ont_sc = get_col_idx("OnTSc");
     int idx_roi_size = get_col_idx("ROISize");
     int idx_denoise = get_col_idx("Denoise_RMS");
+    int idx_raw_sd_base = get_col_idx("raw_sd_base");
+    int idx_stall_flag = get_col_idx("Stall_Flag");
     int idx_ves = get_col_idx("VesType");
     int idx_qc = get_col_idx("QC_Flag");
     int idx_source = get_col_idx("Fit_Source");
@@ -639,6 +641,8 @@ std::vector<CsvRecord> read_results_csv(const std::string& path) {
 
         if (idx_roi_size >= 0) rec.roi_size = parse_int(idx_roi_size);
         rec.denoise_rms = parse_double(idx_denoise);
+        if (idx_raw_sd_base >= 0) rec.raw_sd_base = parse_double(idx_raw_sd_base);
+        if (idx_stall_flag >= 0) rec.stall_flag = parse_int(idx_stall_flag);
         if (idx_ves >= 0) rec.ves_type = parse_str(idx_ves);
         if (idx_qc >= 0) rec.qc_flag = parse_str(idx_qc);
         if (idx_source >= 0) rec.fit_source = parse_str(idx_source);
@@ -657,7 +661,7 @@ void save_results_csv(const std::string& path, const std::vector<CsvRecord>& rec
 
     out << "ROI,SubjNum,Exp,InitAmp,InitT2p,InitFWHM,InitM,InitSNR,InitCNR,"
            "Click1_Start_T,Click2_Onset_T,Click3_Peak_T,Click4_End_T,"
-           "F_Amp,F_T2p,F_FWHM,F_M,F_SNR,F_CNR,AUC,AUCn,TTlb,TTm,TThb,OnT,OnTSc,ROISize,Denoise_RMS,VesType,QC_Flag,Fit_Source\n";
+           "F_Amp,F_T2p,F_FWHM,F_M,F_SNR,F_CNR,AUC,AUCn,TTlb,TTm,TThb,OnT,OnTSc,ROISize,Denoise_RMS,VesType,QC_Flag,Fit_Source,Stall_Flag\n";
 
     for (const auto& rec : records) {
         auto format_double = [](double v) -> std::string {
@@ -697,7 +701,8 @@ void save_results_csv(const std::string& path, const std::vector<CsvRecord>& rec
             << format_double(rec.denoise_rms) << ","
             << rec.ves_type << ","
             << rec.qc_flag << ","
-            << rec.fit_source << "\n";
+            << rec.fit_source << ","
+            << rec.stall_flag << "\n";
     }
 }
 
@@ -2387,6 +2392,8 @@ void BolusApp::save_active_roi_svg() {
         frec.f_snr = rec.f_snr;
         frec.f_cnr = rec.f_cnr;
         frec.denoise_rms = rec.denoise_rms;
+        frec.raw_sd_base = rec.raw_sd_base;
+        frec.stall_flag = rec.stall_flag;
         frec.auc = rec.auc;
         frec.aucn = rec.aucn;
         frec.ttlb = rec.ttlb;

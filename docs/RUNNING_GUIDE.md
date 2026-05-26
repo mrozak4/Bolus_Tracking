@@ -76,6 +76,14 @@ bash run_pipeline_cpp.sh sample-subject-2259
 bash run_pipeline_cpp.sh . --plot
 ```
 
+**Pre-Flight Dataset Scan & Validation**:
+To scan a subject folder or parent directory and verify that all file triplets (TIFF, ROIs, and Metadata) are correctly named, paired, and valid *without* running the fitting pipeline, use the `--preflight` (or `--validate`) flag. This checks frame rates, matching conventions, capitalization, and skipped unregistered duplicates:
+```bash
+bash run_pipeline_cpp.sh sample-subject-2259 --preflight
+```
+If errors are found, the script will print a diagnostic report. When running a standard batch process, this pre-flight scan is executed automatically at the start to ensure all datasets are correctly formatted before processing.
+
+
 #### Manual command:
 If you want to run the Docker command manually:
 ```bash
@@ -120,6 +128,10 @@ bash run_pipeline_cpp.sh sample-subject-2259 --qc-fwhm-max 20.0 --qc-cnr-min 6.0
 
 * **`PASS`**: The fit completed successfully, did not hit parameter bounds, CNR > 5.0, FWHM is between 0.5–15.0 s, and $T_{2p}$ is between 0.1–10.0 s.
 * **`WARN`**: The fit succeeded, but one or more parameters crossed the warning/pass limits (e.g. FWHM > 15 s, CNR 3.0–5.0, or landed within 1% of a solver boundary—using the relaxed solver bounds `Amplitude: [1.0, max_amp]`, `T2p: [0.01, 12.0]`, and `FWHM: [0.1, 20.0]` if a second-pass refit was run).
+* **`STALL`**: The trace morphology indicates a capillary stall (slow or interrupted blood flow). Stalling capillaries represent vascular health changes, not errors, and their genuine slow transit parameters are kept (prior refitting is skipped to prevent overriding slow transit kinetics). Flagged if:
+  * *Late Onset & Slow Transit:* $OnT > median\_ont + 3.0$ s (or $> 2.5 \times$ median) AND $T_{2p} > 2.5 \times$ median (or $> 12.0$ s).
+  * *Baseline Instability:* Pre-bolus baseline noise $SD > 15.0$ (indicates white blood cell plugging or flow interruption).
+  * *Step-function rise:* $T_{2p} < 0.8$ s AND $FWHM > 6.0$ s (very slow wash-out/step rise).
 * **`FAIL`**: The fit returned NaN, failed solver convergence, or had CNR < 3.0.
 
 ##### Triaging & Correcting Fits:
@@ -150,6 +162,9 @@ If a batch run yields `WARN` or `FAIL` flags, you can easily inspect and correct
 ---
 
 ## 3. Running the C++ Interactive GUI: Dear ImGui & ImPlot Studio
+
+> [!TIP]
+> **GUI Application Recommendation**: The C++ GUI (Bolus Tracking Studio) is the **highly recommended primary tool** for fit triage and quality control. Built on native C++, it offers instantaneous rendering, highly responsive marker dragging/cropping, robust Levenberg-Marquardt refits, and multi-language support. The Python GUI (`python/src/bolus_gui.py`) is provided as a lightweight, slower reference fallback.
 
 Since GUI applications require display access, they are run locally on your host operating system. The C++ GUI is a high-performance visual dashboard built on top of the ultra-fast C++ fitting engine. It uses Dear ImGui and ImPlot to display traces, triage problem fits, adjust fitting parameters, and crop data ranges interactively. The layout features a dynamic responsive design that auto-scales the plot height and utilizes aligned grid tables for the sidebar and headers, ensuring all parameters, labels, and navigation buttons (`< Previous` / `Next >`) remain fully visible and never cut off on different screen sizes.
 

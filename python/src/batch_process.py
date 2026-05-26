@@ -6,6 +6,7 @@ along with backward-compatible function wrappers.
 
 import os
 import re
+import sys
 import warnings
 import numpy as np
 import scipy.io as sio
@@ -411,6 +412,8 @@ class DatasetProcessor:
             'VesType': ves_type,
             'QC_Flag': qc_flag,
             'Fit_Source': fit_source,
+            'raw_sd_base': raw_sd_base,
+            'Stall_Flag': 0,
             '_popt': popt,
             '_end_idx': end_idx,
             '_tl_raw': tl_raw,
@@ -484,6 +487,10 @@ class DatasetProcessor:
             
             for i, r in enumerate(results):
                 if r['QC_Flag'] in ["FAIL", "WARN"]:
+                    # Divergence Check: skip refit if the initial T2P is already > 3x the median
+                    if r['F_T2p'] is not None and not np.isnan(r['F_T2p']) and r['F_T2p'] > 3.0 * median_t2p:
+                        continue
+                        
                     obj = mask_objs[r['ROI'] - 1]
                     if hasattr(obj, 'poli'):
                         pos = obj.poli.Position
@@ -510,14 +517,49 @@ class DatasetProcessor:
                         results[i] = refit_rec
                         print(f"  ROI {r['ROI']} successfully refit with population priors: QC -> {refit_rec['QC_Flag']}")
                         
+        # --- Capillary Stall Heuristics ---
+        med_t2p = 3.0
+        med_fwhm = 5.0
+        pass_t2ps = [r['F_T2p'] for r in results if r['QC_Flag'] == "PASS" and r['F_T2p'] is not None and not np.isnan(r['F_T2p'])]
+        pass_fwhms = [r['F_FWHM'] for r in results if r['QC_Flag'] == "PASS" and r['F_FWHM'] is not None and not np.isnan(r['F_FWHM'])]
+        valid_onts = [r['OnT'] for r in results if r['QC_Flag'] == "PASS" and r['OnT'] is not None and not np.isnan(r['OnT'])]
+        
+        if len(pass_t2ps) > 0:
+            med_t2p = np.median(pass_t2ps)
+            med_fwhm = np.median(pass_fwhms)
+        median_ont = 0.0
+        if len(valid_onts) > 0:
+            median_ont = np.median(valid_onts)
+            
+        for r in results:
+            is_stall = False
+            # Heuristic A: Late onset & slow transit
+            if r['OnT'] is not None and not np.isnan(r['OnT']) and r['F_T2p'] is not None and not np.isnan(r['F_T2p']):
+                late_ont = (r['OnT'] > median_ont + 3.0) or (median_ont > 0.0 and r['OnT'] > 2.5 * median_ont)
+                slow_transit = (r['F_T2p'] > 2.5 * med_t2p) or (r['F_T2p'] > 12.0)
+                if late_ont and slow_transit:
+                    is_stall = True
+            # Heuristic B: Baseline Instability
+            if r['raw_sd_base'] is not None and not np.isnan(r['raw_sd_base']) and r['raw_sd_base'] > 15.0:
+                is_stall = True
+            # Heuristic C: Step-function rise
+            if r['F_T2p'] is not None and not np.isnan(r['F_T2p']) and r['F_FWHM'] is not None and not np.isnan(r['F_FWHM']):
+                if r['F_T2p'] < 0.8 and r['F_FWHM'] > 6.0:
+                    is_stall = True
+                    
+            if is_stall:
+                r['Stall_Flag'] = 1
+                r['QC_Flag'] = "STALL"
+                r['VesType'] = "S"
+                        
         # 3. Save plots and clean up temporary plotting keys from dict
         for r in results:
             BolusVisualizer.save_plot(tiff_path, out_dir, r['ROI'],
                                       r['_tl_raw'], r['_mfi_raw'], r['_mfi'], r['_k'],
                                       r['_tl_us'], r['_y_us'], r['_clicks'], r['_popt'], r['_end_idx'])
-            # Delete private keys to avoid cluttering CSV
+            # Delete private/temporary keys to avoid cluttering CSV
             for key in list(r.keys()):
-                if key.startswith('_'):
+                if key.startswith('_') or key == 'raw_sd_base':
                     del r[key]
                     
         # Calculate OnTSc (Onset time in Scan) relative to minimum OnT
@@ -620,10 +662,177 @@ class BatchProcessor:
                 
         return list(set(triplets))
 
+    def run_preflight_scan(self):
+        """
+        Performs a pre-flight validation scan over the configured folder and prints a sanity report.
+        Returns True if errors are found, otherwise False.
+        """
+        has_warnings = False
+        has_errors = False
+        
+        print("\n==================================================")
+        print("        PRE-FLIGHT PIPELINE VALIDATION            ")
+        print("==================================================")
+        print(f"Scanning folder: {self.folder_path}")
+        
+        if not os.path.exists(self.folder_path):
+            print(f"ERROR: Folder does not exist: {self.folder_path}")
+            return True
+            
+        all_tifs = []
+        all_rois = []
+        all_metas = []
+        registered_stems = set()
+        
+        for root, _, files in os.walk(self.folder_path):
+            for f in files:
+                if f.startswith('.'):
+                    continue
+                f_lower = f.lower()
+                full_path = os.path.join(root, f)
+                
+                if f_lower.endswith('.tif') or f_lower.endswith('.tiff'):
+                    if 'mips' not in f_lower and 'results' not in f_lower and 'shift_info' not in f_lower and 'max_' not in f_lower:
+                        all_tifs.append(full_path)
+                        if 'registered' in f_lower:
+                            stem = os.path.splitext(f)[0].lower()
+                            registered_stems.add(stem)
+                elif f_lower.endswith('.txt'):
+                    if 'rois' in f_lower:
+                        all_rois.append(full_path)
+                    else:
+                        all_metas.append(full_path)
+                elif f_lower.endswith('.mat'):
+                    if 'maskobj' in f_lower or 'mask' in f_lower:
+                        all_rois.append(full_path)
+                        
+        def get_top_relative_dir(file_path, base_folder):
+            rel = os.path.relpath(os.path.abspath(file_path), os.path.abspath(base_folder))
+            parts = rel.split(os.sep)
+            if len(parts) > 1 and parts[0] != '..':
+                return parts[0]
+            return ""
+
+        def normalize_name(s):
+            return s.lower().replace('-', '_')
+
+        def extract_identifier(filename):
+            match = re.search(r'(bolus\d+[-_](baseline|co2))', filename, re.IGNORECASE)
+            if match:
+                return normalize_name(match.group(1))
+            return ""
+
+        groups = {}
+        def insert_file(p, ftype):
+            filename = os.path.basename(p)
+            id_val = extract_identifier(filename)
+            if not id_val:
+                return
+            top = get_top_relative_dir(p, self.folder_path)
+            key = f"{top}|{id_val}"
+            if key not in groups:
+                groups[key] = {'id': id_val, 'top_dir': top, 'tifs': [], 'rois': [], 'metas': []}
+            if ftype == 0:
+                groups[key]['tifs'].append(p)
+            elif ftype == 1:
+                groups[key]['rois'].append(p)
+            elif ftype == 2:
+                groups[key]['metas'].append(p)
+                
+        for p in all_tifs:
+            insert_file(p, 0)
+        for p in all_rois:
+            insert_file(p, 1)
+        for p in all_metas:
+            insert_file(p, 2)
+            
+        count = 0
+        for key in sorted(groups.keys()):
+            g = groups[key]
+            count += 1
+            folder_label = g['top_dir'] if g['top_dir'] else "(Root)"
+            print(f"\nDataset {count}: {g['id']} in {folder_label}")
+            
+            has_reg_tif = False
+            has_unreg_tif = False
+            unreg_tif_name = ""
+            for t in g['tifs']:
+                print(f"  -> TIFF: {os.path.basename(t)}")
+                stem = os.path.splitext(os.path.basename(t))[0].lower()
+                if 'registered' in stem:
+                    has_reg_tif = True
+                else:
+                    has_unreg_tif = True
+                    unreg_tif_name = os.path.basename(t)
+            
+            if not g['tifs']:
+                print("  [ERROR] TIFF file is missing!")
+                has_errors = True
+            elif has_reg_tif and has_unreg_tif:
+                print(f"  [WARN] Both registered and unregistered TIFFs exist. Unregistered TIFF ({unreg_tif_name}) will be skipped.")
+                has_warnings = True
+                
+            if not g['rois']:
+                print("  [ERROR] ROI Mask file (.mat or _rois.txt) is missing!")
+                has_errors = True
+            else:
+                for r in g['rois']:
+                    print(f"  -> ROIs: {os.path.basename(r)}")
+                    fname = os.path.basename(r)
+                    if fname.lower().endswith('.mat'):
+                        if 'maskobj' not in fname.lower():
+                            print(f"  [WARN] MAT file name '{fname}' does not explicitly contain 'maskObj' (matching might be fragile).")
+                            has_warnings = True
+                            
+            if not g['metas']:
+                print("  [ERROR] Metadata file (.txt) is missing!")
+                has_errors = True
+            else:
+                for m in g['metas']:
+                    fr = MetadataParser.parse_frame_rate(m)
+                    if fr <= 0.0:
+                        print(f"  [ERROR] Metadata {os.path.basename(m)} exists but failed to parse camera frame rate!")
+                        has_errors = True
+                    else:
+                        print(f"  -> Meta: {os.path.basename(m)} (Parsed Frame Rate: {fr} Hz)")
+                        
+            if g['tifs'] and g['metas']:
+                t_name = os.path.basename(g['tifs'][0])
+                m_name = os.path.basename(g['metas'][0])
+                t_co2 = ("CO2" in t_name)
+                m_co2 = ("CO2" in m_name)
+                t_co2_l = ("co2" in t_name)
+                m_co2_l = ("co2" in m_name)
+                if (t_co2 and m_co2_l) or (t_co2_l and m_co2):
+                    print("  [WARN] Case mismatch in condition name (e.g. CO2 vs co2) between TIFF and Metadata. Normalization will handle this but naming consistency is recommended.")
+                    has_warnings = True
+
+        for t in all_tifs:
+            filename = os.path.basename(t)
+            id_val = extract_identifier(filename)
+            if not id_val:
+                print(f"\n[WARN] TIFF file does not match expected bolus naming convention (skipped): {filename}")
+                has_warnings = True
+                
+        print("\n--------------------------------------------------")
+        print("Pre-flight scan finished. Summary:")
+        print(f"  Total logical datasets: {len(groups)}")
+        print("  Status: ", end="")
+        if has_errors:
+            print("ERRORS FOUND (Pipeline will fail/skip some datasets)")
+        elif has_warnings:
+            print("PASS WITH WARNINGS")
+        else:
+            print("ALL OK")
+        print("==================================================\n")
+        
+        return has_errors
+
     def run(self, out_dir=""):
         """
         Runs the batch processor over the configured folder.
         """
+        self.run_preflight_scan()
         # Collect all TIFF files in folder_path
         all_tifs = []
         for root, _, files in os.walk(self.folder_path):
@@ -751,6 +960,8 @@ if __name__ == "__main__":
     parser.add_argument("--qc-t2p-fail", type=float, help="QC flag failure threshold for T2p", default=50.0)
     parser.add_argument("--qc-amp-fail", type=float, help="QC flag failure threshold for amplitude", default=1.0)
     
+    parser.add_argument("--preflight", "--validate", action="store_true", help="Perform pre-flight scan and validation on folder, then exit")
+    
     args = parser.parse_args()
     
     if args.folder:
@@ -771,6 +982,9 @@ if __name__ == "__main__":
             qc_t2p_fail=args.qc_t2p_fail,
             qc_amp_fail=args.qc_amp_fail
         )
+        if args.preflight:
+            has_errs = bp.run_preflight_scan()
+            sys.exit(1 if has_errs else 0)
         bp.run(args.outdir)
     elif args.tiff and args.mask and args.meta:
         process_bolus(

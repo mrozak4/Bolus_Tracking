@@ -11,6 +11,61 @@ echo "============================================="
 echo "   Installing Bolus Tracking Studio App      "
 echo "============================================="
 
+# Check prerequisites on macOS
+echo "Checking prerequisites..."
+MISSING_PREREQS=()
+
+if ! command -v cmake &> /dev/null; then
+    MISSING_PREREQS+=("cmake")
+fi
+
+# Check for Eigen3
+EIGEN_FOUND=false
+if [ -d "/opt/homebrew/include/eigen3" ] || [ -d "/usr/local/include/eigen3" ] || [ -d "/usr/include/eigen3" ]; then
+    EIGEN_FOUND=true
+elif pkg-config --exists eigen3 2>/dev/null; then
+    EIGEN_FOUND=true
+fi
+if [ "$EIGEN_FOUND" = false ]; then
+    MISSING_PREREQS+=("eigen")
+fi
+
+# Check for libtiff
+TIFF_FOUND=false
+if [ -f "/opt/homebrew/include/tiff.h" ] || [ -f "/usr/local/include/tiff.h" ] || [ -f "/usr/include/tiff.h" ]; then
+    TIFF_FOUND=true
+elif pkg-config --exists libtiff-4 2>/dev/null; then
+    TIFF_FOUND=true
+fi
+if [ "$TIFF_FOUND" = false ]; then
+    MISSING_PREREQS+=("libtiff")
+fi
+
+if [ ${#MISSING_PREREQS[@]} -ne 0 ]; then
+    echo "Warning: Missing the following prerequisites: ${MISSING_PREREQS[*]}"
+    if command -v brew &> /dev/null; then
+        if [ -t 0 ]; then
+            echo "Homebrew detected. Would you like to install the missing packages automatically? [Y/n]"
+            read -r response
+        else
+            response="y"
+        fi
+        if [[ "$response" =~ ^([yY][eE][sS]|[yY]|"")$ ]]; then
+            echo "Installing missing prerequisites via Homebrew..."
+            brew install "${MISSING_PREREQS[@]}"
+        else
+            echo "Skipping installation. Compilation might fail if packages are missing."
+        fi
+    else
+        echo "Homebrew is not installed. Please install the missing packages manually:"
+        echo "   brew install ${MISSING_PREREQS[*]}"
+        echo "Then re-run this script."
+        exit 1
+    fi
+else
+    echo "All prerequisites found!"
+fi
+
 # 1. Compile C++ Code
 echo "Step 1: Compiling C++ GUI application..."
 mkdir -p "$REPO_DIR/build"

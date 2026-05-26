@@ -218,6 +218,8 @@ struct CsvRecord {
     double ont_sc = std::numeric_limits<double>::quiet_NaN();
     int roi_size = 0;
     double denoise_rms = 0.0;
+    double raw_sd_base = 0.0;
+    int stall_flag = 0;
     std::string ves_type = "U";
     std::string qc_flag = "FAIL";
     std::string fit_source = "auto";

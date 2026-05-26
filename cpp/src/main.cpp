@@ -14,6 +14,7 @@ int main(int argc, char** argv) {
     std::string folder_path = "";
     double drift_window = 15.0;
     bool verbose = false;
+    bool preflight_mode = false;
     std::vector<std::string> pos_args;
     
     double min_amp = 1e-6;
@@ -107,12 +108,33 @@ int main(int argc, char** argv) {
             }
         } else if (arg == "--verbose" || arg == "--debug") {
             verbose = true;
+        } else if (arg == "--preflight" || arg == "--validate") {
+            preflight_mode = true;
         } else {
             pos_args.push_back(arg);
         }
     }
     
     BolusFitter fitter(min_amp, max_amp, min_t2p, max_t2p, min_fwhm, max_fwhm, verbose);
+    
+    if (preflight_mode) {
+        if (folder_path.empty()) {
+            if (!pos_args.empty()) {
+                folder_path = pos_args[0];
+            } else {
+                folder_path = ".";
+            }
+        }
+        if (!std::filesystem::exists(folder_path)) {
+            std::cerr << "Folder does not exist: " << folder_path << std::endl;
+            return 1;
+        }
+        BatchProcessor batch_processor(folder_path, drift_window, enable_plots, fitter, qc_settings);
+        bool has_warns = false;
+        bool has_errs = false;
+        batch_processor.run_preflight_scan(has_warns, has_errs);
+        return has_errs ? 1 : 0;
+    }
     
     if (folder_mode) {
         if (folder_path.empty()) {
