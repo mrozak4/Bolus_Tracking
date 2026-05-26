@@ -1174,11 +1174,13 @@ static json handle_render_plot(const json& params) {
         svg << "\" fill=\"none\" stroke=\"" << denoise_col << "\" stroke-width=\"1.5\"/>\n";
     }
 
-    // Gamma Fit curve — use k*t + gamma(t - click_start) to match pipeline _fit.svg
+    // Gamma Fit curve — use k*t + gamma(t - click_onset) 
+    // The fit was done on t_fit = tl_us[i] - tl_us[start_idx], so f_t2p is
+    // relative to click_onset (the fit window start), not click_start (always 0).
     bool has_fit = false;
     if (rec_ptr) {
         double f_amp = rec_ptr->f_amp, f_t2p = rec_ptr->f_t2p, f_fwhm = rec_ptr->f_fwhm, f_m = rec_ptr->f_m;
-        double fit_origin = rec_ptr->click_start;  // gamma model time origin
+        double fit_origin = rec_ptr->click_onset;  // gamma model time origin = fit window start
 
         if (!std::isnan(f_amp) && !std::isnan(f_t2p) && !std::isnan(f_fwhm) && f_t2p > 0 && f_fwhm > 0) {
             has_fit = true;

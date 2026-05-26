@@ -189,13 +189,13 @@ void BolusVisualizer::save_svg_plot(int roi_id, const std::string& tiff_path,
         f << "\" fill=\"none\" stroke=\"#ff7f0e\" stroke-width=\"1.5\"/>\n";
     }
     
-    // Fit Curve Plot
+    // Fit Curve Plot — use click_onset as origin (fitting shifts t by tl_us[start_idx])
     if (fit_success && !tl_us.empty()) {
         f << "  <path d=\"";
         bool first = true;
         for (size_t i = 0; i < tl_us.size(); ++i) {
             double t = tl_us[i];
-            double dt = t - rec.click_start;
+            double dt = t - rec.click_onset;
             double val = k * t + evaluate_gamma_model(dt, rec.f_amp, rec.f_t2p, rec.f_fwhm, rec.f_m);
             double px = get_x_px(t);
             double py = get_y_px(val);
@@ -211,7 +211,7 @@ void BolusVisualizer::save_svg_plot(int roi_id, const std::string& tiff_path,
     
     // Annotation Lines
     if (fit_success) {
-        double peak_t = rec.click_start + rec.f_t2p;
+        double peak_t = rec.click_onset + rec.f_t2p;
         double peak_val = k * peak_t + rec.f_m + rec.f_amp;
         double px_peak = get_x_px(peak_t);
         double py_peak = get_y_px(peak_val);
@@ -222,7 +222,7 @@ void BolusVisualizer::save_svg_plot(int roi_id, const std::string& tiff_path,
         // Vertical line representing peak height
         f << "  <line x1=\"" << px_peak << "\" y1=\"" << py_base << "\" x2=\"" << px_peak << "\" y2=\"" << py_peak << "\" stroke=\"#7f7f7f\" stroke-width=\"1.2\" stroke-dasharray=\"3,3\"/>\n";
         
-        double onset_t = rec.click_start + rec.ont;
+        double onset_t = rec.click_onset + rec.ont;
         double px_onset = get_x_px(onset_t);
         
         // Onset annotation
