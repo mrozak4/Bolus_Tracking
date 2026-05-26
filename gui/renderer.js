@@ -562,6 +562,9 @@ async function loadLocale(code) {
     const data = await window.bolusAPI.loadLocale(code);
     if (data) {
         state.tr = data;
+        state.localeCode = code;
+        // Toggle pIqaD font class for Klingon
+        document.body.classList.toggle('locale-kl', code === 'kl');
         applyLocale();
     }
 }

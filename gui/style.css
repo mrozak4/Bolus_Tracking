@@ -7,6 +7,26 @@
 /* ─── Google Fonts: Outfit ────────────────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
 
+/* ─── pIqaD Font (Klingon script) ─────────────────────────────────────────── */
+@font-face {
+    font-family: 'pIqaD';
+    src: url('fonts/pIqaD_qolqoS.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+/* Applied to body when Klingon locale is active */
+body.locale-kl {
+    font-family: 'pIqaD', var(--font-sans);
+}
+body.locale-kl .font-mono,
+body.locale-kl [class*="mono"],
+body.locale-kl .params-table td,
+body.locale-kl .readout-val,
+body.locale-kl .slider-value,
+body.locale-kl .marker-label {
+    font-family: 'pIqaD', var(--font-mono);
+}
+
 /* ─── CSS Custom Properties — pixel-matched to ImGui MCM theme ──────────── */
 :root {
     /* === Background layers (warm charcoal / dark wood tones) ===
