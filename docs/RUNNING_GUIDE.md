@@ -184,6 +184,9 @@ If a batch run yields `WARN` or `FAIL` flags, you can easily inspect and correct
 
 ## 3. Running the Interactive GUI: Bolus Tracking Studio (Electron)
 
+![Bolus Tracking Studio Screenshot](app_screenshot.png)
+
+
 > [!TIP]
 > **GUI Application Recommendation**: The Electron-based Bolus Tracking Studio is the **primary recommended tool** for fit triage and quality control. It uses Chromium for cross-platform rendering, C++ SVG plots for performance, and the signature MCM dark theme. Plots are rendered entirely in C++ — no JavaScript charting libraries are used.
 
