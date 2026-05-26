@@ -590,23 +590,35 @@ static std::string find_tiff_in_folder(const std::string& folder) {
 
 /// Find ROI file (_rois.txt or _MaskObj.mat) in a folder
 static std::string find_roi_in_folder(const std::string& folder) {
-    // Prefer _rois.txt files
-    for (const auto& entry : fs::directory_iterator(folder)) {
+    // Prefer _rois.txt files (search recursively into subdirectories)
+    std::string first_rois_txt;
+    for (const auto& entry : fs::recursive_directory_iterator(folder)) {
         if (!entry.is_regular_file()) continue;
         std::string lower = to_lower(entry.path().filename().string());
-        if (lower.find("_rois.txt") != std::string::npos) return entry.path().string();
+        if (lower.find("_rois.txt") != std::string::npos) {
+            // Prefer bolus1
+            if (lower.find("bolus1") != std::string::npos) return entry.path().string();
+            if (first_rois_txt.empty()) first_rois_txt = entry.path().string();
+        }
     }
-    // Fallback: _MaskObj.mat
-    for (const auto& entry : fs::directory_iterator(folder)) {
+    if (!first_rois_txt.empty()) return first_rois_txt;
+
+    // Fallback: _MaskObj.mat (recursive)
+    std::string first_mat;
+    for (const auto& entry : fs::recursive_directory_iterator(folder)) {
         if (!entry.is_regular_file()) continue;
         std::string lower = to_lower(entry.path().filename().string());
         if (lower.find("maskobj") != std::string::npos && lower.find(".mat") != std::string::npos) {
-            // Prefer the non-adjusted version
-            if (lower.find("adjusted") == std::string::npos) return entry.path().string();
+            if (lower.find("adjusted") == std::string::npos) {
+                if (lower.find("bolus1") != std::string::npos) return entry.path().string();
+                if (first_mat.empty()) first_mat = entry.path().string();
+            }
         }
     }
-    // Fallback: any .mat
-    for (const auto& entry : fs::directory_iterator(folder)) {
+    if (!first_mat.empty()) return first_mat;
+
+    // Last fallback: any .mat (recursive)
+    for (const auto& entry : fs::recursive_directory_iterator(folder)) {
         if (!entry.is_regular_file()) continue;
         std::string ext = to_lower(entry.path().extension().string());
         if (ext == ".mat") return entry.path().string();
