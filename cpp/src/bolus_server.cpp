@@ -1022,16 +1022,12 @@ static json handle_render_plot(const json& params) {
         svg << "\" fill=\"none\" stroke=\"" << denoise_col << "\" stroke-width=\"1.5\"/>\n";
     }
 
-    // Gamma Fit curve — matching pipeline: k*t + evaluate_gamma_model(dt, ...)
+    // Gamma Fit curve — data is detrended, so no drift k*t addition needed
     bool has_fit = false;
     if (roi_idx < (int)g_records.size()) {
         const auto& rec = g_records[roi_idx];
         double f_amp = rec.f_amp, f_t2p = rec.f_t2p, f_fwhm = rec.f_fwhm, f_m = rec.f_m;
-        double fit_origin = rec.click_start;  // pipeline uses click_start, NOT click_onset
-        double k = c.drift_slope;
-
-        // Use front-end markers if provided, otherwise CSV
-        if (m_onset >= 0) fit_origin = m_onset;
+        double fit_origin = rec.click_start;  // gamma model time origin
 
         if (!std::isnan(f_amp) && !std::isnan(f_t2p) && !std::isnan(f_fwhm) && f_t2p > 0 && f_fwhm > 0) {
             has_fit = true;
@@ -1041,7 +1037,7 @@ static json handle_render_plot(const json& params) {
                 double t = c.t_us[i];
                 if (t < min_x || t > max_x) continue;
                 double dt = t - fit_origin;
-                double val = k * t + evaluate_gamma_model(dt, f_amp, f_t2p, f_fwhm, f_m);
+                double val = evaluate_gamma_model(dt, f_amp, f_t2p, f_fwhm, f_m);
                 double px = px_x(t), py = px_y(val);
                 svg << (first ? "M " : " L ") << px << " " << py;
                 first = false;

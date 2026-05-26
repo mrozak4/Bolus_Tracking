@@ -1289,6 +1289,16 @@ function bindEvents() {
         document.getElementById('denoise-value').textContent = Number(e.target.value).toFixed(1);
     });
 
+    // Crop range sliders
+    document.getElementById('crop-min').addEventListener('input', (e) => {
+        state.cropMin = Number(e.target.value);
+        if (state.selectedRoiIdx >= 0) renderPlot(state.selectedRoiIdx);
+    });
+    document.getElementById('crop-max').addEventListener('input', (e) => {
+        state.cropMax = Number(e.target.value);
+        if (state.selectedRoiIdx >= 0) renderPlot(state.selectedRoiIdx);
+    });
+
     // Preflight cancel
     document.getElementById('btn-preflight-cancel').addEventListener('click', showNoDataScreen);
 

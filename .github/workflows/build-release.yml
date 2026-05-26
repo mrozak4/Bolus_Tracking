@@ -26,13 +26,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Set binary permissions
+        run: chmod +x build/bolus_server build/bolus_tracking_cpp
       - name: Install and Build Electron
         working-directory: gui
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm ci --no-audit --no-fund
-          npx electron-builder --mac --publish never
+          npx electron-builder --mac --publish never --config.mac.identity=null
       - name: Upload Release Assets
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
@@ -58,6 +60,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Set binary permissions
+        run: chmod +x build/bolus_server build/bolus_tracking_cpp
       - name: Install and Build Electron
         working-directory: gui
         env:
