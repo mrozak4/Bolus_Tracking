@@ -806,6 +806,13 @@ async function directLoad(paths) {
     if (csvResp.ok) {
         state.csvPath = csvResp.data.path || '';
         state.roiRecords = csvResp.data.records || [];
+        // Build lookup map: roi_id -> record
+        state.roiRecordMap = {};
+        for (const rec of state.roiRecords) {
+            if (rec.roi_id !== undefined) {
+                state.roiRecordMap[rec.roi_id] = rec;
+            }
+        }
     }
 
     // Parse framerate
@@ -851,7 +858,7 @@ function buildRoiList() {
 
     for (const idx of state.filteredIndices) {
         const roiId = state.roiIds[idx];
-        const rec = state.roiRecords[idx] || {};
+        const rec = (state.roiRecordMap || {})[roiId] || {};
         const qcFlag = rec.qc_flag || '—';
 
         const item = document.createElement('div');
@@ -926,6 +933,14 @@ async function selectRoi(idx) {
     if (triageIdx >= 0) state.triagePos = triageIdx;
     updateTriageInfo();
 
+    // Reset marker state for new ROI (so server values load fresh)
+    state.onsetMarker = 0;
+    state.peakMarker = 0;
+    state.endMarker = 0;
+    state.baselineMarker = 0;
+    state.cropMin = 0;
+    state.cropMax = 100;
+
     // Get trace data (lightweight — just for params, C++ renders the plot)
     const traceResp = await serverCmd('get_trace', { roi_index: idx });
     if (!traceResp.ok) {
@@ -935,7 +950,8 @@ async function selectRoi(idx) {
     const trace = traceResp.data;
 
     // Update status header
-    const rec = state.roiRecords[idx] || {};
+    const roiId = state.roiIds[idx];
+    const rec = (state.roiRecordMap || {})[roiId] || {};
     const qc = rec.qc_flag || '—';
     const src = rec.fit_source || '—';
     document.getElementById('roi-status-text').textContent =
@@ -995,11 +1011,11 @@ async function renderPlot(idx) {
 
             state.plotCoord = coord;  // Store for drag calculations
 
-            // Store marker values in state
-            if (markers.onset > 0) state.onsetMarker = markers.onset;
-            if (markers.peak > 0) state.peakMarker = markers.peak;
-            if (markers.end > 0) state.endMarker = markers.end;
-            if (markers.baseline) state.baselineMarker = markers.baseline;
+            // Store marker values from server ONLY if not already set by user drag
+            if (!state.onsetMarker && markers.onset > 0) state.onsetMarker = markers.onset;
+            if (!state.peakMarker && markers.peak > 0) state.peakMarker = markers.peak;
+            if (!state.endMarker && markers.end > 0) state.endMarker = markers.end;
+            if (!state.baselineMarker && markers.baseline) state.baselineMarker = markers.baseline;
 
             // Helper: convert time value to pixel X position (% of container)
             const tToPx = (t) => {

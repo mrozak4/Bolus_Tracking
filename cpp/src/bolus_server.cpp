@@ -25,6 +25,8 @@
 #include <filesystem>
 #include <limits>
 #include <iomanip>
+#include <unordered_map>
+#include <map>
 
 #include <nlohmann/json.hpp>
 #include <tiffio.h>
@@ -415,9 +417,21 @@ static CsvRecord json_to_record(const json& j) {
 static TiffData g_tiff;
 static std::vector<ROI> g_rois;
 static std::vector<CsvRecord> g_records;
+static std::unordered_map<int, size_t> g_record_map;  // roi_id -> index in g_records
 static double g_fr = 1.0;
 static int g_upsample_factor = 20;
 static double g_drift_win = 15.0;
+
+/// Look up CSV record by ROI ID (not array index). Returns nullptr if not found.
+static const CsvRecord* find_record_for_roi(int roi_idx) {
+    if (roi_idx < 0 || roi_idx >= (int)g_rois.size()) return nullptr;
+    int roi_id = g_rois[roi_idx].id;
+    auto it = g_record_map.find(roi_id);
+    if (it != g_record_map.end() && it->second < g_records.size()) {
+        return &g_records[it->second];
+    }
+    return nullptr;
+}
 static BolusFitter g_fitter;
 static QCSettings g_qc_settings;
 
@@ -924,6 +938,11 @@ static json handle_load_csv(const json& params) {
     }
 
     g_records = read_results_csv(path);
+    // Build lookup map: roi_id -> index
+    g_record_map.clear();
+    for (size_t i = 0; i < g_records.size(); ++i) {
+        g_record_map[g_records[i].roi_id] = i;
+    }
     json records_arr = json::array();
     for (const auto& r : g_records) {
         records_arr.push_back(record_to_json(r));
@@ -1112,8 +1131,9 @@ static json handle_render_plot(const json& params) {
 
     // Title with QC badge
     std::string qc_str = "";
-    if (roi_idx < (int)g_records.size()) {
-        qc_str = " — " + g_records[roi_idx].qc_flag;
+    const CsvRecord* rec_ptr = find_record_for_roi(roi_idx);
+    if (rec_ptr) {
+        qc_str = " — " + rec_ptr->qc_flag;
     }
     svg << "  <text x=\"" << pad_l << "\" y=\"" << pad_t - 18
         << "\" font-family=\"sans-serif\" font-size=\"14\" font-weight=\"bold\" fill=\""
@@ -1153,10 +1173,9 @@ static json handle_render_plot(const json& params) {
 
     // Gamma Fit curve — data is detrended, so no drift k*t addition needed
     bool has_fit = false;
-    if (roi_idx < (int)g_records.size()) {
-        const auto& rec = g_records[roi_idx];
-        double f_amp = rec.f_amp, f_t2p = rec.f_t2p, f_fwhm = rec.f_fwhm, f_m = rec.f_m;
-        double fit_origin = rec.click_start;  // gamma model time origin
+    if (rec_ptr) {
+        double f_amp = rec_ptr->f_amp, f_t2p = rec_ptr->f_t2p, f_fwhm = rec_ptr->f_fwhm, f_m = rec_ptr->f_m;
+        double fit_origin = rec_ptr->click_start;  // gamma model time origin
 
         if (!std::isnan(f_amp) && !std::isnan(f_t2p) && !std::isnan(f_fwhm) && f_t2p > 0 && f_fwhm > 0) {
             has_fit = true;
@@ -1211,13 +1230,12 @@ static json handle_render_plot(const json& params) {
 
     // Return marker positions (from records or front-end overrides)
     json markers = json::object();
-    if (roi_idx < (int)g_records.size()) {
-        const auto& rec = g_records[roi_idx];
-        markers["onset"] = m_onset >= 0 ? m_onset : rec.click_onset;
-        markers["peak"]  = m_peak >= 0 ? m_peak : rec.click_peak;
-        markers["end"]   = m_end >= 0 ? m_end : rec.click_end;
-        markers["baseline"] = rec.f_m;
-        markers["click_start"] = rec.click_start;
+    if (rec_ptr) {
+        markers["onset"] = m_onset >= 0 ? m_onset : rec_ptr->click_onset;
+        markers["peak"]  = m_peak >= 0 ? m_peak : rec_ptr->click_peak;
+        markers["end"]   = m_end >= 0 ? m_end : rec_ptr->click_end;
+        markers["baseline"] = rec_ptr->f_m;
+        markers["click_start"] = rec_ptr->click_start;
     }
 
     return json{{"ok", true}, {"data", {{"svg", svg.str()}, {"coord", coord_map}, {"markers", markers}}}};
