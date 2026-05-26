@@ -1,13 +1,20 @@
 cmake_minimum_required(VERSION 3.14)
 project(BolusTrackingCpp CXX)
 
-set(CMAKE_OSX_ARCHITECTURES "x86_64")
+# Default to native architecture on macOS if not specified (CI passes its own)
+if(APPLE AND NOT CMAKE_OSX_ARCHITECTURES)
+    set(CMAKE_OSX_ARCHITECTURES "${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(APPLE)
     execute_process(COMMAND xcrun --show-sdk-path OUTPUT_VARIABLE MACOS_SDK_PATH OUTPUT_STRIP_TRAILING_WHITESPACE)
-    add_compile_options("-nostdinc++" "-isystem" "${MACOS_SDK_PATH}/usr/include/c++/v1")
+    if(MACOS_SDK_PATH)
+        add_compile_options("-isystem" "${MACOS_SDK_PATH}/usr/include/c++/v1")
+    endif()
 endif()
+
 
 
 # Default to Release build type if not specified

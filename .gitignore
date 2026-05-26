@@ -5,7 +5,7 @@ __pycache__/
 .venv/
 build/
 *.app/
-*.icns
+
 scratch/
 *.bak
 imgui.ini
