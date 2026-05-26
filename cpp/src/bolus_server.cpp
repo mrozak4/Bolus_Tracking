@@ -882,6 +882,11 @@ static json handle_render_plot(const json& params) {
     float crop_min_pct = params.value("crop_min", 0.0f);
     float crop_max_pct = params.value("crop_max", 100.0f);
 
+    // Accept optional marker overrides from front-end (for dragging)
+    double m_onset = params.value("onset", -1.0);
+    double m_peak  = params.value("peak", -1.0);
+    double m_end   = params.value("end_t", -1.0);
+
     // Determine data range
     double data_min_x = c.t_raw.empty() ? 0.0 : c.t_raw.front();
     double data_max_x = c.t_raw.empty() ? 10.0 : c.t_raw.back();
@@ -891,12 +896,15 @@ static json handle_render_plot(const json& params) {
     double max_x = data_min_x + data_range * (crop_max_pct / 100.0);
     if (max_x <= min_x) max_x = min_x + 1.0;
 
+    // Use detrended raw data (matches pipeline — raw and denoised share baseline)
+    const auto& y_plot_raw = c.y_raw_detrended;
+
     // Y range from visible data
     double min_y = 1e9, max_y = -1e9;
     for (size_t i = 0; i < c.t_raw.size(); ++i) {
         if (c.t_raw[i] >= min_x && c.t_raw[i] <= max_x) {
-            if (c.y_raw[i] < min_y) min_y = c.y_raw[i];
-            if (c.y_raw[i] > max_y) max_y = c.y_raw[i];
+            if (y_plot_raw[i] < min_y) min_y = y_plot_raw[i];
+            if (y_plot_raw[i] > max_y) max_y = y_plot_raw[i];
         }
     }
     for (size_t i = 0; i < c.t_us.size(); ++i) {
@@ -915,15 +923,15 @@ static json handle_render_plot(const json& params) {
     auto px_x = [&](double x) { return pad_l + (x - min_x) / (max_x - min_x) * (w - pad_l - pad_r); };
     auto px_y = [&](double y) { return h - pad_b - (y - min_y) / (max_y - min_y) * (h - pad_t - pad_b); };
 
-    // MCM Dark theme colors (matches ImGui bolus_gui.cpp palette)
-    const char* bg_col     = "#383833";   // ChildBg: 0.22, 0.22, 0.20
-    const char* grid_col   = "#42403b";   // FrameBg: 0.26, 0.25, 0.23
-    const char* axis_col   = "#99948c";   // TextDisabled warm
-    const char* text_col   = "#b5b0a5";   // Text secondary
-    const char* raw_col    = "#5e8a8a";   // REVIEW teal — matches raw trace
-    const char* denoise_col = "#ebb84d";  // WARN golden — denoised signal
-    const char* fit_col    = "#8c9e73";   // PASS sage green — gamma fit
-    const char* title_col  = "#E08C40";   // Burnt orange accent
+    // MCM Dark theme colors
+    const char* bg_col     = "#383833";
+    const char* grid_col   = "#42403b";
+    const char* axis_col   = "#99948c";
+    const char* text_col   = "#b5b0a5";
+    const char* raw_col    = "#5e8a8a";   // teal — raw trace
+    const char* denoise_col = "#ebb84d";  // golden — denoised
+    const char* fit_col    = "#2ca02c";   // green — gamma fit (matches pipeline)
+    const char* title_col  = "#E08C40";
 
     std::ostringstream svg;
     svg << "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"" << w << "\" height=\"" << h
@@ -971,20 +979,24 @@ static json handle_render_plot(const json& params) {
     svg << "  <text x=\"14\" y=\"" << pad_t + (h - pad_t - pad_b) / 2.0
         << "\" font-family=\"sans-serif\" font-size=\"12\" text-anchor=\"middle\" fill=\""
         << text_col << "\" transform=\"rotate(-90 14 " << pad_t + (h - pad_t - pad_b) / 2.0
-        << ")\">Signal (SU)</text>\n";
+        << ")\">Signal (MFI)</text>\n";
 
-    // Title
+    // Title with QC badge
+    std::string qc_str = "";
+    if (roi_idx < (int)g_records.size()) {
+        qc_str = " — " + g_records[roi_idx].qc_flag;
+    }
     svg << "  <text x=\"" << pad_l << "\" y=\"" << pad_t - 18
         << "\" font-family=\"sans-serif\" font-size=\"14\" font-weight=\"bold\" fill=\""
-        << title_col << "\">ROI " << g_rois[roi_idx].id << "</text>\n";
+        << title_col << "\">ROI " << g_rois[roi_idx].id << qc_str << "</text>\n";
 
-    // Raw data (points + line)
+    // Raw data (detrended — matches pipeline)
     if (!c.t_raw.empty()) {
         svg << "  <path d=\"";
         bool first = true;
         for (size_t i = 0; i < c.t_raw.size(); ++i) {
             if (c.t_raw[i] < min_x || c.t_raw[i] > max_x) continue;
-            double px = px_x(c.t_raw[i]), py = px_y(c.y_raw[i]);
+            double px = px_x(c.t_raw[i]), py = px_y(y_plot_raw[i]);
             svg << (first ? "M " : " L ") << px << " " << py;
             first = false;
         }
@@ -992,8 +1004,8 @@ static json handle_render_plot(const json& params) {
 
         for (size_t i = 0; i < c.t_raw.size(); ++i) {
             if (c.t_raw[i] < min_x || c.t_raw[i] > max_x) continue;
-            svg << "  <circle cx=\"" << px_x(c.t_raw[i]) << "\" cy=\"" << px_y(c.y_raw[i])
-                << "\" r=\"2.5\" fill=\"" << raw_col << "\" fill-opacity=\"0.7\"/>\n";
+            svg << "  <circle cx=\"" << px_x(c.t_raw[i]) << "\" cy=\"" << px_y(y_plot_raw[i])
+                << "\" r=\"2.0\" fill=\"" << raw_col << "\" fill-opacity=\"0.6\"/>\n";
         }
     }
 
@@ -1007,115 +1019,84 @@ static json handle_render_plot(const json& params) {
             svg << (first ? "M " : " L ") << px << " " << py;
             first = false;
         }
-        svg << "\" fill=\"none\" stroke=\"" << denoise_col << "\" stroke-width=\"1.8\"/>\n";
+        svg << "\" fill=\"none\" stroke=\"" << denoise_col << "\" stroke-width=\"1.5\"/>\n";
     }
 
-    // Upsampled spline (denoised interpolation)
-    if (!c.t_us.empty()) {
-        svg << "  <path d=\"";
-        bool first = true;
-        for (size_t i = 0; i < c.t_us.size(); ++i) {
-            if (c.t_us[i] < min_x || c.t_us[i] > max_x) continue;
-            double px = px_x(c.t_us[i]), py = px_y(c.y_us[i]);
-            svg << (first ? "M " : " L ") << px << " " << py;
-            first = false;
-        }
-        svg << "\" fill=\"none\" stroke=\"" << denoise_col << "\" stroke-width=\"1.8\" stroke-opacity=\"0.6\"/>\n";
-    }
-
-    // Actual Gamma Fit curve using fitted parameters from CSV records
-    const char* gamma_col = "#d95f5f";  // Warm red for gamma fit
+    // Gamma Fit curve — matching pipeline: k*t + evaluate_gamma_model(dt, ...)
     bool has_fit = false;
-    double onset_t = 0, peak_t = 0, end_t = 0;
     if (roi_idx < (int)g_records.size()) {
         const auto& rec = g_records[roi_idx];
         double f_amp = rec.f_amp, f_t2p = rec.f_t2p, f_fwhm = rec.f_fwhm, f_m = rec.f_m;
-        onset_t = rec.click_onset;
-        peak_t = rec.click_peak;
-        end_t = rec.click_end;
+        double fit_origin = rec.click_start;  // pipeline uses click_start, NOT click_onset
+        double k = c.drift_slope;
 
-        // Check if fitted params are valid (not NaN)
+        // Use front-end markers if provided, otherwise CSV
+        if (m_onset >= 0) fit_origin = m_onset;
+
         if (!std::isnan(f_amp) && !std::isnan(f_t2p) && !std::isnan(f_fwhm) && f_t2p > 0 && f_fwhm > 0) {
             has_fit = true;
             svg << "  <path d=\"";
             bool first = true;
-            // Render gamma curve from onset to end
-            double fit_start = onset_t;
-            double fit_end = end_t > onset_t ? end_t : max_x;
-            int n_pts = 300;
-            for (int i = 0; i <= n_pts; ++i) {
-                double t = fit_start + (fit_end - fit_start) * i / n_pts;
+            for (size_t i = 0; i < c.t_us.size(); ++i) {
+                double t = c.t_us[i];
                 if (t < min_x || t > max_x) continue;
-                double t_shifted = t - onset_t;  // gamma model expects t relative to onset
-                double y = evaluate_gamma_model(t_shifted, f_amp, f_t2p, f_fwhm, f_m);
-                double px = px_x(t), py = px_y(y);
+                double dt = t - fit_origin;
+                double val = k * t + evaluate_gamma_model(dt, f_amp, f_t2p, f_fwhm, f_m);
+                double px = px_x(t), py = px_y(val);
                 svg << (first ? "M " : " L ") << px << " " << py;
                 first = false;
             }
-            svg << "\" fill=\"none\" stroke=\"" << gamma_col << "\" stroke-width=\"2.5\" stroke-dasharray=\"6,3\"/>\n";
+            svg << "\" fill=\"none\" stroke=\"" << fit_col << "\" stroke-width=\"2.5\"/>\n";
         }
-    }
-
-    // Marker lines (onset, peak, end)
-    const char* marker_col_onset = "#4ec9b0";  // Teal for onset
-    const char* marker_col_peak  = "#E08C40";  // Burnt orange for peak
-    const char* marker_col_end   = "#d95f5f";  // Red for end
-
-    auto draw_marker = [&](double t_val, const char* color, const char* label) {
-        if (t_val > 0 && t_val >= min_x && t_val <= max_x) {
-            double px = px_x(t_val);
-            svg << "  <line x1=\"" << px << "\" y1=\"" << pad_t << "\" x2=\"" << px << "\" y2=\"" << h - pad_b
-                << "\" stroke=\"" << color << "\" stroke-width=\"1.5\" stroke-dasharray=\"4,3\" stroke-opacity=\"0.8\"/>\n";
-            svg << "  <text x=\"" << px + 4 << "\" y=\"" << pad_t + 14
-                << "\" font-family=\"sans-serif\" font-size=\"10\" fill=\"" << color << "\">" << label << "</text>\n";
-        }
-    };
-
-    if (roi_idx < (int)g_records.size()) {
-        draw_marker(g_records[roi_idx].click_onset, marker_col_onset, "Onset");
-        draw_marker(g_records[roi_idx].click_peak,  marker_col_peak,  "Peak");
-        draw_marker(g_records[roi_idx].click_end,   marker_col_end,   "End");
     }
 
     // Legend
-    int legend_items = has_fit ? 4 : 3;
+    int legend_items = has_fit ? 3 : 2;
     int legend_h = 18 * legend_items + 12;
-    int lx = w - pad_r - 160, ly = pad_t + 10;
-    svg << "  <rect x=\"" << lx << "\" y=\"" << ly << "\" width=\"150\" height=\"" << legend_h << "\" rx=\"4\" "
+    int lx = w - pad_r - 150, ly = pad_t + 10;
+    svg << "  <rect x=\"" << lx << "\" y=\"" << ly << "\" width=\"140\" height=\"" << legend_h << "\" rx=\"4\" "
         << "fill=\"" << bg_col << "\" fill-opacity=\"0.9\" stroke=\"" << grid_col << "\"/>\n";
 
     int li = 0;
-    // Raw
     svg << "  <line x1=\"" << lx+8 << "\" y1=\"" << ly+15+li*18 << "\" x2=\"" << lx+28 << "\" y2=\"" << ly+15+li*18
         << "\" stroke=\"" << raw_col << "\" stroke-width=\"2\"/>\n";
     svg << "  <text x=\"" << lx+34 << "\" y=\"" << ly+19+li*18
         << "\" font-size=\"11\" fill=\"" << text_col << "\">Raw (Detrended)</text>\n";
     li++;
-    // Denoised
     svg << "  <line x1=\"" << lx+8 << "\" y1=\"" << ly+15+li*18 << "\" x2=\"" << lx+28 << "\" y2=\"" << ly+15+li*18
-        << "\" stroke=\"" << denoise_col << "\" stroke-width=\"2\"/>\n";
+        << "\" stroke=\"" << denoise_col << "\" stroke-width=\"1.5\"/>\n";
     svg << "  <text x=\"" << lx+34 << "\" y=\"" << ly+19+li*18
         << "\" font-size=\"11\" fill=\"" << text_col << "\">Denoised</text>\n";
     li++;
-    // Upsampled spline
-    svg << "  <line x1=\"" << lx+8 << "\" y1=\"" << ly+15+li*18 << "\" x2=\"" << lx+28 << "\" y2=\"" << ly+15+li*18
-        << "\" stroke=\"" << denoise_col << "\" stroke-width=\"1.8\" stroke-opacity=\"0.6\"/>\n";
-    svg << "  <text x=\"" << lx+34 << "\" y=\"" << ly+19+li*18
-        << "\" font-size=\"11\" fill=\"" << text_col << "\">Spline (Upsampled)</text>\n";
-    li++;
-    // Gamma fit (only if we have fitted params)
     if (has_fit) {
         svg << "  <line x1=\"" << lx+8 << "\" y1=\"" << ly+15+li*18 << "\" x2=\"" << lx+28 << "\" y2=\"" << ly+15+li*18
-            << "\" stroke=\"" << gamma_col << "\" stroke-width=\"2.5\" stroke-dasharray=\"6,3\"/>\n";
+            << "\" stroke=\"" << fit_col << "\" stroke-width=\"2.5\"/>\n";
         svg << "  <text x=\"" << lx+34 << "\" y=\"" << ly+19+li*18
             << "\" font-size=\"11\" fill=\"" << text_col << "\">Gamma Fit</text>\n";
     }
 
     svg << "</svg>\n";
 
-    return json{{"ok", true}, {"data", {{"svg", svg.str()}}}};
-}
+    // Return coordinate mapping for JS-side draggable markers
+    json coord_map = {
+        {"pad_l", pad_l}, {"pad_r", pad_r}, {"pad_t", pad_t}, {"pad_b", pad_b},
+        {"min_x", min_x}, {"max_x", max_x}, {"min_y", min_y}, {"max_y", max_y},
+        {"svg_w", w}, {"svg_h", h}
+    };
 
+    // Return marker positions (from records or front-end overrides)
+    json markers = json::object();
+    if (roi_idx < (int)g_records.size()) {
+        const auto& rec = g_records[roi_idx];
+        markers["onset"] = m_onset >= 0 ? m_onset : rec.click_onset;
+        markers["peak"]  = m_peak >= 0 ? m_peak : rec.click_peak;
+        markers["end"]   = m_end >= 0 ? m_end : rec.click_end;
+        markers["baseline"] = rec.f_m;
+        markers["click_start"] = rec.click_start;
+    }
+
+    return json{{"ok", true}, {"data", {{"svg", svg.str()}, {"coord", coord_map}, {"markers", markers}}}};
+}
 
 static json handle_auto_estimate(const json& params) {
     int roi_idx = params.at("roi_index").get<int>();

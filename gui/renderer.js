@@ -29,6 +29,7 @@ const state = {
     peakMarker: 0,
     endMarker: 0,
     baselineMarker: 0,
+    plotCoord: null,
 
     // Filter / triage
     filterMode: 'all',
@@ -947,25 +948,166 @@ async function selectRoi(idx) {
 }
 
 async function renderPlot(idx) {
+    const container = document.getElementById('plot-container');
+    const containerW = container.clientWidth || 900;
+    const containerH = container.clientHeight || 400;
+
     const resp = await serverCmd('render_plot', {
         roi_index: idx,
         crop_min: state.cropMin,
         crop_max: state.cropMax,
-        width: 900,
-        height: 400,
-        theme: 'dark',
+        width: containerW,
+        height: containerH,
+        onset: state.onsetMarker > 0 ? state.onsetMarker : undefined,
+        peak: state.peakMarker > 0 ? state.peakMarker : undefined,
+        end_t: state.endMarker > 0 ? state.endMarker : undefined,
     });
 
     if (resp.ok && resp.data && resp.data.svg) {
         document.getElementById('svg-plot').innerHTML = resp.data.svg;
+
+        // Position draggable markers using coordinate mapping
+        if (resp.data.coord && resp.data.markers) {
+            const coord = resp.data.coord;
+            const markers = resp.data.markers;
+
+            state.plotCoord = coord;  // Store for drag calculations
+
+            // Store marker values in state
+            if (markers.onset > 0) state.onsetMarker = markers.onset;
+            if (markers.peak > 0) state.peakMarker = markers.peak;
+            if (markers.end > 0) state.endMarker = markers.end;
+            if (markers.baseline) state.baselineMarker = markers.baseline;
+
+            // Helper: convert time value to pixel X position (% of container)
+            const tToPx = (t) => {
+                const frac = (t - coord.min_x) / (coord.max_x - coord.min_x);
+                return coord.pad_l + frac * (coord.svg_w - coord.pad_l - coord.pad_r);
+            };
+
+            // Position onset marker
+            const onsetEl = document.getElementById('marker-onset');
+            if (markers.onset > 0 && markers.onset >= coord.min_x && markers.onset <= coord.max_x) {
+                const px = tToPx(markers.onset);
+                onsetEl.style.left = px + 'px';
+                onsetEl.classList.add('active');
+                document.getElementById('label-onset-val').textContent = markers.onset.toFixed(1) + 's';
+            } else {
+                onsetEl.classList.remove('active');
+            }
+
+            // Position peak marker
+            const peakEl = document.getElementById('marker-peak');
+            if (markers.peak > 0 && markers.peak >= coord.min_x && markers.peak <= coord.max_x) {
+                const px = tToPx(markers.peak);
+                peakEl.style.left = px + 'px';
+                peakEl.classList.add('active');
+                document.getElementById('label-peak-val').textContent = markers.peak.toFixed(1) + 's';
+            } else {
+                peakEl.classList.remove('active');
+            }
+
+            // Position end marker
+            const endEl = document.getElementById('marker-end');
+            if (markers.end > 0 && markers.end >= coord.min_x && markers.end <= coord.max_x) {
+                const px = tToPx(markers.end);
+                endEl.style.left = px + 'px';
+                endEl.classList.add('active');
+                document.getElementById('label-end-val').textContent = markers.end.toFixed(1) + 's';
+            } else {
+                endEl.classList.remove('active');
+            }
+
+            // Position baseline marker (horizontal)
+            const baseEl = document.getElementById('marker-baseline');
+            if (markers.baseline && !isNaN(markers.baseline)) {
+                const frac = (markers.baseline - coord.min_y) / (coord.max_y - coord.min_y);
+                const py = coord.svg_h - coord.pad_b - frac * (coord.svg_h - coord.pad_t - coord.pad_b);
+                baseEl.style.bottom = 'auto';
+                baseEl.style.top = py + 'px';
+                baseEl.classList.add('active');
+                document.getElementById('label-base-val').textContent = markers.baseline.toFixed(1);
+            } else {
+                baseEl.classList.remove('active');
+            }
+        }
     } else {
-        // Fallback: show a placeholder if render_plot not yet implemented
         document.getElementById('svg-plot').innerHTML =
             `<div style="padding:40px;text-align:center;color:#99948c;">
                 Plot will appear here once render_plot is implemented in bolus_server.
                 <br>ROI index: ${idx}
             </div>`;
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DRAGGABLE MARKERS
+// ═══════════════════════════════════════════════════════════════════════════
+
+function initMarkerDrag() {
+    const container = document.getElementById('plot-container');
+    let dragging = null;  // 'onset', 'peak', 'end', 'baseline'
+
+    const pxToT = (px) => {
+        const c = state.plotCoord;
+        if (!c) return 0;
+        const frac = (px - c.pad_l) / (c.svg_w - c.pad_l - c.pad_r);
+        return c.min_x + frac * (c.max_x - c.min_x);
+    };
+
+    const startDrag = (name) => (e) => {
+        e.preventDefault();
+        dragging = name;
+        document.body.style.cursor = name === 'baseline' ? 'row-resize' : 'col-resize';
+    };
+
+    document.getElementById('marker-onset').addEventListener('mousedown', startDrag('onset'));
+    document.getElementById('marker-peak').addEventListener('mousedown', startDrag('peak'));
+    document.getElementById('marker-end').addEventListener('mousedown', startDrag('end'));
+    document.getElementById('marker-baseline').addEventListener('mousedown', startDrag('baseline'));
+
+    document.addEventListener('mousemove', (e) => {
+        if (!dragging || !state.plotCoord) return;
+        const rect = container.getBoundingClientRect();
+
+        if (dragging === 'baseline') {
+            const py = e.clientY - rect.top;
+            const c = state.plotCoord;
+            const frac = (c.svg_h - c.pad_b - py) / (c.svg_h - c.pad_t - c.pad_b);
+            state.baselineMarker = c.min_y + frac * (c.max_y - c.min_y);
+            const el = document.getElementById('marker-baseline');
+            el.style.top = py + 'px';
+            document.getElementById('label-base-val').textContent = state.baselineMarker.toFixed(1);
+        } else {
+            const px = e.clientX - rect.left;
+            const t = pxToT(px);
+            const el = document.getElementById('marker-' + dragging);
+            el.style.left = px + 'px';
+
+            if (dragging === 'onset') {
+                state.onsetMarker = t;
+                document.getElementById('label-onset-val').textContent = t.toFixed(1) + 's';
+            } else if (dragging === 'peak') {
+                state.peakMarker = t;
+                document.getElementById('label-peak-val').textContent = t.toFixed(1) + 's';
+            } else if (dragging === 'end') {
+                state.endMarker = t;
+                document.getElementById('label-end-val').textContent = t.toFixed(1) + 's';
+            }
+        }
+    });
+
+    document.addEventListener('mouseup', async () => {
+        if (!dragging) return;
+        const wasDragging = dragging;
+        dragging = null;
+        document.body.style.cursor = '';
+
+        // Re-render plot with updated marker positions
+        if (state.selectedRoiIdx >= 0) {
+            await renderPlot(state.selectedRoiIdx);
+        }
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1314,6 +1456,7 @@ async function init() {
     initSqueakListeners();
     initBatchPanel();
     bindEvents();
+    initMarkerDrag();
     runSplashScreen();
 
     // Ping server
