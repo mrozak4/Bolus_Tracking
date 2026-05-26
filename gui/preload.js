@@ -1,9 +1,3 @@
-/**
- * Bolus Tracking Studio — Preload Script
- * Exposes a minimal, secure API to the renderer via contextBridge.
- * No node APIs leak to the renderer — all access goes through IPC.
- */
-
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('bolusAPI', {
@@ -30,5 +24,33 @@ contextBridge.exposeInMainWorld('bolusAPI', {
     getSoundPath: (filename) => ipcRenderer.invoke('app:getSoundPath', filename),
 
     /** Load a locale JSON file by language code. Returns parsed object or null. */
-    loadLocale: (langCode) => ipcRenderer.invoke('app:loadLocale', langCode)
+    loadLocale: (langCode) => ipcRenderer.invoke('app:loadLocale', langCode),
+
+    // ── Batch Pipeline API ──────────────────────────────────────────────────
+
+    /**
+     * Run the batch pipeline (bolus_tracking_cpp) with given CLI args.
+     * @param {string[]} args - CLI arguments (e.g. ['--folder', '/path', '--plot'])
+     * @returns {Promise<{ok: boolean, error?: string}>}
+     */
+    runPipeline: (args) => ipcRenderer.invoke('pipeline:run', args),
+
+    /** Kill a running batch pipeline process. */
+    killPipeline: () => ipcRenderer.invoke('pipeline:kill'),
+
+    /**
+     * Register a callback for pipeline stdout/stderr output lines.
+     * @param {function({stream: string, line: string})} callback
+     */
+    onPipelineOutput: (callback) => {
+        ipcRenderer.on('pipeline:output', (event, data) => callback(data));
+    },
+
+    /**
+     * Register a callback for pipeline completion.
+     * @param {function({code: number, signal?: string, error?: string})} callback
+     */
+    onPipelineDone: (callback) => {
+        ipcRenderer.on('pipeline:done', (event, data) => callback(data));
+    }
 });

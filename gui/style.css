@@ -742,3 +742,139 @@ html, body {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BATCH PROCESSING PANEL
+   ═══════════════════════════════════════════════════════════════════════════ */
+.batch-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-xl);
+    gap: var(--space-lg);
+    overflow-y: auto;
+}
+
+.batch-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent-burnt-orange);
+    margin-bottom: var(--space-xs);
+}
+.batch-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-md);
+}
+
+/* Folder picker row */
+.batch-folder-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-warm);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md) var(--space-lg);
+}
+.batch-folder-row label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+.batch-folder-path {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-warm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+/* Options grid */
+.batch-options {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-warm);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md) var(--space-lg);
+}
+.batch-options h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-burnt-orange);
+    margin-bottom: var(--space-sm);
+}
+.batch-options-grid {
+    display: flex;
+    gap: var(--space-xl);
+    flex-wrap: wrap;
+}
+.batch-checkbox {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+.batch-checkbox input[type="checkbox"] {
+    accent-color: var(--accent-burnt-orange);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+/* Action buttons */
+.batch-actions {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+/* Terminal output */
+.batch-terminal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.batch-terminal-header h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-burnt-orange);
+}
+
+.batch-terminal {
+    flex: 1;
+    min-height: 280px;
+    max-height: 500px;
+    background: #1a1a18;
+    border: 1px solid var(--border-warm);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.65;
+    overflow-y: auto;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.batch-terminal-placeholder {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Terminal line coloring */
+.batch-line-error   { color: var(--color-fail); }
+.batch-line-warn    { color: var(--color-warn); }
+.batch-line-ok      { color: var(--color-pass); }
+.batch-line-info    { color: var(--text-secondary); }
+.batch-line-header  { color: var(--accent-burnt-orange); font-weight: 700; }

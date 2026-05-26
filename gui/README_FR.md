@@ -35,6 +35,17 @@ npm start
 
 Cette commande lance la fenêtre Electron avec un écran d'accueil (crescendo THX + animation vasculaire), puis présente l'espace de travail de triage.
 
+
+## Pipeline de Traitement par Lots
+
+**NOUVEAU :** Le studio intègre désormais un panneau de traitement par lots complet, remplaçant la nécessité d'utiliser `run_pipeline_cpp.sh` dans le terminal.
+Caractéristiques :
+- Sélectionnez le dossier d'un sujet via la boîte de dialogue native de fichiers
+- Exécutez une **Analyse pré-vol** pour valider les fichiers MATLAB/TIFF sans les modifier
+- Exécutez la **Préparation des fichiers** (Essai à blanc ou Appliquer) pour convertir les masques
+- Exécutez le **Pipeline complet** avec la sortie du terminal en direct diffusée dans l'interface utilisateur
+- Sortie avec code couleur (erreurs en rouge, avertissements en ambre, succès en vert)
+
 ---
 
 ## Architecture

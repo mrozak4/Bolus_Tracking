@@ -8,6 +8,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 // ─── Globals ────────────────────────────────────────────────────────────────
 
@@ -16,6 +17,7 @@ let serverProcess = null;
 let pendingRequests = new Map();  // id → { resolve, reject, timer }
 let nextRequestId = 1;
 let lineBuffer = '';             // accumulates partial JSON lines from stdout
+let pipelineProcess = null;      // batch pipeline child process
 
 // ─── Resolve Resource Paths ────────────────────────────────────────────────
 
@@ -37,6 +39,15 @@ function getServerBinaryPath() {
     if (fs.existsSync(buildPath)) return buildPath;
     // Fallback: check PATH
     return 'bolus_server';
+}
+
+function getPipelineBinaryPath() {
+    if (app.isPackaged) {
+        return path.join(process.resourcesPath, 'bin', 'bolus_tracking_cpp');
+    }
+    const buildPath = path.join(__dirname, '..', 'build', 'bolus_tracking_cpp');
+    if (fs.existsSync(buildPath)) return buildPath;
+    return 'bolus_tracking_cpp';
 }
 
 // ─── Server Process Management ──────────────────────────────────────────────
@@ -225,6 +236,99 @@ function setupIPC() {
             return path.join(process.resourcesPath, 'sounds', filename);
         }
         return path.join(__dirname, '..', 'resources', filename);
+    });
+
+    // ── Batch Pipeline Operations ──────────────────────────────────────────
+
+    /**
+     * Start the batch pipeline (bolus_tracking_cpp) with given args.
+     * Streams stdout/stderr lines back to the renderer via 'pipeline:output' events.
+     * Returns immediately with { ok: true } or { ok: false, error }.
+     */
+    ipcMain.handle('pipeline:run', async (event, args) => {
+        if (pipelineProcess) {
+            return { ok: false, error: 'Pipeline is already running' };
+        }
+
+        const binPath = getPipelineBinaryPath();
+        if (!fs.existsSync(binPath)) {
+            return { ok: false, error: `Pipeline binary not found: ${binPath}` };
+        }
+
+        console.log(`[main] Starting pipeline: ${binPath} ${args.join(' ')}`);
+
+        try {
+            pipelineProcess = spawn(binPath, args, {
+                stdio: ['ignore', 'pipe', 'pipe'],
+                env: { ...process.env }
+            });
+        } catch (e) {
+            pipelineProcess = null;
+            return { ok: false, error: e.message };
+        }
+
+        let stdoutBuf = '';
+        pipelineProcess.stdout.on('data', (chunk) => {
+            stdoutBuf += chunk.toString();
+            let idx;
+            while ((idx = stdoutBuf.indexOf('\n')) !== -1) {
+                const line = stdoutBuf.slice(0, idx);
+                stdoutBuf = stdoutBuf.slice(idx + 1);
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send('pipeline:output', { stream: 'stdout', line });
+                }
+            }
+        });
+
+        let stderrBuf = '';
+        pipelineProcess.stderr.on('data', (chunk) => {
+            stderrBuf += chunk.toString();
+            let idx;
+            while ((idx = stderrBuf.indexOf('\n')) !== -1) {
+                const line = stderrBuf.slice(0, idx);
+                stderrBuf = stderrBuf.slice(idx + 1);
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send('pipeline:output', { stream: 'stderr', line });
+                }
+            }
+        });
+
+        pipelineProcess.on('exit', (code, signal) => {
+            console.log(`[main] Pipeline exited: code=${code}, signal=${signal}`);
+            // Flush remaining buffer
+            if (stdoutBuf.trim() && mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('pipeline:output', { stream: 'stdout', line: stdoutBuf.trim() });
+            }
+            if (stderrBuf.trim() && mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('pipeline:output', { stream: 'stderr', line: stderrBuf.trim() });
+            }
+            pipelineProcess = null;
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('pipeline:done', { code, signal });
+            }
+        });
+
+        pipelineProcess.on('error', (err) => {
+            console.error('[main] Pipeline error:', err.message);
+            pipelineProcess = null;
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('pipeline:done', { code: -1, error: err.message });
+            }
+        });
+
+        return { ok: true };
+    });
+
+    /** Kill a running pipeline process. */
+    ipcMain.handle('pipeline:kill', async () => {
+        if (pipelineProcess) {
+            try {
+                pipelineProcess.kill('SIGTERM');
+            } catch (e) { /* ignore */ }
+            pipelineProcess = null;
+            return { ok: true };
+        }
+        return { ok: false, error: 'No pipeline running' };
     });
 
     // Locale file loader

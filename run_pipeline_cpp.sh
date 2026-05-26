@@ -21,6 +21,11 @@ QC_FWHM_MAX_FLAG=""
 QC_FWHM_FAIL_FLAG=""
 QC_CNR_MIN_FLAG=""
 QC_CNR_FAIL_FLAG=""
+PREFLIGHT_FLAG=""
+PREPARE_FLAG=""
+APPLY_FLAG=""
+FORCE_FLAG=""
+VERBOSE_FLAG=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -84,6 +89,26 @@ while [[ $# -gt 0 ]]; do
             QC_CNR_FAIL_FLAG="--qc-cnr-fail $2"
             shift 2
             ;;
+        --preflight|--validate)
+            PREFLIGHT_FLAG="--preflight"
+            shift
+            ;;
+        --prepare)
+            PREPARE_FLAG="--prepare"
+            shift
+            ;;
+        --apply)
+            APPLY_FLAG="--apply"
+            shift
+            ;;
+        --force)
+            FORCE_FLAG="--force"
+            shift
+            ;;
+        --verbose|--debug)
+            VERBOSE_FLAG="--verbose"
+            shift
+            ;;
         *)
             TARGET_FOLDER="$1"
             shift
@@ -106,18 +131,39 @@ if command -v docker &> /dev/null; then
     fi
 fi
 
+# Build the common flags string
+COMMON_FLAGS="$PLOT_FLAG $DRIFT_FLAG $VERBOSE_FLAG \
+    $MIN_AMP_FLAG $MAX_AMP_FLAG $MIN_T2P_FLAG $MAX_T2P_FLAG $MIN_FWHM_FLAG $MAX_FWHM_FLAG \
+    $QC_AMP_FAIL_FLAG $QC_T2P_MAX_FLAG $QC_T2P_FAIL_FLAG $QC_FWHM_MAX_FLAG $QC_FWHM_FAIL_FLAG \
+    $QC_CNR_MIN_FLAG $QC_CNR_FAIL_FLAG"
+
+# Determine the execution mode
+if [ -n "$PREFLIGHT_FLAG" ]; then
+    MODE_FLAGS="--preflight"
+    echo "-> Mode: Pre-flight validation scan"
+elif [ -n "$PREPARE_FLAG" ]; then
+    MODE_FLAGS="--prepare $APPLY_FLAG $FORCE_FLAG"
+    echo "-> Mode: File preparation (MAT → ROI conversion)"
+else
+    MODE_FLAGS=""
+    echo "-> Mode: Full batch processing"
+fi
+
 if [ "$DOCKER_RUNNING" = true ]; then
-    echo "-> Step 2: Running C++ Parallel Pipeline inside Docker..."
+    echo "-> Running inside Docker..."
     echo "Building Docker container from Dockerfile.cpp..."
     docker build -t bolus_tracking_cpp -f Dockerfile.cpp .
     
-    echo "Running C++ Batch Processing..."
-    docker run --rm -v "$TARGET_ABS_FOLDER:/data" bolus_tracking_cpp --folder /data $PLOT_FLAG $DRIFT_FLAG \
-        $MIN_AMP_FLAG $MAX_AMP_FLAG $MIN_T2P_FLAG $MAX_T2P_FLAG $MIN_FWHM_FLAG $MAX_FWHM_FLAG \
-        $QC_AMP_FAIL_FLAG $QC_T2P_MAX_FLAG $QC_T2P_FAIL_FLAG $QC_FWHM_MAX_FLAG $QC_FWHM_FAIL_FLAG \
-        $QC_CNR_MIN_FLAG $QC_CNR_FAIL_FLAG
+    if [ -n "$PREFLIGHT_FLAG" ] || [ -n "$PREPARE_FLAG" ]; then
+        docker run --rm -v "$TARGET_ABS_FOLDER:/data" bolus_tracking_cpp \
+            --folder /data $MODE_FLAGS $COMMON_FLAGS
+    else
+        echo "Running C++ Batch Processing..."
+        docker run --rm -v "$TARGET_ABS_FOLDER:/data" bolus_tracking_cpp \
+            --folder /data $COMMON_FLAGS
+    fi
 else
-    echo "-> Step 2: Running C++ Parallel Pipeline locally..."
+    echo "-> Running locally..."
     
     # A. Compile C++ Code
     echo "Sub-step A: Compiling C++ binary..."
@@ -133,12 +179,13 @@ else
     make -j4
     cd ..
     
-    # B. Run C++ Batch Processing directly
-    echo "Sub-step B: Running C++ Parallel Batch Processing..."
-    ./build/bolus_tracking_cpp --folder "$TARGET_ABS_FOLDER" $PLOT_FLAG $DRIFT_FLAG \
-        $MIN_AMP_FLAG $MAX_AMP_FLAG $MIN_T2P_FLAG $MAX_T2P_FLAG $MIN_FWHM_FLAG $MAX_FWHM_FLAG \
-        $QC_AMP_FAIL_FLAG $QC_T2P_MAX_FLAG $QC_T2P_FAIL_FLAG $QC_FWHM_MAX_FLAG $QC_FWHM_FAIL_FLAG \
-        $QC_CNR_MIN_FLAG $QC_CNR_FAIL_FLAG
+    # B. Run
+    if [ -n "$PREFLIGHT_FLAG" ] || [ -n "$PREPARE_FLAG" ]; then
+        ./build/bolus_tracking_cpp --folder "$TARGET_ABS_FOLDER" $MODE_FLAGS $COMMON_FLAGS
+    else
+        echo "Sub-step B: Running C++ Parallel Batch Processing..."
+        ./build/bolus_tracking_cpp --folder "$TARGET_ABS_FOLDER" $COMMON_FLAGS
+    fi
 fi
 
 echo "=================================================="

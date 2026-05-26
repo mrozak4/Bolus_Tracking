@@ -35,6 +35,17 @@ npm start
 
 This launches the Electron window with a splash screen (THX crescendo + vessel animation), then presents the triage workspace.
 
+
+## Batch Processing Pipeline
+
+**NEW:** The studio now includes a full batch processing panel built-in, replacing the need to use `run_pipeline_cpp.sh` in the terminal.
+Features:
+- Select a subject folder via the native file dialog
+- Run a **Pre-flight Scan** to validate MATLAB/TIFF files without modifying them
+- Run **File Preparation** (Dry Run or Apply) to convert masks
+- Run the **Full Pipeline** with live terminal output streamed to the GUI
+- Color-coded output (errors red, warnings amber, success green)
+
 ---
 
 ## Architecture
@@ -96,6 +107,8 @@ The CSS palette is a pixel-exact conversion of the ImGui `ImVec4` values from `b
 | WARN badge | `--color-warn` | `#ebb84d` | `0.92, 0.72, 0.30` |
 | FAIL badge | `--color-fail` | `#cc5238` | `0.80, 0.32, 0.22` |
 | REVIEW badge | `--color-review` | `#5e8a8a` | `0.37, 0.54, 0.54` |
+
+*Note: Selecting the **Minion (Bello!)** language will trigger a full palette swap to the Denim Blue and Minion Yellow theme (`#0D1B3A`, `#FBD91C`), matching the original C++ GUI easter egg.*
 
 Font: **Outfit** (Google Fonts) — the same MCM geometric sans-serif used in the native app.
 

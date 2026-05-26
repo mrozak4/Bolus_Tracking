@@ -477,8 +477,84 @@ function initLanguageSelector() {
     }
     sel.addEventListener('change', async () => {
         state.lang = sel.value;
+        applyThemeForLanguage(sel.value);
         await loadLocale(sel.value);
     });
+}
+
+/**
+ * Swap CSS custom properties when Minion language is selected.
+ * Pixel-matched to bolus_gui.cpp apply_theme_colors() LANG_MINION branch.
+ */
+function applyThemeForLanguage(code) {
+    const root = document.documentElement.style;
+    if (code === 'minion') {
+        // Minion Theme: Denim Blue + Minion Yellow
+        root.setProperty('--bg-deep',           '#0D1B3A');       // Deep denim
+        root.setProperty('--bg-primary',        '#FBD91C');       // Minion Yellow far bg
+        root.setProperty('--bg-secondary',      '#142B61');       // Denim Blue panels
+        root.setProperty('--bg-elevated',       '#0D1938');       // Dark denim frames
+        root.setProperty('--bg-hover',          '#142B57');       // Denim hover
+        root.setProperty('--bg-active',         '#1F3870');       // Denim active
+
+        root.setProperty('--text-primary',      '#F2F2E6');
+        root.setProperty('--text-secondary',    '#8090A6');
+        root.setProperty('--text-muted',        '#607090');
+        root.setProperty('--text-inverse',      '#0D1938');
+
+        root.setProperty('--accent-burnt-orange', '#FBD91C');     // Minion Yellow accent
+        root.setProperty('--accent-orange-hover', '#FFE64D');
+        root.setProperty('--accent-orange-dim',   'rgba(251,217,28,0.35)');
+
+        root.setProperty('--btn-sage',          '#CC9900');       // Rich Gold buttons
+        root.setProperty('--btn-sage-hover',    '#E6B31A');
+        root.setProperty('--btn-sage-active',   '#FFD933');
+
+        root.setProperty('--grab-sage',         '#FBD91C');
+
+        root.setProperty('--border-warm',       'rgba(251,217,28,0.50)');
+        root.setProperty('--border-medium',     'rgba(251,217,28,0.70)');
+        root.setProperty('--border-bright',     'rgba(251,217,28,0.80)');
+
+        root.setProperty('--title-bg',          '#142B61');
+        root.setProperty('--title-bg-active',   '#142B61');
+
+        root.setProperty('--scrollbar-thumb',       '#CC9900');
+        root.setProperty('--scrollbar-thumb-hover', '#E6B31A');
+    } else {
+        // Restore MCM theme (default values from style.css :root)
+        root.setProperty('--bg-deep',           '#242420');
+        root.setProperty('--bg-primary',        '#2e2e2b');
+        root.setProperty('--bg-secondary',      '#383833');
+        root.setProperty('--bg-elevated',       '#42403b');
+        root.setProperty('--bg-hover',          '#524d47');
+        root.setProperty('--bg-active',         '#615952');
+
+        root.setProperty('--text-primary',      '#f2f0e6');
+        root.setProperty('--text-secondary',    '#b5b0a5');
+        root.setProperty('--text-muted',        '#99948c');
+        root.setProperty('--text-inverse',      '#2e2e2b');
+
+        root.setProperty('--accent-burnt-orange', '#E08C40');
+        root.setProperty('--accent-orange-hover', '#f29d4f');
+        root.setProperty('--accent-orange-dim',   'rgba(224,140,64,0.35)');
+
+        root.setProperty('--btn-sage',          '#616b59');
+        root.setProperty('--btn-sage-hover',    '#75856b');
+        root.setProperty('--btn-sage-active',   '#8a9980');
+
+        root.setProperty('--grab-sage',         '#809473');
+
+        root.setProperty('--border-warm',       'rgba(89,82,71,0.50)');
+        root.setProperty('--border-medium',     'rgba(89,82,71,0.70)');
+        root.setProperty('--border-bright',     'rgba(224,140,64,0.50)');
+
+        root.setProperty('--title-bg',          '#474038');
+        root.setProperty('--title-bg-active',   '#52473d');
+
+        root.setProperty('--scrollbar-thumb',       '#666157');
+        root.setProperty('--scrollbar-thumb-hover', '#80766b');
+    }
 }
 
 async function loadLocale(code) {
@@ -575,18 +651,28 @@ function showNoDataScreen() {
     document.getElementById('no-data-screen').classList.remove('hidden');
     document.getElementById('main-content').classList.add('hidden');
     document.getElementById('preflight-panel').classList.add('hidden');
+    document.getElementById('batch-panel').classList.add('hidden');
 }
 
 function showMainContent() {
     document.getElementById('no-data-screen').classList.add('hidden');
     document.getElementById('main-content').classList.remove('hidden');
     document.getElementById('preflight-panel').classList.add('hidden');
+    document.getElementById('batch-panel').classList.add('hidden');
 }
 
 function showPreflight() {
     document.getElementById('no-data-screen').classList.add('hidden');
     document.getElementById('main-content').classList.add('hidden');
     document.getElementById('preflight-panel').classList.remove('hidden');
+    document.getElementById('batch-panel').classList.add('hidden');
+}
+
+function showBatchPanel() {
+    document.getElementById('no-data-screen').classList.add('hidden');
+    document.getElementById('main-content').classList.add('hidden');
+    document.getElementById('preflight-panel').classList.add('hidden');
+    document.getElementById('batch-panel').classList.remove('hidden');
 }
 
 function fmtVal(v, digits = 3) {
@@ -1051,6 +1137,145 @@ function bindEvents() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// BATCH PROCESSING PANEL
+// ═══════════════════════════════════════════════════════════════════════════
+
+const batchState = {
+    folder: null,
+    running: false,
+};
+
+function initBatchPanel() {
+    const terminal  = document.getElementById('batch-terminal');
+    const folderEl  = document.getElementById('batch-folder-path');
+
+    // Show batch panel from no-data screen
+    document.getElementById('btn-show-batch').addEventListener('click', showBatchPanel);
+
+    // Back to triage
+    document.getElementById('btn-batch-back').addEventListener('click', showNoDataScreen);
+
+    // Browse for folder
+    document.getElementById('btn-batch-browse').addEventListener('click', async () => {
+        const folder = await window.bolusAPI.openFolderDialog();
+        if (folder) {
+            batchState.folder = folder;
+            folderEl.textContent = folder;
+            // Enable action buttons
+            document.getElementById('btn-batch-preflight').disabled = false;
+            document.getElementById('btn-batch-prepare').disabled = false;
+            document.getElementById('btn-batch-prepare-apply').disabled = false;
+            document.getElementById('btn-batch-run').disabled = false;
+        }
+    });
+
+    // Pre-flight
+    document.getElementById('btn-batch-preflight').addEventListener('click', () => {
+        runBatchPipeline(['--folder', batchState.folder, '--preflight']);
+    });
+
+    // Prepare (dry run)
+    document.getElementById('btn-batch-prepare').addEventListener('click', () => {
+        runBatchPipeline(['--folder', batchState.folder, '--prepare']);
+    });
+
+    // Prepare (apply)
+    document.getElementById('btn-batch-prepare-apply').addEventListener('click', () => {
+        runBatchPipeline(['--folder', batchState.folder, '--prepare', '--apply']);
+    });
+
+    // Full run
+    document.getElementById('btn-batch-run').addEventListener('click', () => {
+        const args = ['--folder', batchState.folder];
+        if (document.getElementById('batch-opt-plot').checked) args.push('--plot');
+        if (document.getElementById('batch-opt-verbose').checked) args.push('--verbose');
+        runBatchPipeline(args);
+    });
+
+    // Stop
+    document.getElementById('btn-batch-stop').addEventListener('click', async () => {
+        await window.bolusAPI.killPipeline();
+        appendBatchLine('\n— Pipeline cancelled by user —', 'warn');
+        setBatchRunning(false);
+    });
+
+    // Clear
+    document.getElementById('btn-batch-clear').addEventListener('click', () => {
+        terminal.innerHTML = '<div class="batch-terminal-placeholder">Output cleared.</div>';
+    });
+
+    // Pipeline output listener
+    window.bolusAPI.onPipelineOutput(({ stream, line }) => {
+        const cls = classifyLine(line, stream);
+        appendBatchLine(line, cls);
+    });
+
+    // Pipeline done listener
+    window.bolusAPI.onPipelineDone(({ code, error }) => {
+        if (code === 0) {
+            appendBatchLine('\n✓ Pipeline completed successfully.', 'ok');
+            playSound('hallelujah');
+        } else if (error) {
+            appendBatchLine(`\n✗ Pipeline error: ${error}`, 'error');
+        } else {
+            appendBatchLine(`\n✗ Pipeline exited with code ${code}`, 'error');
+        }
+        setBatchRunning(false);
+    });
+}
+
+async function runBatchPipeline(args) {
+    const terminal = document.getElementById('batch-terminal');
+    terminal.innerHTML = '';  // Clear
+    appendBatchLine(`▶ Running: bolus_tracking_cpp ${args.join(' ')}`, 'header');
+    appendBatchLine('', 'info');
+
+    setBatchRunning(true);
+    const result = await window.bolusAPI.runPipeline(args);
+    if (!result.ok) {
+        appendBatchLine(`✗ Failed to start: ${result.error}`, 'error');
+        setBatchRunning(false);
+    }
+}
+
+function setBatchRunning(running) {
+    batchState.running = running;
+    const btns = ['btn-batch-preflight', 'btn-batch-prepare', 'btn-batch-prepare-apply', 'btn-batch-run'];
+    btns.forEach(id => document.getElementById(id).disabled = running);
+    const stopBtn = document.getElementById('btn-batch-stop');
+    if (running) {
+        stopBtn.classList.remove('hidden');
+    } else {
+        stopBtn.classList.add('hidden');
+    }
+}
+
+function appendBatchLine(text, cls) {
+    const terminal = document.getElementById('batch-terminal');
+    // Remove placeholder if present
+    const ph = terminal.querySelector('.batch-terminal-placeholder');
+    if (ph) ph.remove();
+
+    const line = document.createElement('div');
+    if (cls) line.className = `batch-line-${cls}`;
+    line.textContent = text;
+    terminal.appendChild(line);
+
+    // Auto-scroll to bottom
+    terminal.scrollTop = terminal.scrollHeight;
+}
+
+function classifyLine(line, stream) {
+    if (stream === 'stderr') return 'error';
+    const lower = line.toLowerCase();
+    if (lower.includes('error') || lower.includes('failed') || lower.includes('✗')) return 'error';
+    if (lower.includes('warning') || lower.includes('⚠') || lower.includes('missing')) return 'warn';
+    if (lower.includes('✓') || lower.includes('complete') || lower.includes('success') || lower.includes('pass')) return 'ok';
+    if (lower.startsWith('===') || lower.startsWith('---') || lower.startsWith('>>>')) return 'header';
+    return '';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // INITIALIZATION
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1058,6 +1283,7 @@ async function init() {
     await initSounds();
     initLanguageSelector();
     initSqueakListeners();
+    initBatchPanel();
     bindEvents();
     runSplashScreen();
 

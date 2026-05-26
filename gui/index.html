@@ -239,6 +239,56 @@
             <div class="no-data-content">
                 <div class="no-data-icon">📂</div>
                 <p id="text-no-data">No subject data loaded. Use the button above to load a dataset directory or CSV file.</p>
+                <button id="btn-show-batch" class="btn btn-accent" style="margin-top:20px;">⚡ Batch Processing Pipeline</button>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <!-- BATCH PROCESSING PANEL (full pipeline in the GUI)                  -->
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <div id="batch-panel" class="batch-panel hidden">
+            <div class="batch-header">
+                <h2>⚡ Batch Processing Pipeline</h2>
+                <p class="batch-desc">Run the full C++ analysis pipeline on a subject folder — no terminal required.</p>
+                <button id="btn-batch-back" class="btn btn-secondary btn-sm">← Back to Triage</button>
+            </div>
+
+            <!-- Folder selection -->
+            <div class="batch-folder-row">
+                <label>Subject Folder:</label>
+                <div class="batch-folder-path" id="batch-folder-path">No folder selected</div>
+                <button id="btn-batch-browse" class="btn btn-primary">Browse…</button>
+            </div>
+
+            <!-- Options -->
+            <div class="batch-options">
+                <h3>Pipeline Options</h3>
+                <div class="batch-options-grid">
+                    <label class="batch-checkbox">
+                        <input type="checkbox" id="batch-opt-plot"> Generate SVG plots (--plot)
+                    </label>
+                    <label class="batch-checkbox">
+                        <input type="checkbox" id="batch-opt-verbose"> Verbose debug output (--verbose)
+                    </label>
+                </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="batch-actions">
+                <button id="btn-batch-preflight" class="btn btn-accent" disabled>📋 Pre-flight Scan</button>
+                <button id="btn-batch-prepare" class="btn btn-primary" disabled>🔧 Prepare Files (Dry Run)</button>
+                <button id="btn-batch-prepare-apply" class="btn btn-success" disabled>🔧 Prepare Files (Apply)</button>
+                <button id="btn-batch-run" class="btn btn-success" disabled>▶ Run Full Pipeline</button>
+                <button id="btn-batch-stop" class="btn btn-danger hidden">■ Stop</button>
+            </div>
+
+            <!-- Live terminal output -->
+            <div class="batch-terminal-header">
+                <h3>Output</h3>
+                <button id="btn-batch-clear" class="btn btn-sm btn-secondary">Clear</button>
+            </div>
+            <div id="batch-terminal" class="batch-terminal">
+                <div class="batch-terminal-placeholder">Select a folder and click an action to begin.</div>
             </div>
         </div>
 

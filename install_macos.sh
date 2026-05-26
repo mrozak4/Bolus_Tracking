@@ -1,124 +1,272 @@
 #!/bin/bash
 set -e
 
-# macOS Installation and App Bundle Builder for Bolus Tracking Studio
+# ══════════════════════════════════════════════════════════════════════════════
+#  Bolus Tracking Studio — macOS One-Click Installer
+#
+#  Builds and installs the Electron-based Bolus Tracking Studio as a native
+#  macOS .app bundle with the C++ bolus_server backend embedded inside.
+#
+#  After installation, the user can launch from Launchpad, Finder, or Spotlight.
+#  No Homebrew, CMake, Node.js, or terminal knowledge required after install.
+#
+#  Prerequisites are auto-installed with user confirmation.
+# ══════════════════════════════════════════════════════════════════════════════
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_NAME="BolusTrackingStudio"
-APP_BUNDLE="$REPO_DIR/$APP_NAME.app"
 
-echo "============================================="
-echo "   Installing Bolus Tracking Studio App      "
-echo "============================================="
+echo ""
+echo "══════════════════════════════════════════════════"
+echo "   Bolus Tracking Studio — macOS Installer        "
+echo "══════════════════════════════════════════════════"
+echo ""
+echo "This script will:"
+echo "  1. Install any missing build tools (with your permission)"
+echo "  2. Compile the C++ analysis engine"
+echo "  3. Package the Electron GUI as a native macOS app"
+echo "  4. Install it to your Applications folder"
+echo ""
 
-# Check prerequisites on macOS
-echo "Checking prerequisites..."
-MISSING_PREREQS=()
+# ── Helper: ask yes/no ──────────────────────────────────────────────────────
 
-if ! command -v cmake &> /dev/null; then
-    MISSING_PREREQS+=("cmake")
+confirm() {
+    local prompt="$1"
+    if [ ! -t 0 ]; then
+        # Non-interactive: auto-yes
+        return 0
+    fi
+    echo -n "$prompt [Y/n] "
+    read -r response
+    [[ "$response" =~ ^([yY][eE][sS]|[yY]|"")$ ]]
+}
+
+# ── Step 1: Check and install prerequisites ─────────────────────────────────
+
+echo "Step 1: Checking prerequisites..."
+echo ""
+
+NEED_INSTALL=()
+
+# 1a. Xcode Command Line Tools (required for any compilation on macOS)
+if ! xcode-select -p &>/dev/null; then
+    echo "  ✗ Xcode Command Line Tools not found"
+    echo "    Installing... (Apple will prompt you to confirm)"
+    xcode-select --install 2>/dev/null || true
+    echo ""
+    echo "    ⏳ Please complete the Xcode Command Line Tools installation"
+    echo "       in the popup window, then re-run this script."
+    echo ""
+    exit 1
+else
+    echo "  ✓ Xcode Command Line Tools"
 fi
 
-# Check for Eigen3
-EIGEN_FOUND=false
-if [ -d "/opt/homebrew/include/eigen3" ] || [ -d "/usr/local/include/eigen3" ] || [ -d "/usr/include/eigen3" ]; then
-    EIGEN_FOUND=true
-elif pkg-config --exists eigen3 2>/dev/null; then
-    EIGEN_FOUND=true
-fi
-if [ "$EIGEN_FOUND" = false ]; then
-    MISSING_PREREQS+=("eigen")
-fi
-
-# Check for libtiff
-TIFF_FOUND=false
-if [ -f "/opt/homebrew/include/tiff.h" ] || [ -f "/usr/local/include/tiff.h" ] || [ -f "/usr/include/tiff.h" ]; then
-    TIFF_FOUND=true
-elif pkg-config --exists libtiff-4 2>/dev/null; then
-    TIFF_FOUND=true
-fi
-if [ "$TIFF_FOUND" = false ]; then
-    MISSING_PREREQS+=("libtiff")
-fi
-
-if [ ${#MISSING_PREREQS[@]} -ne 0 ]; then
-    echo "Warning: Missing the following prerequisites: ${MISSING_PREREQS[*]}"
-    if command -v brew &> /dev/null; then
-        if [ -t 0 ]; then
-            echo "Homebrew detected. Would you like to install the missing packages automatically? [Y/n]"
-            read -r response
-        else
-            response="y"
+# 1b. Homebrew
+if ! command -v brew &>/dev/null; then
+    echo "  ✗ Homebrew not found"
+    echo ""
+    echo "    Homebrew is a package manager that installs developer tools."
+    echo "    It's the standard way to install libraries on macOS."
+    echo "    Learn more: https://brew.sh"
+    echo ""
+    if confirm "    Install Homebrew now?"; then
+        echo "    Installing Homebrew..."
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        # Add brew to PATH for Apple Silicon Macs
+        if [ -f "/opt/homebrew/bin/brew" ]; then
+            eval "$(/opt/homebrew/bin/brew shellenv)"
         fi
-        if [[ "$response" =~ ^([yY][eE][sS]|[yY]|"")$ ]]; then
-            echo "Installing missing prerequisites via Homebrew..."
-            brew install "${MISSING_PREREQS[@]}"
-        else
-            echo "Skipping installation. Compilation might fail if packages are missing."
-        fi
+        echo "  ✓ Homebrew installed"
     else
-        echo "Homebrew is not installed. Please install the missing packages manually:"
-        echo "   brew install ${MISSING_PREREQS[*]}"
-        echo "Then re-run this script."
+        echo "    Skipping. Please install Homebrew manually: https://brew.sh"
         exit 1
     fi
 else
-    echo "All prerequisites found!"
+    echo "  ✓ Homebrew"
 fi
 
-# 1. Compile C++ Code
-echo "Step 1: Compiling C++ GUI application..."
+# 1c. CMake
+if ! command -v cmake &>/dev/null; then
+    echo "  ✗ CMake not found"
+    NEED_INSTALL+=("cmake")
+else
+    echo "  ✓ CMake"
+fi
+
+# 1d. Eigen3
+EIGEN_FOUND=false
+for d in /opt/homebrew/include/eigen3 /usr/local/include/eigen3 /usr/include/eigen3; do
+    [ -d "$d" ] && EIGEN_FOUND=true && break
+done
+if ! $EIGEN_FOUND && ! pkg-config --exists eigen3 2>/dev/null; then
+    echo "  ✗ Eigen3 (linear algebra library) not found"
+    NEED_INSTALL+=("eigen")
+else
+    echo "  ✓ Eigen3"
+fi
+
+# 1e. libtiff
+TIFF_FOUND=false
+for f in /opt/homebrew/include/tiff.h /usr/local/include/tiff.h /usr/include/tiff.h; do
+    [ -f "$f" ] && TIFF_FOUND=true && break
+done
+if ! $TIFF_FOUND && ! pkg-config --exists libtiff-4 2>/dev/null; then
+    echo "  ✗ libtiff (TIFF image library) not found"
+    NEED_INSTALL+=("libtiff")
+else
+    echo "  ✓ libtiff"
+fi
+
+# 1f. Node.js (for Electron packaging)
+if ! command -v node &>/dev/null; then
+    echo "  ✗ Node.js not found"
+    NEED_INSTALL+=("node")
+else
+    NODE_VER=$(node --version 2>/dev/null | sed 's/v//' | cut -d. -f1)
+    if [ "$NODE_VER" -lt 18 ] 2>/dev/null; then
+        echo "  ✗ Node.js version too old (need ≥ 18, found v$NODE_VER)"
+        NEED_INSTALL+=("node")
+    else
+        echo "  ✓ Node.js $(node --version)"
+    fi
+fi
+
+# Install missing packages
+if [ ${#NEED_INSTALL[@]} -ne 0 ]; then
+    echo ""
+    echo "  Missing packages: ${NEED_INSTALL[*]}"
+    echo ""
+    if confirm "  Install them via Homebrew?"; then
+        echo "  Installing ${NEED_INSTALL[*]}..."
+        brew install "${NEED_INSTALL[@]}"
+        echo "  ✓ All packages installed"
+    else
+        echo "  Skipping. Please install manually:"
+        echo "    brew install ${NEED_INSTALL[*]}"
+        exit 1
+    fi
+fi
+
+echo ""
+echo "  All prerequisites satisfied!"
+echo ""
+
+# ── Step 2: Compile C++ backend (bolus_server + bolus_tracking_cpp) ─────────
+
+echo "Step 2: Compiling C++ analysis engine..."
+
+# Handle macOS SDK paths
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    SDK_PATH=$(xcrun --show-sdk-path 2>/dev/null || echo "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk")
+    export CXXFLAGS="-isysroot $SDK_PATH"
+fi
+
 mkdir -p "$REPO_DIR/build"
 cd "$REPO_DIR/build"
-cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=ON ..
-make -j4
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make bolus_server -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
+make bolus_tracking_cpp -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
 cd "$REPO_DIR"
-# 3. Create .app Bundle Directory Structure
-echo "Step 3: Creating macOS .app bundle structure..."
-rm -rf "$APP_BUNDLE"
-mkdir -p "$APP_BUNDLE/Contents/MacOS"
-mkdir -p "$APP_BUNDLE/Contents/Resources"
 
-# 4. Copy Executable and Icon
-echo "Step 4: Copying binaries and resources..."
-cp "$REPO_DIR/build/bolus_tracking_gui" "$APP_BUNDLE/Contents/MacOS/bolus_tracking_gui"
+if [ ! -f "$REPO_DIR/build/bolus_server" ]; then
+    echo "ERROR: bolus_server binary not found after compilation."
+    exit 1
+fi
+echo "  ✓ C++ backend compiled successfully"
+echo ""
 
-if [ -f "resources/AppIcon.icns" ]; then
-    echo "Step 2: Using existing AppIcon.icns."
-elif [ -f "resources/app_icon.png" ]; then
-    echo "Step 2: Generating AppIcon.icns from app_icon.png..."
-    bash resources/create_app_icon.sh || echo "Step 2 Warning: Failed to generate AppIcon.icns. Continuing."
-else
-    echo "Step 2 Warning: No app icon found. Continuing without icon."
+# ── Step 3: Install npm dependencies and package Electron app ───────────────
+
+echo "Step 3: Packaging Electron application..."
+
+cd "$REPO_DIR/gui"
+
+# Install npm dependencies (electron, electron-builder)
+echo "  Installing npm dependencies..."
+npm install --no-audit --no-fund 2>&1 | tail -1
+
+# Run electron-builder to create the .app bundle
+echo "  Building macOS .app bundle..."
+npx electron-builder --mac --config.mac.target=dir 2>&1 | grep -E "^  •|Building|packing"
+
+cd "$REPO_DIR"
+
+# Find the built app
+BUILT_APP=$(find "$REPO_DIR/gui/dist/mac"* -name "*.app" -maxdepth 1 2>/dev/null | head -1)
+if [ -z "$BUILT_APP" ]; then
+    # Fallback: try alternate output paths
+    BUILT_APP=$(find "$REPO_DIR/gui/dist" -name "*.app" -maxdepth 2 2>/dev/null | head -1)
 fi
 
-if [ -f "resources/AppIcon.icns" ]; then
-    cp "$REPO_DIR/resources/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
-fi
+if [ -z "$BUILT_APP" ] || [ ! -d "$BUILT_APP" ]; then
+    echo "ERROR: Could not find built .app bundle in gui/dist/"
+    echo "  Attempting manual packaging as fallback..."
 
-if [ -d "$REPO_DIR/resources" ]; then
-    cp -R "$REPO_DIR/resources" "$APP_BUNDLE/Contents/Resources/"
-fi
+    # ── Fallback: manually construct the .app bundle ────────────────────
+    APP_BUNDLE="$REPO_DIR/$APP_NAME.app"
+    rm -rf "$APP_BUNDLE"
 
-# 5. Create Info.plist
-echo "Step 5: Writing Info.plist metadata configuration..."
-cat <<EOF > "$APP_BUNDLE/Contents/Info.plist"
+    mkdir -p "$APP_BUNDLE/Contents/MacOS"
+    mkdir -p "$APP_BUNDLE/Contents/Resources/app"
+    mkdir -p "$APP_BUNDLE/Contents/Resources/bin"
+    mkdir -p "$APP_BUNDLE/Contents/Resources/sounds"
+    mkdir -p "$APP_BUNDLE/Contents/Resources/fonts"
+
+    # Copy Electron binary (use the local electron installation)
+    ELECTRON_PATH="$REPO_DIR/gui/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
+    if [ -f "$ELECTRON_PATH" ]; then
+        cp "$ELECTRON_PATH" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+    else
+        echo "ERROR: Electron binary not found at $ELECTRON_PATH"
+        exit 1
+    fi
+
+    # Copy Electron framework
+    ELECTRON_FRAMEWORK="$REPO_DIR/gui/node_modules/electron/dist/Electron.app/Contents/Frameworks"
+    if [ -d "$ELECTRON_FRAMEWORK" ]; then
+        cp -R "$ELECTRON_FRAMEWORK" "$APP_BUNDLE/Contents/"
+    fi
+
+    # Copy app source files
+    for f in main.js preload.js renderer.js index.html style.css package.json; do
+        cp "$REPO_DIR/gui/$f" "$APP_BUNDLE/Contents/Resources/app/"
+    done
+    cp -R "$REPO_DIR/gui/locales" "$APP_BUNDLE/Contents/Resources/app/"
+    cp -R "$REPO_DIR/gui/node_modules" "$APP_BUNDLE/Contents/Resources/app/" 2>/dev/null || true
+
+    # Copy C++ backend
+    cp "$REPO_DIR/build/bolus_server" "$APP_BUNDLE/Contents/Resources/bin/"
+    cp "$REPO_DIR/build/bolus_tracking_cpp" "$APP_BUNDLE/Contents/Resources/bin/" 2>/dev/null || true
+    chmod +x "$APP_BUNDLE/Contents/Resources/bin/"*
+
+    # Copy resources
+    [ -f "$REPO_DIR/resources/thx_crescendo.wav" ] && cp "$REPO_DIR/resources/thx_crescendo.wav" "$APP_BUNDLE/Contents/Resources/sounds/"
+    [ -f "$REPO_DIR/resources/minion_squeak.wav" ] && cp "$REPO_DIR/resources/minion_squeak.wav" "$APP_BUNDLE/Contents/Resources/sounds/"
+    [ -f "$REPO_DIR/resources/hallelujah.mp3" ] && cp "$REPO_DIR/resources/hallelujah.mp3" "$APP_BUNDLE/Contents/Resources/sounds/"
+    [ -d "$REPO_DIR/resources/fonts" ] && cp -R "$REPO_DIR/resources/fonts/"* "$APP_BUNDLE/Contents/Resources/fonts/" 2>/dev/null || true
+
+    # Copy icon
+    [ -f "$REPO_DIR/resources/AppIcon.icns" ] && cp "$REPO_DIR/resources/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/"
+
+    # Write Info.plist
+    cat <<EOF > "$APP_BUNDLE/Contents/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>bolus_tracking_gui</string>
+    <string>$APP_NAME</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon.icns</string>
     <key>CFBundleIdentifier</key>
-    <string>com.bolustracking.studio</string>
+    <string>com.stefanovic-lab.bolus-tracking-studio</string>
     <key>CFBundleName</key>
     <string>Bolus Tracking Studio</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
+    <string>2.0.0</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.15</string>
     <key>NSHighResolutionCapable</key>
@@ -127,48 +275,55 @@ cat <<EOF > "$APP_BUNDLE/Contents/Info.plist"
 </plist>
 EOF
 
-# Touch the bundle to notify Finder of the update
-touch "$APP_BUNDLE"
+    BUILT_APP="$APP_BUNDLE"
+    echo "  ✓ Manual app bundle created"
+fi
 
-# 6. Install to Applications folder for Launchpad integration
-echo "Step 6: Installing to Applications folder for Launchpad integration..."
+echo "  ✓ App bundle ready: $(basename "$BUILT_APP")"
+echo ""
 
-# Clean up any old installations in either location first to prevent duplicates
-echo "Checking for and removing old installations..."
-if [ -d "/Applications/$APP_NAME.app" ]; then
-    echo "Found old version in /Applications. Removing..."
-    if [ -w "/Applications" ]; then
-        rm -rf "/Applications/$APP_NAME.app"
-    else
-        echo "System-wide /Applications requires administrator permissions to modify."
-        echo "Attempting to remove old version using sudo..."
-        sudo rm -rf "/Applications/$APP_NAME.app"
+# ── Step 4: Install to Applications ─────────────────────────────────────────
+
+echo "Step 4: Installing to Applications folder..."
+
+# Remove old installations
+for loc in "/Applications/$APP_NAME.app" "$HOME/Applications/$APP_NAME.app" \
+           "/Applications/Bolus Tracking Studio.app" "$HOME/Applications/Bolus Tracking Studio.app"; do
+    if [ -d "$loc" ]; then
+        echo "  Removing old version: $loc"
+        rm -rf "$loc" 2>/dev/null || sudo rm -rf "$loc" 2>/dev/null || true
     fi
-fi
-if [ -d "$HOME/Applications/$APP_NAME.app" ]; then
-    echo "Found old version in $HOME/Applications. Removing..."
-    rm -rf "$HOME/Applications/$APP_NAME.app"
-fi
+done
 
 INSTALL_DEST="/Applications"
 if [ -w "$INSTALL_DEST" ]; then
-    echo "Installing to system-wide $INSTALL_DEST..."
-    cp -R "$APP_BUNDLE" "$INSTALL_DEST/"
-    touch "$INSTALL_DEST/$APP_NAME.app"
-    echo "Successfully installed to $INSTALL_DEST!"
+    cp -R "$BUILT_APP" "$INSTALL_DEST/"
+    FINAL_APP="$INSTALL_DEST/$(basename "$BUILT_APP")"
 else
-    USER_APP_DIR="$HOME/Applications"
-    echo "System-wide $INSTALL_DEST is not writable. Installing to user-local $USER_APP_DIR..."
-    mkdir -p "$USER_APP_DIR"
-    cp -R "$APP_BUNDLE" "$USER_APP_DIR/"
-    touch "$USER_APP_DIR/$APP_NAME.app"
-    echo "Successfully installed to $USER_APP_DIR!"
-    INSTALL_DEST="$USER_APP_DIR"
+    INSTALL_DEST="$HOME/Applications"
+    mkdir -p "$INSTALL_DEST"
+    cp -R "$BUILT_APP" "$INSTALL_DEST/"
+    FINAL_APP="$INSTALL_DEST/$(basename "$BUILT_APP")"
 fi
 
-echo "============================================="
-echo "   Build & Installation completed successfully!"
-echo "============================================="
-echo "You can launch the GUI via Launchpad (search for '$APP_NAME') or:"
-echo "   $INSTALL_DEST/$APP_NAME.app"
-echo "============================================="
+# Touch to update Finder/Spotlight/Launchpad
+touch "$FINAL_APP"
+
+echo "  ✓ Installed to: $FINAL_APP"
+echo ""
+
+# ── Done ────────────────────────────────────────────────────────────────────
+
+echo "══════════════════════════════════════════════════"
+echo "   ✓ Installation Complete!                       "
+echo "══════════════════════════════════════════════════"
+echo ""
+echo "  Launch Bolus Tracking Studio from:"
+echo "    • Launchpad (search for 'Bolus Tracking Studio')"
+echo "    • Finder → Applications → Bolus Tracking Studio"
+echo "    • Spotlight (Cmd+Space → 'Bolus Tracking')"
+echo ""
+echo "  Or from Terminal:"
+echo "    open '$FINAL_APP'"
+echo ""
+echo "══════════════════════════════════════════════════"
