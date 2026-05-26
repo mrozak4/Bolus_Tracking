@@ -12,6 +12,10 @@
   },
   "author": "Stefanovic Lab — Sunnybrook Research Institute",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mrozak4/Bolus_Tracking.git"
+  },
   "dependencies": {},
   "devDependencies": {
     "electron": "^33.0.0",
