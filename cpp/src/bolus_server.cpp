@@ -1332,13 +1332,45 @@ static json handle_run_fit(const json& params) {
             g_fitter.min_fwhm, actual_max_fwhm, fit_success, pass2_run);
     }
 
+    // Update g_records so render_plot uses the new fit params
+    if (fit_success && popt.size() >= 4) {
+        const CsvRecord* existing = find_record_for_roi(roi_idx);
+        CsvRecord updated;
+        if (existing) {
+            updated = *existing;
+        } else {
+            updated.roi_id = (roi_idx < (int)g_rois.size()) ? g_rois[roi_idx].id : roi_idx;
+        }
+        updated.f_amp = popt[0];
+        updated.f_t2p = popt[1];
+        updated.f_fwhm = popt[2];
+        updated.f_m = popt[3];
+        updated.f_cnr = popt[0] / c.sd_base;
+        updated.f_snr = popt[3] / c.sd_base;
+        updated.click_onset = onset;
+        updated.click_peak = peak;
+        updated.click_end = end_t;
+        updated.qc_flag = qc_flag;
+        updated.fit_source = "manual";
+
+        // Update or insert into g_records
+        auto it = g_record_map.find(updated.roi_id);
+        if (it != g_record_map.end() && it->second < g_records.size()) {
+            g_records[it->second] = updated;
+        } else {
+            g_record_map[updated.roi_id] = g_records.size();
+            g_records.push_back(updated);
+        }
+    }
+
     return json{{"ok", true}, {"data", {
         {"fit_success", fit_success},
         {"params", {popt.size() >= 4 ? popt[0] : 0, popt.size() >= 4 ? popt[1] : 0,
                     popt.size() >= 4 ? popt[2] : 0, popt.size() >= 4 ? popt[3] : 0}},
         {"cnr", (fit_success && popt.size() >= 4) ? popt[0] / c.sd_base : 0},
         {"qc_flag", qc_flag},
-        {"fit_curve_t", fit_t}, {"fit_curve_y", fit_y}
+        {"fit_curve_t", fit_t}, {"fit_curve_y", fit_y},
+        {"onset", onset}, {"peak", peak}, {"end", end_t}, {"baseline", baseline}
     }}};
 }
 

@@ -1198,9 +1198,46 @@ async function handleRefit() {
         end: state.endMarker,
         baseline: state.baselineMarker,
     });
-    if (resp.ok) {
-        if (resp.data) state.roiRecords[state.selectedRoiIdx] = resp.data;
-        await selectRoi(state.selectedRoiIdx);
+    if (resp.ok && resp.data) {
+        const d = resp.data;
+        const roiId = state.roiIds[state.selectedRoiIdx];
+
+        // Build a record-like object from the refit response
+        const newRec = {
+            ...(state.roiRecordMap || {})[roiId] || {},
+            roi_id: roiId,
+            f_amp: d.params?.[0],
+            f_t2p: d.params?.[1],
+            f_fwhm: d.params?.[2],
+            f_m: d.params?.[3],
+            f_cnr: d.cnr,
+            qc_flag: d.qc_flag,
+            fit_source: 'manual',
+            click_onset: d.onset,
+            click_peak: d.peak,
+            click_end: d.end,
+        };
+
+        // Update the record map
+        if (!state.roiRecordMap) state.roiRecordMap = {};
+        state.roiRecordMap[roiId] = newRec;
+
+        // Set markers from the refit response (don't reset to 0)
+        if (d.onset > 0) state.onsetMarker = d.onset;
+        if (d.peak > 0) state.peakMarker = d.peak;
+        if (d.end > 0) state.endMarker = d.end;
+        if (d.baseline) state.baselineMarker = d.baseline;
+
+        // Update parameter display and re-render plot (without resetting markers)
+        const rec = newRec;
+        document.getElementById('val-fit-amp').textContent = fmtVal(rec.f_amp);
+        document.getElementById('val-fit-t2p').textContent = fmtVal(rec.f_t2p);
+        document.getElementById('val-fit-fwhm').textContent = fmtVal(rec.f_fwhm);
+        document.getElementById('val-fit-base').textContent = fmtVal(rec.f_m);
+        document.getElementById('val-fit-cnr').textContent = fmtVal(rec.f_cnr);
+
+        // Re-render plot with current marker positions
+        await renderPlot(state.selectedRoiIdx);
         buildRoiList();
         showToast('Re-fit complete');
     } else {
