@@ -719,12 +719,19 @@ async function loadSubjectFolder(folderPath) {
         // Multiple datasets — show selection
         html += `<div style="margin-bottom:8px;color:var(--accent-gold);">📦 ${datasets.length} bolus datasets found — select one:</div>`;
         html += '<div id="dataset-selector" style="display:flex;flex-direction:column;gap:6px;">';
+        // Default: first root-level bolus1, or first root-level, or first overall
+        let defaultIdx = 0;
+        for (let i = 0; i < datasets.length; i++) {
+            if (datasets[i].bolus_id === 'bolus1' && datasets[i].is_root) { defaultIdx = i; break; }
+            if (datasets[i].is_root && defaultIdx === 0) defaultIdx = i;
+        }
         datasets.forEach((ds, i) => {
             const ready = ds.ready;
-            const checked = (ds.bolus_id === 'bolus1' || i === 0) ? 'checked' : '';
+            const checked = (i === defaultIdx) ? 'checked' : '';
+            const label = ds.label || ds.bolus_id;
             html += `<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-panel);border-radius:var(--radius-sm);cursor:pointer;border:1px solid ${ready ? 'var(--accent-gold)' : 'var(--text-disabled)'};">`;
             html += `<input type="radio" name="dataset-choice" value="${i}" ${checked} ${ready ? '' : 'disabled'}>`;
-            html += `<span style="font-weight:bold;color:${ready ? 'var(--text-primary)' : 'var(--text-disabled)'};">${ds.bolus_id.toUpperCase()}</span>`;
+            html += `<span style="font-weight:bold;color:${ready ? 'var(--text-primary)' : 'var(--text-disabled)'};">${label.toUpperCase()}</span>`;
             html += `<span style="color:var(--text-secondary);font-size:11px;">${ds.tiff_name || '(no TIFF)'}</span>`;
             if (!ready) html += '<span style="color:var(--text-disabled);font-size:10px;">(missing files)</span>';
             html += '</label>';

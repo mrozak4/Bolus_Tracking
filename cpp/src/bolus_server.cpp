@@ -717,70 +717,115 @@ static json handle_scan_folder(const json& params) {
     };
 
     // Group into datasets by bolus ID
+    // Group into datasets by (parent_dir + bolus_id) so shifted and non-shifted stay separate
     std::map<std::string, json> datasets;
+
+    auto make_key = [&](const std::string& filepath, const std::string& bid) -> std::string {
+        std::string parent = fs::path(filepath).parent_path().string();
+        // Use relative path from scan folder for display
+        std::string rel = parent;
+        if (rel.find(folder) == 0) {
+            rel = rel.substr(folder.size());
+            if (!rel.empty() && (rel[0] == '/' || rel[0] == '\\')) rel = rel.substr(1);
+        }
+        return rel + "|" + bid;
+    };
+
+    auto make_label = [&](const std::string& key) -> std::string {
+        size_t sep = key.find('|');
+        std::string dir_part = key.substr(0, sep);
+        std::string bid = key.substr(sep + 1);
+        if (dir_part.empty()) return bid;
+        return bid + " (" + dir_part + ")";
+    };
+
     for (const auto& t : all_tiffs) {
         std::string bid = get_bolus_id(t.lower_name);
         if (bid.empty()) bid = "unknown";
-        if (!datasets.count(bid)) {
-            datasets[bid] = json{
-                {"bolus_id", bid}, {"tiff_path", ""}, {"roi_path", ""},
+        std::string key = make_key(t.path, bid);
+        if (!datasets.count(key)) {
+            datasets[key] = json{
+                {"bolus_id", bid}, {"label", make_label(key)},
+                {"tiff_path", ""}, {"roi_path", ""},
                 {"csv_path", ""}, {"tiff_name", ""}, {"roi_name", ""},
                 {"csv_name", ""}, {"ready", false}
             };
         }
-        // Prefer shifted TIFFs
-        std::string current = datasets[bid]["tiff_path"].get<std::string>();
-        if (current.empty() || t.lower_name.find("shifted") != std::string::npos) {
-            datasets[bid]["tiff_path"] = t.path;
-            datasets[bid]["tiff_name"] = fs::path(t.path).filename().string();
-        }
+        datasets[key]["tiff_path"] = t.path;
+        datasets[key]["tiff_name"] = fs::path(t.path).filename().string();
     }
 
-    // Match ROIs to datasets
+    // Match ROIs to datasets — try same-dir first, then any dir with same bolus_id
     for (const auto& r : all_rois) {
         std::string bid = get_bolus_id(r.lower_name);
         if (bid.empty()) continue;
-        if (!datasets.count(bid)) continue;
-        std::string current = datasets[bid]["roi_path"].get<std::string>();
-        // Prefer _rois.txt over .mat
-        if (current.empty() || (r.lower_name.find("_rois.txt") != std::string::npos)) {
-            datasets[bid]["roi_path"] = r.path;
-            datasets[bid]["roi_name"] = fs::path(r.path).filename().string();
+        std::string key = make_key(r.path, bid);
+        // Direct match
+        if (datasets.count(key)) {
+            std::string current = datasets[key]["roi_path"].get<std::string>();
+            if (current.empty() || (r.lower_name.find("_rois.txt") != std::string::npos)) {
+                datasets[key]["roi_path"] = r.path;
+                datasets[key]["roi_name"] = fs::path(r.path).filename().string();
+            }
+        } else {
+            // Fallback: match any dataset with same bolus_id that has no ROI yet
+            for (auto& [k, ds] : datasets) {
+                if (ds["bolus_id"].get<std::string>() == bid &&
+                    ds["roi_path"].get<std::string>().empty()) {
+                    ds["roi_path"] = r.path;
+                    ds["roi_name"] = fs::path(r.path).filename().string();
+                }
+            }
         }
     }
 
-    // Match CSVs to datasets
+    // Match CSVs to datasets — same logic
     for (const auto& c : all_csvs) {
         std::string bid = get_bolus_id(c.lower_name);
         if (bid.empty()) continue;
-        if (!datasets.count(bid)) continue;
-        std::string current = datasets[bid]["csv_path"].get<std::string>();
-        // Prefer _cpp.csv
-        if (current.empty() || c.lower_name.find("_cpp") != std::string::npos) {
-            datasets[bid]["csv_path"] = c.path;
-            datasets[bid]["csv_name"] = fs::path(c.path).filename().string();
+        std::string key = make_key(c.path, bid);
+        if (datasets.count(key)) {
+            std::string current = datasets[key]["csv_path"].get<std::string>();
+            if (current.empty() || c.lower_name.find("_cpp") != std::string::npos) {
+                datasets[key]["csv_path"] = c.path;
+                datasets[key]["csv_name"] = fs::path(c.path).filename().string();
+            }
+        } else {
+            for (auto& [k, ds] : datasets) {
+                if (ds["bolus_id"].get<std::string>() == bid &&
+                    ds["csv_path"].get<std::string>().empty()) {
+                    ds["csv_path"] = c.path;
+                    ds["csv_name"] = fs::path(c.path).filename().string();
+                }
+            }
         }
     }
 
-    // Mark readiness and build ordered array
+    // Mark readiness and build ordered array — prefer root-level (non-shifted) first
     json datasets_arr = json::array();
-    for (auto& [bid, ds] : datasets) {
+    for (auto& [key, ds] : datasets) {
         ds["ready"] = !ds["tiff_path"].get<std::string>().empty() &&
                       !ds["roi_path"].get<std::string>().empty();
+        // Root-level datasets first (key starts with "|")
+        bool is_root = (key.find('|') == 0);
+        ds["is_root"] = is_root;
         datasets_arr.push_back(ds);
     }
 
-    // Also provide legacy single-dataset fields (pick bolus1 or first available)
+    // Also provide legacy single-dataset fields (prefer root-level bolus1)
     std::string best_tiff, best_roi, best_csv;
     for (const auto& ds : datasets_arr) {
         std::string bid = ds["bolus_id"].get<std::string>();
-        if (bid == "bolus1" || best_tiff.empty()) {
-            if (!ds["tiff_path"].get<std::string>().empty()) {
-                best_tiff = ds["tiff_path"].get<std::string>();
-                best_roi = ds["roi_path"].get<std::string>();
-                best_csv = ds["csv_path"].get<std::string>();
-                if (bid == "bolus1") break;  // bolus1 is preferred, stop looking
-            }
+        bool is_root = ds.value("is_root", false);
+        bool has_tiff = !ds["tiff_path"].get<std::string>().empty();
+        if (!has_tiff) continue;
+
+        // First available or root-level bolus1
+        if (best_tiff.empty() || (bid == "bolus1" && is_root)) {
+            best_tiff = ds["tiff_path"].get<std::string>();
+            best_roi = ds["roi_path"].get<std::string>();
+            best_csv = ds["csv_path"].get<std::string>();
+            if (bid == "bolus1" && is_root) break;
         }
     }
 
