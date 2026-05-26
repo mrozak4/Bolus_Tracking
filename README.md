@@ -5,8 +5,10 @@
 [![Download Latest Linux App](https://img.shields.io/github/v/release/mrozak4/Bolus_Tracking?label=Download%20Latest%20Linux%20App&style=for-the-badge&color=E95420)](https://github.com/mrozak4/Bolus_Tracking/releases/latest)
 
 
+
 **[English](README.md) | [Français (Québec)](README_FR.md)**
 
+![Bolus Tracking Studio](docs/app_screenshot_en.png)
 
 ### 1-Click Install
 **macOS**:

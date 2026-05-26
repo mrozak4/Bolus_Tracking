@@ -159,6 +159,8 @@ bash run_pipeline_cpp.sh sample-subject-2259 --qc-fwhm-max 20.0 --qc-cnr-min 6.0
 
 ## 3. Exécuter l'interface graphique interactive : Bolus Tracking Studio (Electron)
 
+![Capture d'écran de Bolus Tracking Studio](app_screenshot_fr.png)
+
 > [!TIP]
 > **Recommandation d'application graphique** : Le Bolus Tracking Studio basé sur Electron est l'**outil principal recommandé** pour le triage et le contrôle qualité des modélisations. Il utilise Chromium pour un rendu multiplateforme, des graphiques SVG en C++ pour la performance et le thème sombre MCM caractéristique. Les graphiques sont rendus entièrement en C++ — aucune bibliothèque JavaScript de visualisation n'est utilisée.
 

@@ -184,7 +184,7 @@ If a batch run yields `WARN` or `FAIL` flags, you can easily inspect and correct
 
 ## 3. Running the Interactive GUI: Bolus Tracking Studio (Electron)
 
-![Bolus Tracking Studio Screenshot](app_screenshot.png)
+![Bolus Tracking Studio Screenshot](app_screenshot_en.png)
 
 
 > [!TIP]

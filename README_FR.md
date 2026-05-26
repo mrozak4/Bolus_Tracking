@@ -2,6 +2,8 @@
 
 **[English](README.md) | [Français (Québec)](README_FR.md)**
 
+![Bolus Tracking Studio](docs/app_screenshot_fr.png)
+
 ---
 
 Bienvenue dans le dépôt **Studio de suivi de bolus capillaire et de modélisation de courbe Gamma**. Ce projet propose une suite complète d'outils MATLAB, Python et C++ conçus pour extraire, analyser et modéliser mathématiquement la cinétique de transit de colorants fluorescents dans les capillaires cérébraux pour la recherche sur le couplage neurovasculaire.
