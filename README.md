@@ -1,6 +1,15 @@
 # Capillary Bolus Tracking & Gamma Curve Fitting Studio
 
+[![Download Latest macOS App](https://img.shields.io/github/v/release/mrozak4/Bolus_Tracking?label=Download%20Latest%20macOS%20App&style=for-the-badge&color=E08C40)](https://github.com/mrozak4/Bolus_Tracking/releases/latest)
+
 **[English](README.md) | [Français (Québec)](README_FR.md)**
+
+
+### 1-Click Install
+1. Click the **"Download Latest macOS App"** button above.
+2. Download the `.dmg` file from the latest release.
+3. Open the `.dmg` and drag the **Bolus Tracking Studio.app** to your Applications folder.
+4. Open the app from your Launchpad!
 
 ---
 
