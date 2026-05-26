@@ -14,17 +14,10 @@
     font-weight: normal;
     font-style: normal;
 }
-/* Applied to body when Klingon locale is active */
-body.locale-kl {
-    font-family: 'pIqaD', var(--font-sans);
-}
-body.locale-kl .font-mono,
-body.locale-kl [class*="mono"],
-body.locale-kl .params-table td,
-body.locale-kl .readout-val,
-body.locale-kl .slider-value,
-body.locale-kl .marker-label {
-    font-family: 'pIqaD', var(--font-mono);
+/* Applied when Klingon locale is active — must override every font-family rule */
+body.locale-kl,
+body.locale-kl *:not(.marker-label):not(#svg-plot *) {
+    font-family: 'pIqaD', var(--font-sans) !important;
 }
 
 /* ─── CSS Custom Properties — pixel-matched to ImGui MCM theme ──────────── */
