@@ -1023,48 +1023,52 @@ async function renderPlot(idx) {
                 return coord.pad_l + frac * (coord.svg_w - coord.pad_l - coord.pad_r);
             };
 
-            // Position onset marker
+            // Position onset marker (use state value to preserve drags)
+            const onsetVal = state.onsetMarker || markers.onset;
             const onsetEl = document.getElementById('marker-onset');
-            if (markers.onset > 0 && markers.onset >= coord.min_x && markers.onset <= coord.max_x) {
-                const px = tToPx(markers.onset);
+            if (onsetVal > 0 && onsetVal >= coord.min_x && onsetVal <= coord.max_x) {
+                const px = tToPx(onsetVal);
                 onsetEl.style.left = px + 'px';
                 onsetEl.classList.add('active');
-                document.getElementById('label-onset-val').textContent = markers.onset.toFixed(1) + 's';
+                document.getElementById('label-onset-val').textContent = onsetVal.toFixed(1) + 's';
             } else {
                 onsetEl.classList.remove('active');
             }
 
             // Position peak marker
+            const peakVal = state.peakMarker || markers.peak;
             const peakEl = document.getElementById('marker-peak');
-            if (markers.peak > 0 && markers.peak >= coord.min_x && markers.peak <= coord.max_x) {
-                const px = tToPx(markers.peak);
+            if (peakVal > 0 && peakVal >= coord.min_x && peakVal <= coord.max_x) {
+                const px = tToPx(peakVal);
                 peakEl.style.left = px + 'px';
                 peakEl.classList.add('active');
-                document.getElementById('label-peak-val').textContent = markers.peak.toFixed(1) + 's';
+                document.getElementById('label-peak-val').textContent = peakVal.toFixed(1) + 's';
             } else {
                 peakEl.classList.remove('active');
             }
 
             // Position end marker
+            const endVal = state.endMarker || markers.end;
             const endEl = document.getElementById('marker-end');
-            if (markers.end > 0 && markers.end >= coord.min_x && markers.end <= coord.max_x) {
-                const px = tToPx(markers.end);
+            if (endVal > 0 && endVal >= coord.min_x && endVal <= coord.max_x) {
+                const px = tToPx(endVal);
                 endEl.style.left = px + 'px';
                 endEl.classList.add('active');
-                document.getElementById('label-end-val').textContent = markers.end.toFixed(1) + 's';
+                document.getElementById('label-end-val').textContent = endVal.toFixed(1) + 's';
             } else {
                 endEl.classList.remove('active');
             }
 
-            // Position baseline marker (horizontal)
+            // Position baseline marker (horizontal) — use state to preserve drags
+            const baseVal = state.baselineMarker || markers.baseline;
             const baseEl = document.getElementById('marker-baseline');
-            if (markers.baseline && !isNaN(markers.baseline)) {
-                const frac = (markers.baseline - coord.min_y) / (coord.max_y - coord.min_y);
+            if (baseVal && !isNaN(baseVal)) {
+                const frac = (baseVal - coord.min_y) / (coord.max_y - coord.min_y);
                 const py = coord.svg_h - coord.pad_b - frac * (coord.svg_h - coord.pad_t - coord.pad_b);
                 baseEl.style.bottom = 'auto';
                 baseEl.style.top = py + 'px';
                 baseEl.classList.add('active');
-                document.getElementById('label-base-val').textContent = markers.baseline.toFixed(1);
+                document.getElementById('label-base-val').textContent = baseVal.toFixed(1);
             } else {
                 baseEl.classList.remove('active');
             }

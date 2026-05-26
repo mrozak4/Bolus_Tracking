@@ -1177,10 +1177,12 @@ static json handle_render_plot(const json& params) {
     // Gamma Fit curve — use k*t + gamma(t - click_onset) 
     // The fit was done on t_fit = tl_us[i] - tl_us[start_idx], so f_t2p is
     // relative to click_onset (the fit window start), not click_start (always 0).
+    // Clip to fit window [click_onset, click_end] to match pipeline _fit.svg.
     bool has_fit = false;
     if (rec_ptr) {
         double f_amp = rec_ptr->f_amp, f_t2p = rec_ptr->f_t2p, f_fwhm = rec_ptr->f_fwhm, f_m = rec_ptr->f_m;
         double fit_origin = rec_ptr->click_onset;  // gamma model time origin = fit window start
+        double fit_end = rec_ptr->click_end;        // gamma model end = fit window end
 
         if (!std::isnan(f_amp) && !std::isnan(f_t2p) && !std::isnan(f_fwhm) && f_t2p > 0 && f_fwhm > 0) {
             has_fit = true;
@@ -1190,7 +1192,14 @@ static json handle_render_plot(const json& params) {
                 double t = c.t_us[i];
                 if (t < min_x || t > max_x) continue;
                 double dt = t - fit_origin;
-                double val = k * t + evaluate_gamma_model(dt, f_amp, f_t2p, f_fwhm, f_m);
+                double val;
+                if (dt <= 0.0) {
+                    val = k * t + f_m;  // before onset: flat baseline
+                } else if (t > fit_end && fit_end > 0) {
+                    continue;  // after fit window: don't render
+                } else {
+                    val = k * t + evaluate_gamma_model(dt, f_amp, f_t2p, f_fwhm, f_m);
+                }
                 double px = px_x(t), py = px_y(val);
                 svg << (first ? "M " : " L ") << px << " " << py;
                 first = false;
