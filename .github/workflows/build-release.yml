@@ -16,6 +16,9 @@ jobs:
     strategy:
       matrix:
         include:
+          - os: macos-14
+            arch: arm64
+            cmake_arch: arm64
           - os: macos-13
             arch: x64
             cmake_arch: x86_64
@@ -73,14 +76,77 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake libeigen3-dev zlib1g-dev
           # Install libtiff with all deps for static linking
-  # build-linux:
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 30
-  #   steps:
-  #     - run: echo "Temporarily disabled to prioritize Mac"
+          sudo apt-get install -y libtiff-dev libtiff5-dev libjpeg-dev liblzma-dev libzstd-dev
+      - name: Compile C++ (static linking for portability)
+        run: |
+          mkdir -p build && cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=OFF \
+                -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
+                -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" ..
+          make bolus_server bolus_tracking_cpp -j$(nproc)
+      - name: Verify binaries are portable
+        run: |
+          echo "=== bolus_server dependencies ==="
+          ldd build/bolus_server || true
+          echo "=== bolus_tracking_cpp dependencies ==="
+          ldd build/bolus_tracking_cpp || true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Set binary permissions
+        run: chmod +x build/bolus_server build/bolus_tracking_cpp
+      - name: Install and Build Electron
+        working-directory: gui
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm ci --no-audit --no-fund
+          npx electron-builder --linux --publish never
+      # If AppImage fails with FUSE errors, users can:
+      #   1. Use the .tar.gz instead, or
+      #   2. Run: ./BolusTrackingStudio.AppImage --appimage-extract-and-run
+      - name: Upload Release Assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Bolus Tracking Studio ${{ github.ref_name }}"
+          files: |
+            gui/dist/*.AppImage
+            gui/dist/*.tar.gz
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # build-windows:
-  #   runs-on: windows-latest
-  #   timeout-minutes: 30
-  #   steps:
-  #     - run: echo "Temporarily disabled to prioritize Mac"
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install C++ dependencies
+        run: vcpkg install tiff:x64-windows eigen3:x64-windows zlib:x64-windows
+      - name: Compile C++
+        shell: pwsh
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=OFF ..
+          cmake --build . --config Release --target bolus_server bolus_tracking_cpp
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install and Build Electron
+        working-directory: gui
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm ci --no-audit --no-fund
+          npx electron-builder --win --publish never
+      - name: Upload Release Assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Bolus Tracking Studio ${{ github.ref_name }}"
+          files: gui/dist/*.exe
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
