@@ -625,6 +625,7 @@ function applyLocale() {
         'label-denoise': t.label_denoise_strength,
         'btn-refit': t.btn_refit,
         'btn-override': t.btn_override,
+        'btn-force-stall': t.btn_force_stall,
         'btn-revert': t.btn_revert,
         'btn-revert-loaded': t.btn_revert_loaded,
         'btn-reset-crop': t.btn_reset_crop,
@@ -956,7 +957,7 @@ function applyFilter() {
         const rec = state.roiRecords[i] || {};
         const qc = (rec.qc_flag || '').toUpperCase();
         if (mode === 'all') state.filteredIndices.push(i);
-        else if (mode === 'flagged' && ['FAIL','WARN','REVIEW'].includes(qc)) state.filteredIndices.push(i);
+        else if (mode === 'flagged' && ['FAIL','WARN','REVIEW','STALL'].includes(qc)) state.filteredIndices.push(i);
         else if (mode === 'fail' && qc === 'FAIL') state.filteredIndices.push(i);
         else if (mode === 'warn' && qc === 'WARN') state.filteredIndices.push(i);
         else if (mode === 'pass' && qc === 'PASS') state.filteredIndices.push(i);
@@ -976,7 +977,7 @@ function updateSidebarCounts() {
     document.getElementById('sidebar-counts').textContent =
         sidebarTpl.replace('%d', total).replace('%d', active).replace('%d', manual);
     document.getElementById('val-roi-count').textContent = total;
-    document.getElementById('val-flagged').textContent = state.roiRecords.filter(r => r && ['FAIL','WARN'].includes((r.qc_flag||'').toUpperCase())).length;
+    document.getElementById('val-flagged').textContent = state.roiRecords.filter(r => r && ['FAIL','WARN','STALL'].includes((r.qc_flag||'').toUpperCase())).length;
     document.getElementById('val-manual').textContent = manual;
 
     const pathParts = (state.datasetPath || '').split('/');
@@ -1377,15 +1378,27 @@ async function handleLoadState() {
     }
 }
 
-async function handleForcePass() {
+async function handleForceQC(flag) {
     if (state.selectedRoiIdx < 0) return;
-    const resp = await serverCmd('override_pass', { roi_index: state.selectedRoiIdx });
-    if (resp.ok) {
-        if (resp.data) state.roiRecords[state.selectedRoiIdx] = resp.data;
-        await selectRoi(state.selectedRoiIdx);
-        buildRoiList();
-        showToast('Forced PASS');
+    const rec = state.roiRecords[state.selectedRoiIdx];
+    if (rec) {
+        rec.qc_flag = flag;
+        rec.fit_source = 'manual';
+    } else {
+        state.roiRecords[state.selectedRoiIdx] = {
+            roi_id: state.roiIds[state.selectedRoiIdx],
+            qc_flag: flag,
+            fit_source: 'manual'
+        };
     }
+    if (state.roiRecordMap) {
+        state.roiRecordMap[state.roiIds[state.selectedRoiIdx]] = state.roiRecords[state.selectedRoiIdx];
+    }
+    await selectRoi(state.selectedRoiIdx);
+    buildRoiList();
+    updateSidebarCounts();
+    const t = state.tr || {};
+    showToast((t['toast_forced'] || 'Forced %s').replace('%s', flag));
 }
 
 function handleResetAll() {
@@ -1430,7 +1443,8 @@ function bindEvents() {
 
     // Actions
     document.getElementById('btn-refit').addEventListener('click', handleRefit);
-    document.getElementById('btn-override').addEventListener('click', handleForcePass);
+    document.getElementById('btn-override').addEventListener('click', () => handleForceQC('PASS'));
+    document.getElementById('btn-force-stall').addEventListener('click', () => handleForceQC('STALL'));
     document.getElementById('btn-view-mip').addEventListener('click', showMipModal);
     document.getElementById('btn-close-mip').addEventListener('click', () => {
         document.getElementById('mip-modal').classList.add('hidden');

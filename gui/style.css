@@ -269,6 +269,13 @@ html, body {
 }
 .btn-success:hover { filter: brightness(1.1); }
 
+.btn-warn {
+    background: var(--color-stall);
+    color: var(--text-primary);
+    border-color: var(--color-stall);
+}
+.btn-warn:hover { filter: brightness(1.15); }
+
 .btn-danger {
     background: var(--color-fail);
     color: var(--text-primary);
