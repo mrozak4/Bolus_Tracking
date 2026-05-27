@@ -21,7 +21,7 @@ jobs:
         run: |
           mkdir -p build && cd build
           cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=OFF \
-                -DCMAKE_OSX_ARCHITECTURES=arm64 ..
+                -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" ..
           make bolus_server bolus_tracking_cpp -j$(sysctl -n hw.ncpu)
       - uses: actions/setup-node@v4
         with:
@@ -34,7 +34,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm ci --no-audit --no-fund
-          npx electron-builder --mac --publish never --config.mac.identity=null
+          npx electron-builder --mac universal --publish never --config.mac.identity=null
       # Note: The DMG is unsigned (no Apple Developer ID). Users must run:
       #   xattr -cr "/Applications/Bolus Tracking Studio.app"
       # after first install, or right-click → Open to bypass Gatekeeper.

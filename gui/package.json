@@ -1,6 +1,6 @@
 {
   "name": "bolus-tracking-studio",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Bolus Tracking Studio — Interactive capillary bolus tracking analysis with Mid-Century Modern design",
   "main": "main.js",
   "scripts": {

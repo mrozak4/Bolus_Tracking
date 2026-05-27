@@ -103,6 +103,12 @@ function startServer() {
             pending.reject(new Error('Server process error: ' + err.message));
         }
         pendingRequests.clear();
+        
+        let errorMsg = err.message;
+        if (process.platform === 'darwin' && app.isPackaged) {
+            errorMsg += '\n\nIf you just downloaded this app on Mac, macOS Gatekeeper may be blocking the internal server. Please open your Terminal and run:\n\nxattr -cr "/Applications/Bolus Tracking Studio.app"\n\nThen restart the app.';
+        }
+        dialog.showErrorBox('Server Connection Error', `Failed to start the background analysis server.\n\nError: ${errorMsg}\n\nPath: ${serverPath}`);
     });
 
     serverProcess.on('exit', (code, signal) => {
@@ -113,6 +119,14 @@ function startServer() {
             pending.reject(new Error('Server process exited'));
         }
         pendingRequests.clear();
+        
+        if (code !== 0 && code !== null) {
+            let errorMsg = `The background server crashed with exit code ${code} (signal: ${signal}).`;
+            if (process.platform === 'darwin' && app.isPackaged && code === 137) {
+                 errorMsg += '\n\nThis may be caused by macOS Gatekeeper killing the unsigned binary. Please open Terminal and run:\n\nxattr -cr "/Applications/Bolus Tracking Studio.app"';
+            }
+            dialog.showErrorBox('Server Crashed', errorMsg);
+        }
     });
 }
 
