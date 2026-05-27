@@ -23,6 +23,12 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=OFF \
                 -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" ..
           make bolus_server bolus_tracking_cpp -j$(sysctl -n hw.ncpu)
+      - name: Bundle Dylibs
+        run: |
+          brew install dylibbundler
+          mkdir -p build/libs
+          dylibbundler -od -b -x build/bolus_server -d build/libs -p @executable_path/../libs/
+          dylibbundler -od -b -x build/bolus_tracking_cpp -d build/libs -p @executable_path/../libs/
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
