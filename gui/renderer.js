@@ -606,6 +606,7 @@ function applyLocale() {
         'btn-save-state': t.btn_save_state,
         'btn-load-state': t.btn_load_state,
         'btn-save-csv': t.btn_save_csv,
+        'btn-batch-fit': t.btn_batch_fit || 'Run Full Pipeline',
         'btn-reset-all': t.btn_reset_all,
         'sidebar-title': t.sidebar_title,
         'label-filter': t.label_filter,
@@ -1482,6 +1483,10 @@ async function handleRefit() {
 
 async function handleBatchFit() {
     if (!state.dataLoaded) return;
+    const msg = state.tr?.["confirm_batch_fit"] || "WARNING: Running the full pipeline will OVERWRITE all manual adjustments you have made to this dataset. Are you sure you want to continue?";
+    if (!confirm(msg)) {
+        return;
+    }
     showToast('Running full pipeline on all ROIs...');
     const resp = await serverCmd('batch_fit', {});
     if (resp.ok && resp.data) {
