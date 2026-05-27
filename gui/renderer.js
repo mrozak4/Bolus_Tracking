@@ -41,7 +41,7 @@ const state = {
     tr: {},
 
     // Sounds
-    sounds: { thx: null, squeak: null, hallelujah: null },
+    sounds: { thx: null, squeak: null, hallelujah: null, doom: null },
 
     // Flags
     dataLoaded: false,
@@ -61,10 +61,13 @@ async function initSounds() {
         thxEl.src = await window.bolusAPI.getSoundPath('thx_crescendo.wav');
         squeakEl.src = await window.bolusAPI.getSoundPath('minion_squeak.wav');
         hallelujahEl.src = await window.bolusAPI.getSoundPath('hallelujah.mp3');
+        const doomEl = document.getElementById('sound-doom');
+        if (doomEl) doomEl.src = await window.bolusAPI.getSoundPath('doom.wav');
 
         state.sounds.thx = thxEl;
         state.sounds.squeak = squeakEl;
         state.sounds.hallelujah = hallelujahEl;
+        state.sounds.doom = doomEl;
     } catch (e) {
         console.warn('Sound init failed:', e);
     }
@@ -79,7 +82,11 @@ function playSound(name) {
     } catch (e) { /* ignore */ }
 }
 
-function playSqueak() { playSound('squeak'); }
+function playSqueak() { 
+    if (state.lang === 'minion') {
+        playSound('squeak'); 
+    }
+}
 
 // Attach squeak to all interactive elements
 function initSqueakListeners() {
@@ -1528,6 +1535,7 @@ async function handleSaveCsv() {
             ? state.tr.text_save_csv_msg.replace('%s', resp.data?.path || '')
             : `Results saved to: ${resp.data?.path || ''}`);
     } else {
+        playSound('doom');
         showToast('Save failed: ' + (resp.error || 'unknown'));
     }
 }
@@ -1535,8 +1543,10 @@ async function handleSaveCsv() {
 async function handleSaveState() {
     const resp = await serverCmd('save_state', {});
     if (resp.ok) {
-        playSound('hallelujah');
         showToast('State saved');
+    } else {
+        playSound('doom');
+        showToast('Save failed: ' + (resp.error || 'unknown'));
     }
 }
 
@@ -1804,10 +1814,11 @@ function initBatchPanel() {
     window.bolusAPI.onPipelineDone(({ code, error }) => {
         if (code === 0) {
             appendBatchLine('\n✓ Pipeline completed successfully.', 'ok');
-            playSound('hallelujah');
         } else if (error) {
+            playSound('doom');
             appendBatchLine(`\n✗ Pipeline error: ${error}`, 'error');
         } else {
+            playSound('doom');
             appendBatchLine(`\n✗ Pipeline exited with code ${code}`, 'error');
         }
         setBatchRunning(false);
