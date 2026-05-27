@@ -15,7 +15,7 @@ Click the **Download Latest Release** button above, then pick the right file for
 | Platform | File to Download | Install Steps |
 |----------|-----------------|---------------|
 | 🍎 **macOS** (Apple Silicon) | `Bolus.Tracking.Studio-2.2.2-arm64.dmg` | (M1/M2/M3/M4 chips) Open the `.dmg`, drag to **Applications**, see note below ⬇️ |
-| 🍎 **macOS** (Intel) | `Bolus.Tracking.Studio-2.2.2-x64.dmg` | (Older Intel-based Macs) Open the `.dmg`, drag to **Applications**, see note below ⬇️ |
+| 🍎 **macOS** (Intel) | `Bolus.Tracking.Studio-2.2.2.dmg` | (Older Intel-based Macs) Open the `.dmg`, drag to **Applications**, see note below ⬇️ |
 | 🪟 **Windows** | `Bolus.Tracking.Studio.Setup.2.2.2.exe` | Run the installer |
 | 🐧 **Linux** | `Bolus.Tracking.Studio-2.2.2.AppImage` | `chmod +x *.AppImage` then run it (see note below ⬇️) |
 
