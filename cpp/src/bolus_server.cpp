@@ -1785,11 +1785,12 @@ static json handle_batch_fit(const json& /*params*/) {
 
             double act_max_t2p = 1.5 * median_t2p;
             double act_max_fwhm = 1.5 * median_fwhm;
+            double local_raw_amp = auto_res.init_params[0];  // raw peak amplitude estimate
             std::string rqc = BolusFitter::determine_qc_flag(
                 rpopt[0], rpopt[1], rpopt[2], rpopt[3], rpopt[0] / auto_res.sd_base,
                 g_fitter.min_amp, g_fitter.max_amp, 0.5 * median_t2p, act_max_t2p,
                 0.5 * median_fwhm, act_max_fwhm, refit_ok, false,
-                raw_amp);
+                local_raw_amp);
 
             bool improvement = (rqc == "PASS" && rec.qc_flag != "PASS") ||
                               (rqc == "WARN" && rec.qc_flag == "FAIL") ||
