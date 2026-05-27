@@ -2,7 +2,7 @@
 
 **[English](README_BolusAnalysis.md) | [Français (Québec)](README_BolusAnalysis_FR.md)**
 
----
+> ⚠️ **OBSOLÈTE — Référence MATLAB héritée.** Les outils MATLAB décrits ici sont des implémentations héritées. Pour de nouvelles analyses, veuillez utiliser le pipeline C++ et l'interface graphique **Bolus Tracking Studio** basée sur Electron. Voir **[RUNNING_GUIDE_FR.md](RUNNING_GUIDE_FR.md)** pour les instructions actuelles.
 
 ## Aperçu
 
