@@ -11,7 +11,17 @@ permissions:
 
 jobs:
   build-macos:
-    runs-on: macos-14
+    name: build-macos-${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-14
+            arch: arm64
+            cmake_arch: arm64
+          - os: macos-13
+            arch: x64
+            cmake_arch: x86_64
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +31,7 @@ jobs:
         run: |
           mkdir -p build && cd build
           cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=OFF \
-                -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" ..
+                -DCMAKE_OSX_ARCHITECTURES="${{ matrix.cmake_arch }}" ..
           make bolus_server bolus_tracking_cpp -j$(sysctl -n hw.ncpu)
       - name: Bundle Dylibs
         run: |
@@ -40,7 +50,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm ci --no-audit --no-fund
-          npx electron-builder --mac --x64 --arm64 --publish never --config.mac.identity=null
+          npx electron-builder --mac --${{ matrix.arch }} --publish never --config.mac.identity=null
       # Note: The DMG is unsigned (no Apple Developer ID). Users must run:
       #   xattr -cr "/Applications/Bolus Tracking Studio.app"
       # after first install, or right-click → Open to bypass Gatekeeper.
