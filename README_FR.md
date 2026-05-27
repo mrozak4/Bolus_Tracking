@@ -1,8 +1,20 @@
 # Studio de suivi de bolus capillaire et de modélisation de courbe Gamma
 
+[![Télécharger la dernière version](https://img.shields.io/github/v/release/mrozak4/Bolus_Tracking?label=Télécharger%20la%20dernière%20version&style=for-the-badge&color=E08C40)](https://github.com/mrozak4/Bolus_Tracking/releases/latest)
+
 **[English](README.md) | [Français (Québec)](README_FR.md)**
 
 ![Bolus Tracking Studio](docs/app_screenshot_fr.png)
+
+### Installation en 1 clic
+
+Cliquez sur le bouton **Télécharger** ci-dessus, puis choisissez le bon fichier pour votre système :
+
+| Plateforme | Fichier à télécharger | Étapes d'installation |
+|----------|-----------------|---------------|
+| 🍎 **macOS** (Apple Silicon) | `Bolus.Tracking.Studio-X.X.X-arm64.dmg` | Ouvrir le `.dmg`, glisser l'app dans **Applications** |
+| 🪟 **Windows** | `Bolus.Tracking.Studio.Setup.X.X.X.exe` | Exécuter l'installateur |
+| 🐧 **Linux** | `Bolus.Tracking.Studio-X.X.X.AppImage` | `chmod +x *.AppImage` puis exécuter |
 
 ---
 

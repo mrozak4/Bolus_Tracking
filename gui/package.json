@@ -16,7 +16,6 @@
     "type": "git",
     "url": "https://github.com/mrozak4/Bolus_Tracking.git"
   },
-  "dependencies": {},
   "devDependencies": {
     "electron": "^33.0.0",
     "electron-builder": "^25.1.0"
@@ -28,35 +27,74 @@
       "output": "dist"
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "icon": "../resources/AppIcon.icns",
       "extraResources": [
-        { "from": "../build/bolus_server", "to": "bin/bolus_server" },
-        { "from": "../build/bolus_tracking_cpp", "to": "bin/bolus_tracking_cpp" }
+        {
+          "from": "../build/bolus_server",
+          "to": "bin/bolus_server"
+        },
+        {
+          "from": "../build/bolus_tracking_cpp",
+          "to": "bin/bolus_tracking_cpp"
+        }
       ]
     },
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "icon": "../resources/app_icon.png",
       "extraResources": [
-        { "from": "../build/bolus_server", "to": "bin/bolus_server" },
-        { "from": "../build/bolus_tracking_cpp", "to": "bin/bolus_tracking_cpp" }
+        {
+          "from": "../build/bolus_server",
+          "to": "bin/bolus_server"
+        },
+        {
+          "from": "../build/bolus_tracking_cpp",
+          "to": "bin/bolus_tracking_cpp"
+        }
       ]
     },
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "../resources/app_icon.png",
       "extraResources": [
-        { "from": "../build/Release/bolus_server.exe", "to": "bin/bolus_server.exe" },
-        { "from": "../build/Release/bolus_tracking_cpp.exe", "to": "bin/bolus_tracking_cpp.exe" }
+        {
+          "from": "../build/Release/bolus_server.exe",
+          "to": "bin/bolus_server.exe"
+        },
+        {
+          "from": "../build/Release/bolus_tracking_cpp.exe",
+          "to": "bin/bolus_tracking_cpp.exe"
+        }
       ]
     },
     "extraResources": [
-      { "from": "../resources/fonts", "to": "fonts" },
-      { "from": "../resources/thx_crescendo.wav", "to": "sounds/thx_crescendo.wav" },
-      { "from": "../resources/minion_squeak.wav", "to": "sounds/minion_squeak.wav" },
-      { "from": "../resources/hallelujah.mp3", "to": "sounds/hallelujah.mp3" },
-      { "from": "../resources/app_icon.png", "to": "app_icon.png" }
+      {
+        "from": "../resources/fonts",
+        "to": "fonts"
+      },
+      {
+        "from": "../resources/thx_crescendo.wav",
+        "to": "sounds/thx_crescendo.wav"
+      },
+      {
+        "from": "../resources/minion_squeak.wav",
+        "to": "sounds/minion_squeak.wav"
+      },
+      {
+        "from": "../resources/hallelujah.mp3",
+        "to": "sounds/hallelujah.mp3"
+      },
+      {
+        "from": "../resources/app_icon.png",
+        "to": "app_icon.png"
+      }
     ]
   }
 }
