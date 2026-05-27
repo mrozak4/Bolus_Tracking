@@ -218,8 +218,8 @@ if(BUILD_GUI)
             MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/macos/Info.plist"
             MACOSX_BUNDLE_BUNDLE_NAME "Bolus Tracking Studio"
             MACOSX_BUNDLE_GUI_IDENTIFIER "com.mcm.bolus-tracking"
-            MACOSX_BUNDLE_BUNDLE_VERSION "2.3.1"
-            MACOSX_BUNDLE_SHORT_VERSION_STRING "2.3.1"
+            MACOSX_BUNDLE_BUNDLE_VERSION "3.0.0"
+            MACOSX_BUNDLE_SHORT_VERSION_STRING "3.0.0"
             OUTPUT_NAME "Bolus Tracking Studio"
         )
     endif()

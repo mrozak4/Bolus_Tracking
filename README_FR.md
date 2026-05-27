@@ -12,10 +12,10 @@ Cliquez sur le bouton **Télécharger** ci-dessus, puis choisissez le bon fichie
 
 | Plateforme | Fichier à télécharger | Étapes d'installation |
 |----------|-----------------|---------------|
-| 🍎 **macOS** (Apple Silicon) | `Bolus.Tracking.Studio-2.3.1-arm64.dmg` | (Puces M1/M2/M3/M4) Ouvrir le `.dmg`, glisser dans **Applications**, voir la note ⬇️ |
-| 🍎 **macOS** (Intel) | `Bolus.Tracking.Studio-2.3.1.dmg` | (Anciens Mac Intel) Ouvrir le `.dmg`, glisser dans **Applications**, voir la note ⬇️ |
-| 🪟 **Windows** | `Bolus.Tracking.Studio.Setup.2.3.1.exe` | Exécuter l'installateur |
-| 🐧 **Linux** | `Bolus.Tracking.Studio-2.3.1.AppImage` | `chmod +x *.AppImage` puis exécuter (voir la note ci-dessous ⬇️) |
+| 🍎 **macOS** (Apple Silicon) | `Bolus.Tracking.Studio-3.0.0-arm64.dmg` | (Puces M1/M2/M3/M4) Ouvrir le `.dmg`, glisser dans **Applications**, voir la note ⬇️ |
+| 🍎 **macOS** (Intel) | `Bolus.Tracking.Studio-3.0.0.dmg` | (Anciens Mac Intel) Ouvrir le `.dmg`, glisser dans **Applications**, voir la note ⬇️ |
+| 🪟 **Windows** | `Bolus.Tracking.Studio.Setup.3.0.0.exe` | Exécuter l'installateur |
+| 🐧 **Linux** | `Bolus.Tracking.Studio-3.0.0.AppImage` | `chmod +x *.AppImage` puis exécuter (voir la note ci-dessous ⬇️) |
 
 > [!IMPORTANT]
 > **macOS « fichier endommagé et ne peut pas être ouvert »** — L'application n'est pas signée avec un identifiant de développeur Apple, donc macOS Gatekeeper la bloquera. Après avoir glissé l'application dans Applications, ouvrez le **Terminal** et exécutez :

@@ -14,8 +14,8 @@ Click the **Download Latest Release** button above, then pick the right file for
 
 | Platform | File to Download | Install Steps |
 |----------|-----------------|---------------|
-| 🍎 **macOS** (Apple Silicon) | `BolusTrackingStudio-2.3.1-arm64.dmg` | (M1/M2/M3/M4 chips) Open the `.dmg`, drag to **Applications**, see note below ⬇️ |
-| 🍎 **macOS** (Intel) | `BolusTrackingStudio-2.3.1-x86_64.dmg` | (Older Intel-based Macs) Open the `.dmg`, drag to **Applications**, see note below ⬇️ |
+| 🍎 **macOS** (Apple Silicon) | `BolusTrackingStudio-3.0.0-arm64.dmg` | (M1/M2/M3/M4 chips) Open the `.dmg`, drag to **Applications**, see note below ⬇️ |
+| 🍎 **macOS** (Intel) | `BolusTrackingStudio-3.0.0-x86_64.dmg` | (Older Intel-based Macs) Open the `.dmg`, drag to **Applications**, see note below ⬇️ |
 
 > [!IMPORTANT]
 > **macOS "damaged and can't be opened" fix** — Because the app is not signed with an Apple Developer ID, macOS Gatekeeper will block it. After dragging the app to Applications, open **Terminal** and run:

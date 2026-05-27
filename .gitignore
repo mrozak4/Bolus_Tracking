@@ -4,6 +4,8 @@ __pycache__/
 *.csv
 .venv/
 build/
+build_x64/
+build_arm64/
 *.app/
 
 scratch/
@@ -14,8 +16,9 @@ imgui.ini
 compile_commands.json
 plots_cpp/
 
-# Electron GUI
+# Electron GUI (deprecated)
 gui/node_modules/
+gui/dist/
 
 # Temp files
 clangd_check.log
