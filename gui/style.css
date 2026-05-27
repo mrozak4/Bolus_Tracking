@@ -660,6 +660,20 @@ html, body {
     color: var(--text-primary);
     min-width: 32px;
 }
+.baseline-controls {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    margin-top: var(--space-xs);
+}
+.baseline-slider-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+.baseline-slider-row .range-slider { flex: 1; min-width: 60px; }
+.baseline-slider-row .readout-label { min-width: 72px; flex-shrink: 0; }
+.baseline-controls .btn { margin-top: var(--space-xs); }
 /* Plot Container (matches ImGui ChildBg panel) */
 .plot-container {
     position: relative;
@@ -724,6 +738,81 @@ html, body {
     border-radius: 3px;
     white-space: nowrap;
     pointer-events: none;
+}
+
+/* ─── Fit Limits Panel (collapsible) ──────────────────────────────────────── */
+.fit-limits-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-warm);
+    border-radius: var(--radius-lg);
+    padding: 0;
+    margin-bottom: var(--space-md);
+}
+.fit-limits-section summary {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-burnt-orange);
+    letter-spacing: 0.3px;
+    padding: var(--space-sm) var(--space-lg);
+    cursor: pointer;
+    user-select: none;
+}
+.fit-limits-section summary:hover { opacity: 0.85; }
+.fit-limits-section[open] summary { border-bottom: 1px solid var(--border-warm); }
+
+.fit-limits-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+}
+.limit-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+.limit-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.limit-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    min-width: 28px;
+}
+.limit-input {
+    width: 90px;
+    padding: 4px 6px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-warm);
+    border-radius: var(--radius-sm);
+}
+.limit-input:focus {
+    outline: none;
+    border-color: var(--accent-burnt-orange);
+}
+.limit-input.auto-mode {
+    color: var(--text-muted);
+    font-style: italic;
+}
+.fit-limits-actions {
+    display: flex;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-lg) var(--space-md);
+}
+.fit-limits-actions .btn { font-size: 12px; padding: 5px 14px; }
+
+.effective-hint {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: 2px;
 }
 
 /* ─── Parameter Tables (matches ImGui table styling) ─────────────────────── */

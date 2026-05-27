@@ -907,6 +907,7 @@ async function directLoad(paths) {
     buildRoiList();
     updateSidebarCounts();
     showMainContent();
+    loadFitLimits();
 
     // Select first ROI
     if (state.roiIds.length > 0) {
@@ -954,7 +955,8 @@ function applyFilter() {
     const mode = state.filterMode;
     state.filteredIndices = [];
     for (let i = 0; i < state.roiIds.length; i++) {
-        const rec = state.roiRecords[i] || {};
+        const roiId = state.roiIds[i];
+        const rec = (state.roiRecordMap || {})[roiId] || {};
         const qc = (rec.qc_flag || '').toUpperCase();
         if (mode === 'all') state.filteredIndices.push(i);
         else if (mode === 'flagged' && ['FAIL','WARN','REVIEW','STALL'].includes(qc)) state.filteredIndices.push(i);
@@ -972,12 +974,19 @@ function updateSidebarCounts() {
     const t = state.tr || {};
     const total = state.roiIds.length;
     const active = state.filteredIndices.length;
-    const manual = state.roiRecords.filter(r => r && r.fit_source === 'manual').length;
+    const map = state.roiRecordMap || {};
+    let manual = 0, flagged = 0;
+    for (const roiId of state.roiIds) {
+        const r = map[roiId];
+        if (!r) continue;
+        if (r.fit_source === 'manual') manual++;
+        if (['FAIL','WARN','STALL'].includes((r.qc_flag||'').toUpperCase())) flagged++;
+    }
     const sidebarTpl = t.text_sidebar_counts || 'ROIs: %d | Active: %d | Manual: %d';
     document.getElementById('sidebar-counts').textContent =
         sidebarTpl.replace('%d', total).replace('%d', active).replace('%d', manual);
     document.getElementById('val-roi-count').textContent = total;
-    document.getElementById('val-flagged').textContent = state.roiRecords.filter(r => r && ['FAIL','WARN','STALL'].includes((r.qc_flag||'').toUpperCase())).length;
+    document.getElementById('val-flagged').textContent = flagged;
     document.getElementById('val-manual').textContent = manual;
 
     const pathParts = (state.datasetPath || '').split('/');
@@ -1290,8 +1299,103 @@ function showMipModal() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// FIT LIMITS MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════
+
+const FIT_LIMIT_DEFAULTS = {
+    min_amp: 1e-6, max_amp: 1023.0,
+    min_t2p: 1e-6, max_t2p: 1e6,
+    min_fwhm: 0.5, max_fwhm: 1e6
+};
+
+async function loadFitLimits() {
+    const resp = await serverCmd('get_fit_limits', {});
+    if (!resp.ok) return;
+    const d = resp.data;
+    const fields = {
+        'limit-min-amp': d.min_amp,  'limit-max-amp': d.max_amp,
+        'limit-min-t2p': d.min_t2p,  'limit-max-t2p': d.max_t2p,
+        'limit-min-fwhm': d.min_fwhm, 'limit-max-fwhm': d.max_fwhm
+    };
+    for (const [id, val] of Object.entries(fields)) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        const isAuto = (id === 'limit-max-t2p' && d.auto_max_t2p) ||
+                       (id === 'limit-max-fwhm' && d.auto_max_fwhm);
+        if (isAuto) {
+            el.value = '';
+            el.placeholder = 'auto (fit window)';
+            el.classList.add('auto-mode');
+        } else {
+            el.value = val;
+            el.placeholder = '';
+            el.classList.remove('auto-mode');
+        }
+    }
+}
+
+async function applyFitLimits() {
+    const params = {};
+    const mapping = {
+        'limit-min-amp': 'min_amp',  'limit-max-amp': 'max_amp',
+        'limit-min-t2p': 'min_t2p',  'limit-max-t2p': 'max_t2p',
+        'limit-min-fwhm': 'min_fwhm', 'limit-max-fwhm': 'max_fwhm'
+    };
+    for (const [id, key] of Object.entries(mapping)) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        const v = el.value.trim();
+        if (v === '') {
+            // Empty = auto mode for max_t2p/max_fwhm, use default for others
+            if (key === 'max_t2p' || key === 'max_fwhm') {
+                params[key] = 1e6;  // triggers auto mode (>= 1e5)
+            } else {
+                params[key] = FIT_LIMIT_DEFAULTS[key];
+            }
+        } else {
+            params[key] = parseFloat(v);
+        }
+    }
+    const resp = await serverCmd('set_fit_limits', params);
+    if (resp.ok) {
+        await loadFitLimits();  // refresh display with server's echo
+        showToast('Fit limits updated');
+    } else {
+        showToast('Failed to set limits');
+    }
+}
+
+async function resetFitLimits() {
+    const resp = await serverCmd('set_fit_limits', FIT_LIMIT_DEFAULTS);
+    if (resp.ok) {
+        await loadFitLimits();
+        showToast('Fit limits reset to defaults');
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // ACTION HANDLERS
 // ═══════════════════════════════════════════════════════════════════════════
+
+async function handleRecomputeBaseline() {
+    if (state.selectedRoiIdx < 0) return;
+    const startTime = parseFloat(document.getElementById('baseline-start-slider').value) || 0;
+    const duration = parseFloat(document.getElementById('baseline-dur-slider').value) || 2.0;
+    const resp = await serverCmd('compute_baseline', {
+        roi_index: state.selectedRoiIdx,
+        start_time: startTime,
+        duration_sec: duration
+    });
+    if (resp.ok && resp.data) {
+        state.baselineMarker = resp.data.baseline_median;
+        document.getElementById('readout-base-val').textContent = resp.data.baseline_median.toFixed(1);
+        document.getElementById('label-base-val').textContent = resp.data.baseline_median.toFixed(1);
+        showToast(`Baseline recomputed: median=${resp.data.baseline_median.toFixed(2)} (${resp.data.n_samples} samples)`);
+        await renderPlot(state.selectedRoiIdx);
+    } else {
+        showToast('Baseline computation failed: ' + (resp.error || 'unknown'));
+    }
+}
 
 async function handleRefit() {
     if (state.selectedRoiIdx < 0) return;
@@ -1307,7 +1411,7 @@ async function handleRefit() {
         const d = resp.data;
         const roiId = state.roiIds[state.selectedRoiIdx];
 
-        // Build a record-like object from the refit response
+        // Build a record-like object from the refit response (now includes kinetics)
         const newRec = {
             ...(state.roiRecordMap || {})[roiId] || {},
             roi_id: roiId,
@@ -1321,6 +1425,15 @@ async function handleRefit() {
             click_onset: d.onset,
             click_peak: d.peak,
             click_end: d.end,
+            auc: d.auc,
+            aucn: d.aucn,
+            ont: d.ont,
+            ttm: d.ttm,
+            ttlb: d.ttlb,
+            tthb: d.tthb,
+            ves_type: d.ves_type,
+            denoise_rms: d.denoise_rms,
+            stall_flag: d.stall_flag,
         };
 
         // Update the record map
@@ -1333,25 +1446,66 @@ async function handleRefit() {
         if (d.end > 0) state.endMarker = d.end;
         if (d.baseline) state.baselineMarker = d.baseline;
 
-        // Update parameter display and re-render plot (without resetting markers)
-        const rec = newRec;
-        document.getElementById('val-fit-amp').textContent = fmtVal(rec.f_amp);
-        document.getElementById('val-fit-t2p').textContent = fmtVal(rec.f_t2p);
-        document.getElementById('val-fit-fwhm').textContent = fmtVal(rec.f_fwhm);
-        document.getElementById('val-fit-base').textContent = fmtVal(rec.f_m);
-        document.getElementById('val-fit-cnr').textContent = fmtVal(rec.f_cnr);
+        // Update parameter display
+        document.getElementById('val-fit-amp').textContent = fmtVal(newRec.f_amp);
+        document.getElementById('val-fit-t2p').textContent = fmtVal(newRec.f_t2p);
+        document.getElementById('val-fit-fwhm').textContent = fmtVal(newRec.f_fwhm);
+        document.getElementById('val-fit-base').textContent = fmtVal(newRec.f_m);
+        document.getElementById('val-fit-cnr').textContent = fmtVal(newRec.f_cnr);
+
+        // Update kinetics display
+        document.getElementById('val-auc').textContent = fmtVal(newRec.auc, 1);
+        document.getElementById('val-aucn').textContent = fmtVal(newRec.aucn, 3);
+        document.getElementById('val-onset-scan').textContent = fmtVal(newRec.ont);
+        document.getElementById('val-tt-lower').textContent = fmtVal(newRec.ttlb);
+        document.getElementById('val-tt-peak').textContent = fmtVal(newRec.ttm);
+        document.getElementById('val-tt-upper').textContent = fmtVal(newRec.tthb);
+        document.getElementById('val-vessel-type').textContent = newRec.ves_type || '—';
 
         // Re-render plot with current marker positions
         await renderPlot(state.selectedRoiIdx);
         buildRoiList();
+        updateSidebarCounts();
         showToast('Re-fit complete');
     } else {
         showToast('Re-fit failed: ' + (resp.error || 'unknown'));
     }
 }
 
+async function handleBatchFit() {
+    if (!state.dataLoaded) return;
+    showToast('Running full pipeline on all ROIs...');
+    const resp = await serverCmd('batch_fit', {});
+    if (resp.ok && resp.data) {
+        const d = resp.data;
+        // Rebuild roiRecordMap from returned records
+        state.roiRecordMap = {};
+        for (const rec of (d.records || [])) {
+            if (rec.roi_id !== undefined) {
+                state.roiRecordMap[rec.roi_id] = rec;
+            }
+        }
+        buildRoiList();
+        updateSidebarCounts();
+        // Re-select current ROI to refresh display
+        if (state.selectedRoiIdx >= 0) {
+            await selectRoi(state.selectedRoiIdx);
+        }
+        showToast(`Pipeline complete: ${d.pass} PASS, ${d.warn} WARN, ${d.fail} FAIL, ${d.stall} STALL`);
+    } else {
+        showToast('Batch fit failed: ' + (resp.error || 'unknown'));
+    }
+}
+
 async function handleSaveCsv() {
-    const resp = await serverCmd('save_csv', {});
+    // Sync any GUI-side overrides (Force PASS/STALL) back to server records
+    const records = [];
+    const map = state.roiRecordMap || {};
+    for (const roiId of state.roiIds) {
+        const rec = map[roiId];
+        if (rec) records.push(rec);
+    }
+    const resp = await serverCmd('save_csv', records.length > 0 ? { records } : {});
     if (resp.ok) {
         playSound('hallelujah');
         showToast(state.tr.text_save_csv_msg
@@ -1380,20 +1534,15 @@ async function handleLoadState() {
 
 async function handleForceQC(flag) {
     if (state.selectedRoiIdx < 0) return;
-    const rec = state.roiRecords[state.selectedRoiIdx];
-    if (rec) {
-        rec.qc_flag = flag;
-        rec.fit_source = 'manual';
-    } else {
-        state.roiRecords[state.selectedRoiIdx] = {
-            roi_id: state.roiIds[state.selectedRoiIdx],
-            qc_flag: flag,
-            fit_source: 'manual'
-        };
-    }
-    if (state.roiRecordMap) {
-        state.roiRecordMap[state.roiIds[state.selectedRoiIdx]] = state.roiRecords[state.selectedRoiIdx];
-    }
+    const roiId = state.roiIds[state.selectedRoiIdx];
+    if (!state.roiRecordMap) state.roiRecordMap = {};
+    const existing = state.roiRecordMap[roiId] || {};
+    state.roiRecordMap[roiId] = {
+        ...existing,
+        roi_id: roiId,
+        qc_flag: flag,
+        fit_source: 'manual'
+    };
     await selectRoi(state.selectedRoiIdx);
     buildRoiList();
     updateSidebarCounts();
@@ -1442,9 +1591,19 @@ function bindEvents() {
     });
 
     // Actions
+    document.getElementById('btn-batch-fit').addEventListener('click', handleBatchFit);
     document.getElementById('btn-refit').addEventListener('click', handleRefit);
     document.getElementById('btn-override').addEventListener('click', () => handleForceQC('PASS'));
     document.getElementById('btn-force-stall').addEventListener('click', () => handleForceQC('STALL'));
+    document.getElementById('btn-apply-limits').addEventListener('click', applyFitLimits);
+    document.getElementById('btn-reset-limits').addEventListener('click', resetFitLimits);
+    document.getElementById('btn-recompute-baseline').addEventListener('click', handleRecomputeBaseline);
+    document.getElementById('baseline-start-slider').addEventListener('input', (e) => {
+        document.getElementById('baseline-start-value').textContent = parseFloat(e.target.value).toFixed(1) + 's';
+    });
+    document.getElementById('baseline-dur-slider').addEventListener('input', (e) => {
+        document.getElementById('baseline-dur-value').textContent = parseFloat(e.target.value).toFixed(1) + 's';
+    });
     document.getElementById('btn-view-mip').addEventListener('click', showMipModal);
     document.getElementById('btn-close-mip').addEventListener('click', () => {
         document.getElementById('mip-modal').classList.add('hidden');

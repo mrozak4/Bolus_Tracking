@@ -447,6 +447,7 @@ static QCSettings g_qc_settings;
 struct TraceCache {
     std::vector<double> t_raw, y_raw, y_raw_detrended, y_denoised, t_us, y_us;
     double sd_base = 0.05;
+    double raw_sd_base = 0.0;
     double drift_slope = 0.0;
 };
 static std::vector<TraceCache> g_traces;
@@ -514,6 +515,7 @@ static void compute_trace(size_t r, float denoise_strength = 1.0f) {
     double sum_rb = 0; for (double v : raw_base_win) sum_rb += v;
     double mean_rb = sum_rb / raw_base_win.size();
     double raw_sd = SignalProcessor::compute_std(raw_base_win, mean_rb);
+    c.raw_sd_base = raw_sd;
     double raw_max_val = -1e9;
     for (double v : detrended) if (v > raw_max_val) raw_max_val = v;
     double raw_cnr = (raw_sd > 0) ? ((raw_max_val - raw_baseline) / raw_sd) : 0;
@@ -1278,6 +1280,50 @@ static json handle_auto_estimate(const json& params) {
     }}};
 }
 
+// Recompute baseline from upsampled denoised trace over a user-adjustable window
+// Matches pipeline logic: median of first ~2s (or 10% of trace)
+static json handle_compute_baseline(const json& params) {
+    int roi_idx = params.at("roi_index").get<int>();
+    if (roi_idx < 0 || roi_idx >= (int)g_traces.size()) {
+        return json{{"ok", false}, {"error", "Invalid ROI index"}};
+    }
+    const auto& c = g_traces[roi_idx];
+    if (c.t_us.empty()) return json{{"ok", false}, {"error", "No trace data"}};
+
+    // User-adjustable: start time and duration for baseline window
+    double start_time = params.value("start_time", 0.0);  // seconds
+    double default_dur = 2.0 / g_fr * g_fr;  // ~2 seconds
+    double duration = params.value("duration_sec", default_dur > 0 ? default_dur : 2.0);
+
+    // Collect samples from t_us/y_us in the [start_time, start_time + duration] window
+    std::vector<double> window_vals;
+    for (size_t i = 0; i < c.t_us.size(); ++i) {
+        if (c.t_us[i] >= start_time && c.t_us[i] <= start_time + duration) {
+            window_vals.push_back(c.y_us[i]);
+        }
+    }
+
+    // Fallback: if window is empty (bad start_time), use pipeline default
+    if (window_vals.empty()) {
+        int n_base = std::min((int)std::round(2.0 * g_fr * g_upsample_factor),
+                              (int)std::round(c.y_us.size() * 0.1));
+        n_base = std::max(1, n_base);
+        window_vals.assign(c.y_us.begin(), c.y_us.begin() + n_base);
+    }
+
+    double baseline_median = SignalProcessor::compute_median(window_vals);
+    double sum_v = 0; for (double v : window_vals) sum_v += v;
+    double baseline_mean = sum_v / window_vals.size();
+
+    return json{{"ok", true}, {"data", {
+        {"baseline_median", baseline_median},
+        {"baseline_mean", baseline_mean},
+        {"n_samples", (int)window_vals.size()},
+        {"start_time", start_time},
+        {"duration", duration}
+    }}};
+}
+
 static json handle_run_fit(const json& params) {
     int roi_idx = params.at("roi_index").get<int>();
     double onset = params.at("onset").get<double>();
@@ -1340,16 +1386,105 @@ static json handle_run_fit(const json& params) {
 
     // Determine QC flag
     std::string qc_flag = "FAIL";
+    double actual_max_t2p = (g_fitter.max_t2p >= 1e5 && !t_fit.empty()) ? t_fit.back() : g_fitter.max_t2p;
+    double actual_max_fwhm = (g_fitter.max_fwhm >= 1e5 && !t_fit.empty()) ? t_fit.back() : g_fitter.max_fwhm;
     if (fit_success && popt[0] > 1e-6 && popt[1] > 1e-6 && popt[2] > 0.5) {
-        double actual_max_t2p = (g_fitter.max_t2p >= 1e5 && !t_fit.empty()) ? t_fit.back() : g_fitter.max_t2p;
-        double actual_max_fwhm = (g_fitter.max_fwhm >= 1e5 && !t_fit.empty()) ? t_fit.back() : g_fitter.max_fwhm;
         qc_flag = BolusFitter::determine_qc_flag(
             popt[0], popt[1], popt[2], popt[3], popt[0] / c.sd_base,
             g_fitter.min_amp, g_fitter.max_amp, g_fitter.min_t2p, actual_max_t2p,
             g_fitter.min_fwhm, actual_max_fwhm, fit_success, pass2_run);
     }
 
-    // Update g_records so render_plot uses the new fit params
+    // ── Kinetics computation (matches dataset_processor.cpp L269-357) ──
+    double auc = NAN, aucn = NAN, ont = NAN, ttm = NAN, ttlb = NAN, tthb = NAN;
+    double denoise_rms = 0.0;
+    std::string ves_type = "U";
+
+    if (fit_success && popt.size() >= 4) {
+        // Build gamma model over fit window
+        std::vector<double> y_fit_model(t_fit.size());
+        for (size_t i = 0; i < t_fit.size(); ++i) {
+            y_fit_model[i] = evaluate_gamma_model(t_fit[i], popt[0], popt[1], popt[2], popt[3]);
+        }
+
+        // AUC (trapezoidal rule)
+        double sum_y = 0.0;
+        for (double val : y_fit_model) sum_y += val;
+        auc = sum_y - (y_fit_model.front() + y_fit_model.back()) / 2.0;
+
+        // AUCn (normalized)
+        double min_y = y_fit_model[0], max_y = y_fit_model[0];
+        for (double val : y_fit_model) {
+            if (val < min_y) min_y = val;
+            if (val > max_y) max_y = val;
+        }
+        double range = max_y - min_y;
+        double sum_yn = 0.0;
+        for (double val : y_fit_model) {
+            sum_yn += (range > 0.0) ? (val - min_y) / range : 0.0;
+        }
+        double first_yn = (range > 0.0) ? (y_fit_model.front() - min_y) / range : 0.0;
+        double last_yn = (range > 0.0) ? (y_fit_model.back() - min_y) / range : 0.0;
+        aucn = sum_yn - (first_yn + last_yn) / 2.0;
+
+        // Onset time from 10% threshold on normalized model
+        std::vector<int> I;
+        for (size_t i = 0; i < y_fit_model.size(); ++i) {
+            double val_n = (range > 0.0) ? (y_fit_model[i] - min_y) / range : 0.0;
+            if (val_n < 0.1) {
+                I.push_back(i);
+            }
+        }
+        int onset_idx = 0;
+        if (!I.empty()) {
+            int last_idx = -1;
+            for (size_t k = 0; k + 1 < I.size(); ++k) {
+                if (I[k+1] - I[k] == 1) last_idx = k;
+            }
+            onset_idx = (last_idx != -1) ? I[last_idx] + 1 : I[0];
+        }
+        ont = (double)onset_idx / (g_fr * g_upsample_factor);
+        ttm = std::abs(popt[1] - ont);
+
+        // Parameter SE and transit time CIs (matches dataset_processor L325-337)
+        double sum_sq_resid = 0.0;
+        for (size_t i = 0; i < y_fit.size(); ++i) {
+            double diff = y_fit[i] - y_fit_model[i];
+            sum_sq_resid += diff * diff;
+        }
+        double mse = (y_fit.size() > 4) ? (sum_sq_resid / (y_fit.size() - 4)) : 0.0;
+        std::vector<double> se = g_fitter.get_parameter_se(t_fit, popt, mse);
+        double se_t2p = se[1];
+        double ci_lower = popt[1] - 1.96 * se_t2p;
+        double ci_upper = popt[1] + 1.96 * se_t2p;
+        ttlb = std::abs(ci_lower - ont);
+        tthb = std::abs(ci_upper - ont);
+
+        // NaN guard (matches dataset_processor L339-343)
+        if (std::isnan(popt[0]) || std::isnan(popt[1]) || std::isnan(popt[2]) || std::isnan(popt[3]) ||
+            std::isnan(popt[0] / c.sd_base) || std::isnan(popt[3] / c.sd_base) ||
+            std::isnan(auc) || std::isnan(aucn) ||
+            std::isnan(ttlb) || std::isnan(ttm) || std::isnan(tthb) || std::isnan(ont)) {
+            qc_flag = "FAIL";
+        }
+    }
+
+    // Denoise RMS (matches dataset_processor L361-366)
+    {
+        double sum_sq_diff = 0.0;
+        for (size_t i = 0; i < c.y_raw_detrended.size(); ++i) {
+            double diff = c.y_raw_detrended[i] - c.y_denoised[i];
+            sum_sq_diff += diff * diff;
+        }
+        denoise_rms = (c.y_raw_detrended.size() > 0) ? std::sqrt(sum_sq_diff / c.y_raw_detrended.size()) : 0.0;
+    }
+
+    // Vessel type classification (matches dataset_processor L359)
+    ves_type = BolusFitter::suggest_vessel_type(ont, popt.size() >= 2 ? popt[1] : NAN,
+                                                 popt.size() >= 3 ? popt[2] : NAN,
+                                                 popt.size() >= 1 ? popt[0] : NAN, qc_flag);
+
+    // Update g_records with ALL fields (matches dataset_processor L269-359)
     if (fit_success && popt.size() >= 4) {
         const CsvRecord* existing = find_record_for_roi(roi_idx);
         CsvRecord updated;
@@ -1367,6 +1502,15 @@ static json handle_run_fit(const json& params) {
         updated.click_onset = onset;
         updated.click_peak = peak;
         updated.click_end = end_t;
+        updated.auc = auc;
+        updated.aucn = aucn;
+        updated.ont = ont;
+        updated.ttm = ttm;
+        updated.ttlb = ttlb;
+        updated.tthb = tthb;
+        updated.denoise_rms = denoise_rms;
+        updated.raw_sd_base = c.raw_sd_base;
+        updated.ves_type = ves_type;
         updated.qc_flag = qc_flag;
         updated.fit_source = "manual";
 
@@ -1387,8 +1531,300 @@ static json handle_run_fit(const json& params) {
         {"cnr", (fit_success && popt.size() >= 4) ? popt[0] / c.sd_base : 0},
         {"qc_flag", qc_flag},
         {"fit_curve_t", fit_t}, {"fit_curve_y", fit_y},
-        {"onset", onset}, {"peak", peak}, {"end", end_t}, {"baseline", baseline}
+        {"onset", onset}, {"peak", peak}, {"end", end_t}, {"baseline", baseline},
+        {"auc", auc}, {"aucn", aucn}, {"ont", ont}, {"ttm", ttm},
+        {"ttlb", ttlb}, {"tthb", tthb}, {"ves_type", ves_type},
+        {"denoise_rms", denoise_rms}, {"stall_flag", 0},
+        {"effective_max_t2p", actual_max_t2p},
+        {"effective_max_fwhm", actual_max_fwhm}
     }}};
+}
+
+// ============================================================================
+// Batch Fit — Full pipeline equivalent (matches dataset_processor.cpp)
+// ============================================================================
+
+static json handle_batch_fit(const json& /*params*/) {
+    if (g_traces.empty()) {
+        return json{{"ok", false}, {"error", "No traces loaded"}};
+    }
+
+    g_records.clear();
+    g_record_map.clear();
+    g_records.resize(g_traces.size());
+
+    int pass_count = 0, warn_count = 0, fail_count = 0, stall_count = 0;
+
+    // ── Pass 1: Auto-estimate + fit each ROI ──
+    for (size_t r = 0; r < g_traces.size(); ++r) {
+        const auto& c = g_traces[r];
+        int roi_id = (r < g_rois.size()) ? g_rois[r].id : (int)r;
+        CsvRecord& rec = g_records[r];
+        rec.roi_id = roi_id;
+        g_record_map[roi_id] = r;
+
+        // Auto-estimate
+        AutoEstimateResults auto_res = g_fitter.auto_estimate_params(c.y_us, c.t_us, g_fr, g_upsample_factor);
+        rec.init_amp = auto_res.init_params[0];
+        rec.init_t2p = auto_res.init_params[1];
+        rec.init_fwhm = auto_res.init_params[2];
+        rec.init_m = auto_res.init_params[3];
+        rec.init_cnr = (auto_res.sd_base > 0) ? (auto_res.init_params[0] / auto_res.sd_base) : 0;
+        rec.click_start = auto_res.click_start;
+        rec.click_onset = auto_res.click_onset;
+        rec.click_peak = auto_res.click_peak;
+        rec.click_end = auto_res.click_end;
+        rec.raw_sd_base = c.raw_sd_base;
+        rec.roi_size = (r < g_rois.size()) ? (int)g_rois[r].poly.size() : 0;
+
+        // Build fit window
+        int start_idx = auto_res.start_idx, end_idx = auto_res.end_idx;
+        if (start_idx < 0 || end_idx <= start_idx || end_idx >= (int)c.t_us.size()) {
+            rec.qc_flag = "FAIL";
+            rec.fit_source = "auto";
+            fail_count++;
+            continue;
+        }
+
+        std::vector<double> t_fit, y_fit;
+        for (int i = start_idx; i <= end_idx; ++i) {
+            t_fit.push_back(c.t_us[i] - c.t_us[start_idx]);
+            y_fit.push_back(c.y_us[i]);
+        }
+        if (t_fit.size() < 5) {
+            rec.qc_flag = "FAIL";
+            rec.fit_source = "auto";
+            fail_count++;
+            continue;
+        }
+
+        // Fit
+        bool fit_success = false, pass2_run = false;
+        std::vector<double> popt = g_fitter.run_nonlinear_fit(t_fit, y_fit, auto_res.init_params, c.sd_base, fit_success, pass2_run);
+
+        // QC flag
+        std::string qc_flag = "FAIL";
+        if (fit_success && popt[0] > 1e-6 && popt[1] > 1e-6 && popt[2] > 0.5) {
+            double act_max_t2p = (g_fitter.max_t2p >= 1e5 && !t_fit.empty()) ? t_fit.back() : g_fitter.max_t2p;
+            double act_max_fwhm = (g_fitter.max_fwhm >= 1e5 && !t_fit.empty()) ? t_fit.back() : g_fitter.max_fwhm;
+            qc_flag = BolusFitter::determine_qc_flag(
+                popt[0], popt[1], popt[2], popt[3], popt[0] / c.sd_base,
+                g_fitter.min_amp, g_fitter.max_amp, g_fitter.min_t2p, act_max_t2p,
+                g_fitter.min_fwhm, act_max_fwhm, fit_success, pass2_run);
+        }
+        rec.qc_flag = qc_flag;
+        rec.fit_source = "auto";
+
+        if (fit_success && popt.size() >= 4) {
+            rec.f_amp = popt[0]; rec.f_t2p = popt[1]; rec.f_fwhm = popt[2]; rec.f_m = popt[3];
+            rec.f_cnr = (c.sd_base > 0) ? (popt[0] / c.sd_base) : NAN;
+            rec.f_snr = (c.sd_base > 0) ? (popt[3] / c.sd_base) : NAN;
+
+            // Kinetics
+            std::vector<double> y_fit_model(t_fit.size());
+            for (size_t i = 0; i < t_fit.size(); ++i)
+                y_fit_model[i] = evaluate_gamma_model(t_fit[i], popt[0], popt[1], popt[2], popt[3]);
+
+            double sum_y = 0; for (double v : y_fit_model) sum_y += v;
+            rec.auc = sum_y - (y_fit_model.front() + y_fit_model.back()) / 2.0;
+
+            double mn = y_fit_model[0], mx = y_fit_model[0];
+            for (double v : y_fit_model) { if (v < mn) mn = v; if (v > mx) mx = v; }
+            double rng = mx - mn;
+            double syn = 0; for (double v : y_fit_model) syn += (rng > 0) ? (v - mn) / rng : 0;
+            double fyn = (rng > 0) ? (y_fit_model.front() - mn) / rng : 0;
+            double lyn = (rng > 0) ? (y_fit_model.back() - mn) / rng : 0;
+            rec.aucn = syn - (fyn + lyn) / 2.0;
+
+            // Onset
+            std::vector<int> I;
+            for (size_t i = 0; i < y_fit_model.size(); ++i) {
+                double vn = (rng > 0) ? (y_fit_model[i] - mn) / rng : 0;
+                if (vn < 0.1) I.push_back(i);
+            }
+            int oidx = 0;
+            if (!I.empty()) {
+                int li = -1;
+                for (size_t k = 0; k + 1 < I.size(); ++k) { if (I[k+1] - I[k] == 1) li = k; }
+                oidx = (li != -1) ? I[li] + 1 : I[0];
+            }
+            rec.ont = (double)oidx / (g_fr * g_upsample_factor);
+            rec.ttm = std::abs(popt[1] - rec.ont);
+
+            // SE / CI
+            double ssr = 0;
+            for (size_t i = 0; i < y_fit.size(); ++i) { double d = y_fit[i] - y_fit_model[i]; ssr += d*d; }
+            double mse = (y_fit.size() > 4) ? ssr / (y_fit.size() - 4) : 0;
+            auto se = g_fitter.get_parameter_se(t_fit, popt, mse);
+            rec.ttlb = std::abs((popt[1] - 1.96 * se[1]) - rec.ont);
+            rec.tthb = std::abs((popt[1] + 1.96 * se[1]) - rec.ont);
+
+            // NaN guard
+            if (std::isnan(rec.f_amp) || std::isnan(rec.f_t2p) || std::isnan(rec.f_fwhm) || std::isnan(rec.f_m) ||
+                std::isnan(rec.f_cnr) || std::isnan(rec.f_snr) || std::isnan(rec.auc) || std::isnan(rec.aucn) ||
+                std::isnan(rec.ttlb) || std::isnan(rec.ttm) || std::isnan(rec.tthb) || std::isnan(rec.ont)) {
+                rec.qc_flag = "FAIL";
+            }
+        }
+
+        // Vessel type & denoise_rms
+        rec.ves_type = BolusFitter::suggest_vessel_type(rec.ont, rec.f_t2p, rec.f_fwhm, rec.f_amp, rec.qc_flag);
+        double sd2 = 0;
+        for (size_t i = 0; i < c.y_raw_detrended.size(); ++i) {
+            double d = c.y_raw_detrended[i] - c.y_denoised[i]; sd2 += d*d;
+        }
+        rec.denoise_rms = (c.y_raw_detrended.size() > 0) ? std::sqrt(sd2 / c.y_raw_detrended.size()) : 0;
+    }
+
+    // ── Pass 2: Population prior refit (matches dataset_processor L490-562) ──
+    std::vector<double> pass_t2ps, pass_fwhms;
+    for (const auto& rec : g_records) {
+        if (rec.qc_flag == "PASS") {
+            pass_t2ps.push_back(rec.f_t2p);
+            pass_fwhms.push_back(rec.f_fwhm);
+        }
+    }
+    double med_t2p = 3.0, med_fwhm = 5.0;
+    if (!pass_t2ps.empty()) {
+        med_t2p = SignalProcessor::compute_median(pass_t2ps);
+        med_fwhm = SignalProcessor::compute_median(pass_fwhms);
+    }
+
+    for (size_t r = 0; r < g_records.size(); ++r) {
+        CsvRecord& rec = g_records[r];
+        if (rec.qc_flag != "FAIL" && rec.qc_flag != "WARN") continue;
+        if (pass_t2ps.empty()) continue;  // no priors available
+        const auto& c = g_traces[r];
+
+        AutoEstimateResults auto_res = g_fitter.auto_estimate_params(c.y_us, c.t_us, g_fr, g_upsample_factor);
+        int si = auto_res.start_idx, ei = auto_res.end_idx;
+        if (si < 0 || ei <= si || ei >= (int)c.t_us.size()) continue;
+
+        std::vector<double> t_fit, y_fit;
+        for (int i = si; i <= ei; ++i) {
+            t_fit.push_back(c.t_us[i] - c.t_us[si]);
+            y_fit.push_back(c.y_us[i]);
+        }
+        if (t_fit.size() < 5) continue;
+
+        // Refit with population-prior-narrowed bounds
+        bool refit_ok = false;
+        std::vector<double> rpopt = g_fitter.run_nonlinear_fit_with_bounds(
+            t_fit, y_fit, auto_res.init_params, c.sd_base,
+            g_fitter.min_amp, g_fitter.max_amp,
+            0.5 * med_t2p, 1.5 * med_t2p,
+            0.5 * med_fwhm, 1.5 * med_fwhm, refit_ok);
+        if (!refit_ok || rpopt.size() < 4) continue;
+
+        double act_max_t2p = 1.5 * med_t2p;
+        double act_max_fwhm = 1.5 * med_fwhm;
+        bool rp2 = false;  // no pass2 for bounded refit
+        std::string rqc = BolusFitter::determine_qc_flag(
+            rpopt[0], rpopt[1], rpopt[2], rpopt[3], rpopt[0] / c.sd_base,
+            g_fitter.min_amp, g_fitter.max_amp, 0.5 * med_t2p, act_max_t2p,
+            0.5 * med_fwhm, act_max_fwhm, refit_ok, rp2);
+
+        // Accept only if improvement
+        bool improvement = (rqc == "PASS" && rec.qc_flag != "PASS") ||
+                          (rqc == "WARN" && rec.qc_flag == "FAIL") ||
+                          (rqc == "WARN" && rec.qc_flag == "WARN" &&
+                           (rec.f_t2p < 0.1 || rec.f_fwhm < 0.5) &&
+                           rpopt[1] >= 0.1 && rpopt[2] >= 0.5);
+        if (!improvement) continue;
+
+        rec.f_amp = rpopt[0]; rec.f_t2p = rpopt[1]; rec.f_fwhm = rpopt[2]; rec.f_m = rpopt[3];
+        rec.f_cnr = rpopt[0] / c.sd_base; rec.f_snr = rpopt[3] / c.sd_base;
+        rec.qc_flag = rqc;
+        rec.fit_source = "population_prior";
+        rec.ves_type = BolusFitter::suggest_vessel_type(rec.ont, rec.f_t2p, rec.f_fwhm, rec.f_amp, rec.qc_flag);
+    }
+
+    // ── Pass 3: Stall detection (matches dataset_processor L569-616) ──
+    std::vector<double> valid_onts;
+    pass_t2ps.clear();
+    for (const auto& rec : g_records) {
+        if (rec.qc_flag == "PASS") {
+            pass_t2ps.push_back(rec.f_t2p);
+            valid_onts.push_back(rec.ont);
+        }
+    }
+    med_t2p = pass_t2ps.empty() ? 3.0 : SignalProcessor::compute_median(pass_t2ps);
+    double median_ont = valid_onts.empty() ? 0.0 : SignalProcessor::compute_median(valid_onts);
+
+    for (auto& rec : g_records) {
+        bool is_stall = false;
+        // Heuristic A: Late onset & slow transit
+        if (!std::isnan(rec.ont) && !std::isnan(rec.f_t2p)) {
+            bool late_ont = (rec.ont > median_ont + 3.0) || (median_ont > 0.0 && rec.ont > 2.5 * median_ont);
+            bool slow_transit = (rec.f_t2p > 2.5 * med_t2p) || (rec.f_t2p > 12.0);
+            if (late_ont && slow_transit) is_stall = true;
+        }
+        // Heuristic B: Baseline instability
+        if (!std::isnan(rec.raw_sd_base) && rec.raw_sd_base > 15.0) is_stall = true;
+        // Heuristic C: Step-function rise
+        if (!std::isnan(rec.f_t2p) && !std::isnan(rec.f_fwhm)) {
+            if (rec.f_t2p < 0.8 && rec.f_fwhm > 6.0) is_stall = true;
+        }
+        if (is_stall) {
+            rec.stall_flag = 1;
+            rec.qc_flag = "STALL";
+            rec.ves_type = "S";
+        }
+    }
+
+    // ── Scan-corrected onset ──
+    double min_ont = 999999.0;
+    for (const auto& rec : g_records) {
+        if (!std::isnan(rec.ont) && rec.ont < min_ont) min_ont = rec.ont;
+    }
+    for (auto& rec : g_records) {
+        rec.ont_sc = std::isnan(rec.ont) ? NAN : (rec.ont - min_ont);
+    }
+
+    // Count results
+    pass_count = warn_count = fail_count = stall_count = 0;
+    for (const auto& rec : g_records) {
+        if (rec.qc_flag == "PASS") pass_count++;
+        else if (rec.qc_flag == "WARN") warn_count++;
+        else if (rec.qc_flag == "STALL") stall_count++;
+        else fail_count++;
+    }
+
+    // Build records JSON for GUI
+    json records = json::array();
+    for (const auto& rec : g_records) {
+        records.push_back(record_to_json(rec));
+    }
+
+    return json{{"ok", true}, {"data", {
+        {"total", (int)g_records.size()},
+        {"pass", pass_count}, {"warn", warn_count},
+        {"fail", fail_count}, {"stall", stall_count},
+        {"records", records}
+    }}};
+}
+
+static json handle_get_fit_limits(const json& /*params*/) {
+    return json{{"ok", true}, {"data", {
+        {"min_amp",  g_fitter.min_amp},
+        {"max_amp",  g_fitter.max_amp},
+        {"min_t2p",  g_fitter.min_t2p},
+        {"max_t2p",  g_fitter.max_t2p},
+        {"min_fwhm", g_fitter.min_fwhm},
+        {"max_fwhm", g_fitter.max_fwhm},
+        {"auto_max_t2p",  g_fitter.max_t2p >= 1e5},
+        {"auto_max_fwhm", g_fitter.max_fwhm >= 1e5}
+    }}};
+}
+
+static json handle_set_fit_limits(const json& params) {
+    if (params.contains("min_amp"))  g_fitter.min_amp  = params["min_amp"].get<double>();
+    if (params.contains("max_amp"))  g_fitter.max_amp  = params["max_amp"].get<double>();
+    if (params.contains("min_t2p"))  g_fitter.min_t2p  = params["min_t2p"].get<double>();
+    if (params.contains("max_t2p"))  g_fitter.max_t2p  = params["max_t2p"].get<double>();
+    if (params.contains("min_fwhm")) g_fitter.min_fwhm = params["min_fwhm"].get<double>();
+    if (params.contains("max_fwhm")) g_fitter.max_fwhm = params["max_fwhm"].get<double>();
+    return handle_get_fit_limits(params); // echo back current values
 }
 
 static json handle_parse_framerate(const json& params) {
@@ -1461,9 +1897,13 @@ int main() {
             else if (action == "get_trace")    result = handle_get_trace(params);
             else if (action == "render_plot")  result = handle_render_plot(params);
             else if (action == "auto_estimate") result = handle_auto_estimate(params);
+            else if (action == "compute_baseline") result = handle_compute_baseline(params);
             else if (action == "run_fit")      result = handle_run_fit(params);
             else if (action == "parse_framerate") result = handle_parse_framerate(params);
             else if (action == "convert_mat")  result = handle_convert_mat(params);
+            else if (action == "batch_fit")    result = handle_batch_fit(params);
+            else if (action == "get_fit_limits") result = handle_get_fit_limits(params);
+            else if (action == "set_fit_limits") result = handle_set_fit_limits(params);
             else {
                 result = json{{"ok", false}, {"error", "Unknown action: " + action}};
             }

@@ -167,6 +167,20 @@
                                 <span id="label-base-marker" class="readout-label">Baseline Value</span>
                             </div>
                         </div>
+                        <h4 id="section-baseline-title">BASELINE WINDOW</h4>
+                        <div class="baseline-controls">
+                            <div class="baseline-slider-row">
+                                <label id="label-base-start" class="readout-label">Start (s):</label>
+                                <input type="range" id="baseline-start-slider" class="range-slider" min="0" max="30" step="0.1" value="0">
+                                <span id="baseline-start-value" class="slider-value">0.0s</span>
+                            </div>
+                            <div class="baseline-slider-row">
+                                <label id="label-base-dur" class="readout-label">Duration (s):</label>
+                                <input type="range" id="baseline-dur-slider" class="range-slider" min="0.5" max="10" step="0.1" value="2.0">
+                                <span id="baseline-dur-value" class="slider-value">2.0s</span>
+                            </div>
+                            <button id="btn-recompute-baseline" class="btn btn-secondary">Recompute Baseline</button>
+                        </div>
                     </div>
 
                     <!-- Col 2: Crop controls + Denoise -->
@@ -189,6 +203,7 @@
                     <div class="controls-col">
                         <h4 id="section-fit-actions-title">FITTING ACTIONS</h4>
                         <div class="controls-buttons fit-actions">
+                            <button id="btn-batch-fit" class="btn btn-accent">Run Full Pipeline</button>
                             <button id="btn-refit" class="btn btn-primary">Re-Fit (LM)</button>
                             <button id="btn-override" class="btn btn-success">Force PASS</button>
                             <button id="btn-force-stall" class="btn btn-warn">Force STALL</button>
@@ -237,6 +252,44 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Fit Limits (collapsible) -->
+                <details id="fit-limits-panel" class="fit-limits-section">
+                    <summary id="fit-limits-title">QC / FIT PARAMETER LIMITS</summary>
+                    <div class="fit-limits-grid">
+                        <div class="limit-group">
+                            <label>Amplitude</label>
+                            <div class="limit-row">
+                                <span class="limit-label">Min</span>
+                                <input type="number" id="limit-min-amp" step="any" class="limit-input">
+                                <span class="limit-label">Max</span>
+                                <input type="number" id="limit-max-amp" step="any" class="limit-input">
+                            </div>
+                        </div>
+                        <div class="limit-group">
+                            <label>T2P (s)</label>
+                            <div class="limit-row">
+                                <span class="limit-label">Min</span>
+                                <input type="number" id="limit-min-t2p" step="any" class="limit-input">
+                                <span class="limit-label">Max</span>
+                                <input type="number" id="limit-max-t2p" step="any" class="limit-input">
+                            </div>
+                        </div>
+                        <div class="limit-group">
+                            <label>FWHM (s)</label>
+                            <div class="limit-row">
+                                <span class="limit-label">Min</span>
+                                <input type="number" id="limit-min-fwhm" step="any" class="limit-input">
+                                <span class="limit-label">Max</span>
+                                <input type="number" id="limit-max-fwhm" step="any" class="limit-input">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="fit-limits-actions">
+                        <button id="btn-apply-limits" class="btn btn-primary">Apply Limits</button>
+                        <button id="btn-reset-limits" class="btn btn-secondary">Reset Defaults</button>
+                    </div>
+                </details>
 
                 <!-- Kinetics & Classification -->
                 <div class="kinetics-section">
