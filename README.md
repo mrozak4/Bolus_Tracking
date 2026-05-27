@@ -6,7 +6,7 @@
 
 **[English](README.md) | [Français (Québec)](README_FR.md)**
 
-![Bolus Tracking Studio](docs/app_screenshot_en.png?v=2.2.1)
+![Bolus Tracking Studio - ROI 7 Fit Verification](docs/cpp_roi7_fixed.png?v=2.2.0)
 
 ### 1-Click Install
 
