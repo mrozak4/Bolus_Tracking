@@ -40,7 +40,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm ci --no-audit --no-fund
-          npx electron-builder --mac universal --publish never --config.mac.identity=null
+          npx electron-builder --mac --x64 --arm64 --publish never --config.mac.identity=null
       # Note: The DMG is unsigned (no Apple Developer ID). Users must run:
       #   xattr -cr "/Applications/Bolus Tracking Studio.app"
       # after first install, or right-click → Open to bypass Gatekeeper.
