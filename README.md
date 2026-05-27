@@ -6,7 +6,7 @@
 
 **[English](README.md) | [Français (Québec)](README_FR.md)**
 
-![Bolus Tracking Studio](docs/app_screenshot_en.png?v=2.2.2)
+![Bolus Tracking Studio](docs/app_screenshot_en.png?v=2.3.0)
 
 ### 1-Click Install
 
