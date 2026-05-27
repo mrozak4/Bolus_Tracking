@@ -14,7 +14,7 @@ Cliquez sur le bouton **Télécharger** ci-dessus, puis choisissez le bon fichie
 |----------|-----------------|---------------|
 | 🍎 **macOS** (Apple Silicon) | `Bolus.Tracking.Studio-X.X.X-arm64.dmg` | Ouvrir le `.dmg`, glisser l'app dans **Applications**, puis voir la note ci-dessous ⬇️ |
 | 🪟 **Windows** | `Bolus.Tracking.Studio.Setup.X.X.X.exe` | Exécuter l'installateur |
-| 🐧 **Linux** | `Bolus.Tracking.Studio-X.X.X.AppImage` | `chmod +x *.AppImage` puis exécuter |
+| 🐧 **Linux** | `Bolus.Tracking.Studio-X.X.X.AppImage` | `chmod +x *.AppImage` puis exécuter (voir la note ci-dessous ⬇️) |
 
 > [!IMPORTANT]
 > **macOS « fichier endommagé et ne peut pas être ouvert »** — L'application n'est pas signée avec un identifiant de développeur Apple, donc macOS Gatekeeper la bloquera. Après avoir glissé l'application dans Applications, ouvrez le **Terminal** et exécutez :
@@ -22,6 +22,18 @@ Cliquez sur le bouton **Télécharger** ci-dessus, puis choisissez le bon fichie
 > xattr -cr "/Applications/Bolus Tracking Studio.app"
 > ```
 > Puis ouvrez l'application normalement. Vous pouvez aussi faire **clic droit → Ouvrir** au premier lancement.
+
+> [!TIP]
+> **L'AppImage Linux ne fonctionne pas ?** Si vous obtenez une erreur FUSE ou si l'application ne démarre pas, essayez :
+> ```bash
+> # Option 1 : Exécuter sans FUSE
+> ./Bolus.Tracking.Studio-*.AppImage --appimage-extract-and-run
+>
+> # Option 2 : Téléchargez le .tar.gz depuis la page des Releases
+> tar xzf Bolus.Tracking.Studio-*.tar.gz
+> cd bolus-tracking-studio
+> ./bolus-tracking-studio
+> ```
 
 ---
 

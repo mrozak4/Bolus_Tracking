@@ -47,7 +47,8 @@
     },
     "linux": {
       "target": [
-        "AppImage"
+        "AppImage",
+        "tar.gz"
       ],
       "icon": "../resources/app_icon.png",
       "extraResources": [

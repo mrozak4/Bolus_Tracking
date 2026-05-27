@@ -56,12 +56,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install C++ dependencies
-        run: sudo apt-get update && sudo apt-get install -y cmake libtiff-dev libeigen3-dev zlib1g-dev
-      - name: Compile C++
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libeigen3-dev zlib1g-dev
+          # Install libtiff with all deps for static linking
+          sudo apt-get install -y libtiff-dev libtiff5-dev libjpeg-dev liblzma-dev libzstd-dev
+      - name: Compile C++ (static linking for portability)
         run: |
           mkdir -p build && cd build
-          cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=OFF ..
+          cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=OFF \
+                -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
+                -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" ..
           make bolus_server bolus_tracking_cpp -j$(nproc)
+      - name: Verify binaries are portable
+        run: |
+          echo "=== bolus_server dependencies ==="
+          ldd build/bolus_server || true
+          echo "=== bolus_tracking_cpp dependencies ==="
+          ldd build/bolus_tracking_cpp || true
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -74,12 +86,17 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           npx electron-builder --linux --publish never
+      # If AppImage fails with FUSE errors, users can:
+      #   1. Use the .tar.gz instead, or
+      #   2. Run: ./BolusTrackingStudio.AppImage --appimage-extract-and-run
       - name: Upload Release Assets
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           name: "Bolus Tracking Studio ${{ github.ref_name }}"
-          files: gui/dist/*.AppImage
+          files: |
+            gui/dist/*.AppImage
+            gui/dist/*.tar.gz
           draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
