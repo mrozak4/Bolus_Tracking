@@ -211,5 +211,16 @@ if(BUILD_GUI)
             "-framework IOKit"
             "-framework CoreVideo"
         )
+        
+        # macOS app bundle configuration
+        set_target_properties(bolus_tracking_gui PROPERTIES
+            MACOSX_BUNDLE TRUE
+            MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/macos/Info.plist"
+            MACOSX_BUNDLE_BUNDLE_NAME "Bolus Tracking Studio"
+            MACOSX_BUNDLE_GUI_IDENTIFIER "com.mcm.bolus-tracking"
+            MACOSX_BUNDLE_BUNDLE_VERSION "2.3.1"
+            MACOSX_BUNDLE_SHORT_VERSION_STRING "2.3.1"
+            OUTPUT_NAME "Bolus Tracking Studio"
+        )
     endif()
 endif()

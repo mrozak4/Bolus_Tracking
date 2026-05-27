@@ -469,7 +469,8 @@ bool BolusFitter::is_near_bounds(double val, double low, double high) {
 
 std::string BolusFitter::determine_qc_flag(double f_amp, double f_t2p, double f_fwhm, double f_m, double f_cnr,
                                            double min_amp, double max_amp, double min_t2p, double max_t2p,
-                                           double min_fwhm, double max_fwhm, bool fit_success, bool pass2_run) {
+                                           double min_fwhm, double max_fwhm, bool fit_success, bool pass2_run,
+                                           double observed_peak_amp) {
     if (!fit_success || std::isnan(f_amp) || std::isnan(f_t2p) || std::isnan(f_fwhm) || std::isnan(f_m) || std::isnan(f_cnr)) {
         return "FAIL";
     }
@@ -489,8 +490,19 @@ std::string BolusFitter::determine_qc_flag(double f_amp, double f_t2p, double f_
                        
     bool inside_pass_ranges = (f_fwhm >= 0.5 && f_fwhm <= 15.0) &&
                               (f_t2p >= 0.1 && f_t2p <= 10.0);
+
+    // Goodness-of-fit check: if the fitted amplitude captures less than 40%
+    // of the observed signal peak, the model is a poor fit even if params are
+    // within bounds.  Only apply when the observed peak is meaningful (> 10).
+    bool poor_fit = false;
+    if (observed_peak_amp > 10.0 && f_amp > 0.0) {
+        double peak_ratio = f_amp / observed_peak_amp;
+        if (peak_ratio < 0.4) {
+            poor_fit = true;
+        }
+    }
                               
-    if (!near_bounds && f_cnr > 5.0 && inside_pass_ranges) {
+    if (!near_bounds && f_cnr > 5.0 && inside_pass_ranges && !poor_fit) {
         return "PASS";
     }
     return "WARN";

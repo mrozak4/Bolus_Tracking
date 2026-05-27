@@ -2,7 +2,7 @@
 
 **[English](README_Python_Pipeline.md) | [Français (Québec)](README_Python_Pipeline_FR.md)**
 
-> ⚠️ **DEPRECATED — Legacy Reference Only.** The Python pipeline is no longer the recommended workflow. The **C++ parallel pipeline** (`bolus_tracking_cpp`) is the primary, production-grade implementation — it is ~11× faster and supports the full QC triage workflow via the **Electron-based Bolus Tracking Studio** GUI. See the **[RUNNING_GUIDE.md](RUNNING_GUIDE.md)** for current instructions.
+> ⚠️ **DEPRECATED — Legacy Reference Only.** The Python pipeline is no longer the recommended workflow. The **C++ parallel pipeline** (`bolus_tracking_cpp`) is the primary, production-grade implementation — it is ~11× faster and supports the full QC triage workflow via the **native C++ Bolus Tracking Studio** GUI. See the **[RUNNING_GUIDE.md](RUNNING_GUIDE.md)** for current instructions.
 >
 > The content below is retained as a reference for users who need to prototype with Python or extend the pipeline with custom scripts.
 
@@ -75,7 +75,7 @@ The script will output a CSV file (e.g., `3554_bolus1_baseline_123-300_shifted_r
 
 ## Interactive Python GUI (Tkinter & Matplotlib Studio)
 
-> ⚠️ **DEPRECATED.** The Python tkinter GUI is no longer maintained. Use the **Electron-based Bolus Tracking Studio** instead:
+> ⚠️ **DEPRECATED.** The Python tkinter GUI is no longer maintained. Use the **native C++ Bolus Tracking Studio** instead:
 > ```bash
 > cd gui && npm install && npm start
 > ```

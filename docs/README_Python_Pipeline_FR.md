@@ -2,7 +2,7 @@
 
 **[English](README_Python_Pipeline.md) | [Français (Québec)](README_Python_Pipeline_FR.md)**
 
-> ⚠️ **OBSOLÈTE — Référence patrimoniale uniquement.** Le pipeline Python n'est plus le flux de travail recommandé. Le **pipeline parallèle C++** (`bolus_tracking_cpp`) est l'implémentation principale de production — il est environ 11 fois plus rapide et prend en charge le flux complet de triage via l'interface graphique **Bolus Tracking Studio** basée sur Electron. Voir le **[RUNNING_GUIDE_FR.md](RUNNING_GUIDE_FR.md)** pour les instructions à jour.
+> ⚠️ **OBSOLÈTE — Référence patrimoniale uniquement.** Le pipeline Python n'est plus le flux de travail recommandé. Le **pipeline parallèle C++** (`bolus_tracking_cpp`) est l'implémentation principale de production — il est environ 11 fois plus rapide et prend en charge le flux complet de triage via l'interface graphique **Bolus Tracking Studio** native C++. Voir le **[RUNNING_GUIDE_FR.md](RUNNING_GUIDE_FR.md)** pour les instructions à jour.
 >
 > Le contenu ci-dessous est conservé à titre de référence pour les utilisateurs qui doivent prototyper en Python ou étendre le pipeline avec des scripts personnalisés.
 
@@ -75,7 +75,7 @@ Le script génère un fichier CSV (ex. `3554_bolus1_baseline_123-300_shifted_res
 
 ## Interface graphique interactive Python (Studio Tkinter et Matplotlib)
 
-> ⚠️ **OBSOLÈTE.** L'interface graphique Python tkinter n'est plus maintenue. Utilisez plutôt le **Bolus Tracking Studio** basé sur Electron :
+> ⚠️ **OBSOLÈTE.** L'interface graphique Python tkinter n'est plus maintenue. Utilisez plutôt le **Bolus Tracking Studio** natif C++ :
 > ```bash
 > cd gui && npm install && npm start
 > ```

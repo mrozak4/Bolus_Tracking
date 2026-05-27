@@ -2,7 +2,7 @@
 
 **[English](README_BolusAnalysis.md) | [Français (Québec)](README_BolusAnalysis_FR.md)**
 
-> ⚠️ **DEPRECATED — Legacy MATLAB Reference.** The MATLAB tools described here are legacy implementations. For new analysis, please use the C++ pipeline and the **Electron-based Bolus Tracking Studio** GUI. See **[RUNNING_GUIDE.md](RUNNING_GUIDE.md)** for current instructions.
+> ⚠️ **DEPRECATED — Legacy MATLAB Reference.** The MATLAB tools described here are legacy implementations. For new analysis, please use the C++ pipeline and the **native C++ Bolus Tracking Studio** GUI. See **[RUNNING_GUIDE.md](RUNNING_GUIDE.md)** for current instructions.
 
 ---
 

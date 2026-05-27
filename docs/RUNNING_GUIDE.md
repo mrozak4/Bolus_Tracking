@@ -163,7 +163,7 @@ bash run_pipeline_cpp.sh sample-subject-2259 --qc-fwhm-max 20.0 --qc-cnr-min 6.0
 * **`FAIL`**: The fit returned NaN, failed solver convergence, or had CNR < 3.0.
 
 ##### Triaging & Correcting Fits:
-If a batch run yields `WARN` or `FAIL` flags, you can easily inspect and correct them using the Electron GUI (see Section 3 below).
+If a batch run yields `WARN` or `FAIL` flags, you can easily inspect and correct them using the native C++ GUI (see Section 3 below).
 
 **Step-by-step Triage Workflow:**
 1. **Load the Processed Data:** 
@@ -185,42 +185,58 @@ If a batch run yields `WARN` or `FAIL` flags, you can easily inspect and correct
 ---
 
 > [!NOTE]
-> **Python Reference Pipeline**: If you want to run the original Python-based batch processing pipeline, please see the dedicated **[README_Python_Pipeline.md](README_Python_Pipeline.md)**. Note that the Python tkinter GUI (`bolus_gui.py`) is **deprecated** in favour of the Electron GUI described below.
+> **Python Reference Pipeline**: If you want to run the original Python-based batch processing pipeline, please see the dedicated **[README_Python_Pipeline.md](README_Python_Pipeline.md)**. Note that the Python tkinter GUI (`bolus_gui.py`) is **deprecated** in favour of the native C++ GUI described below.
 
 ---
 
-## 3. Running the Interactive GUI: Bolus Tracking Studio (Electron)
-
-![Bolus Tracking Studio Screenshot](app_screenshot_en.png)
-
+## 3. Running the Interactive GUI: Bolus Tracking Studio (Native C++)
 
 > [!TIP]
-> **GUI Application Recommendation**: The Electron-based Bolus Tracking Studio is the **primary recommended tool** for fit triage and quality control. It uses Chromium for cross-platform rendering, C++ SVG plots for performance, and the signature MCM dark theme. Plots are rendered entirely in C++ — no JavaScript charting libraries are used.
-
-The Electron GUI communicates with `bolus_server` (a stateful C++ backend) via line-delimited JSON over stdin/stdout. This architecture keeps all heavy computation (TIFF loading, trace extraction, fitting, SVG rendering) in native C++ while providing a modern, accessible web-based interface.
+> **GUI Application**: Bolus Tracking Studio is a **native C++ desktop app** built with Dear ImGui, ImPlot, and GLFW. It includes integrated batch processing, 42 languages, and a complete triage workflow. No Node.js, no Electron, no browser — just a single native binary.
 
 #### Prerequisites
-- **Node.js** ≥ 18 and **npm** ≥ 9
-- The `bolus_server` C++ binary must be built first:
-  ```bash
-  mkdir -p build && cd build
-  cmake .. && make bolus_server -j4
-  ```
+- **macOS**: `brew install eigen libtiff`
+- **Linux**: `sudo apt-get install build-essential cmake libeigen3-dev libtiff5-dev libglfw3-dev libgl1-mesa-dev zlib1g-dev`
 
-#### How to Launch the Electron GUI:
+#### How to Launch:
+
+**Option A: Download the DMG** from GitHub Releases and double-click.
+
+**Option B: Build from source:**
 ```bash
-cd gui
-npm install   # first time only
-npm start
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --target bolus_tracking_gui -j8
+open "Bolus Tracking Studio.app"   # macOS
 ```
 
-See **[gui/README.md](../gui/README.md)** for full architectural documentation.
+**Option C: CLI with a CSV path:**
+```bash
+./build/bolus_tracking_gui sample-subject-2259/bolus1_baseline_results_cpp.csv
+```
+
+#### Running the Pipeline from the GUI
+
+The GUI includes a **"Run Full Pipeline"** button (green, in the top bar) that opens a configuration modal with all pipeline options:
+
+1. **Select the subject folder** using the built-in file browser
+2. **Configure pipeline options**:
+   - Auto-convert `.mat` masks to `_rois.txt` format
+   - Generate SVG fit plots
+   - Drift window duration
+3. **Expand collapsible sections** for advanced options:
+   - **Fitting Bounds**: Amplitude, T2P, and FWHM min/max
+   - **QC Thresholds**: PASS/FAIL thresholds for CNR, FWHM, T2P, and amplitude
+   - **Stall Detection**: All onset, T2P, and step-function heuristic parameters
+4. Click **"Run Pipeline"** — processing runs in a background thread while the GUI stays responsive
+5. A log viewer shows real-time progress (Prepare → Preflight → Pipeline → Done)
+6. When complete, click **"Load Results"** to auto-load the generated CSV
 
 #### GUI Layout Overview
 
 The interface is organized into three main regions:
 
-* **Top Bar**: Application title, language selector dropdown, and action buttons — **Load** (open subject data), **Clear** (unload dataset), **Save** (export CSV), and **Reset** (revert all manual changes).
+* **Top Bar**: Application title, language selector dropdown, and action buttons — **Load** (open subject data), **Clear** (unload dataset), **Save** (export CSV), **Reset** (revert all changes), and **Run Full Pipeline** (green, opens batch processing modal).
 * **Sidebar** (left panel):
   - **Filter dropdown**: Show all ROIs, or isolate by QC status (WARN/FAIL only, STALL only, REVIEW only).
   - **Triage navigation**: Previous/Next problem buttons to jump between flagged ROIs.
@@ -228,7 +244,7 @@ The interface is organized into three main regions:
   - **Dataset info**: Current subject, experiment, frame rate, and ROI count.
 * **Main Area** (center/right):
   - **Status header**: Current ROI label with Previous/Next ROI navigation arrows.
-  - **SVG plot**: Full-width C++-rendered plot with draggable onset (sage green), peak (golden), and end (terracotta) vertical markers. Raw data shown as teal dots, denoised curve in golden, and gamma fit curve in sage green.
+  - **Interactive plot**: Full-width ImPlot chart with draggable onset (sage green), peak (golden), and end (terracotta) vertical markers. Raw data shown as teal dots, denoised curve in golden, and gamma fit curve in sage green.
   - **Crop slider**: Horizontal range slider aligned with the plot x-axis to interactively exclude baseline noise or recirculation tails from the fitting window.
   - **3-column control grid**:
     1. **Markers readout**: Numeric display of current onset, peak, and end times (seconds).
@@ -251,35 +267,28 @@ Each ROI in the sidebar displays a colour-coded QC status badge:
 
 #### Key GUI Workflows:
 * **Triage Queue Sidebar**: Quickly review all ROIs with colour-coded QC badges. Use the filter dropdown to isolate flagged cases.
-* **Interactive Marker Adjustments**: Drag onset, peak, and end vertical lines directly on the SVG plot.
-* **On-the-Fly Fitting Cropping**: Adjust the crop range slider (aligned with the plot x-axis) to exclude baseline noise or recirculation tails.
-* **Manual Re-fitting**: Click **Re-Fit** to run a constrained Levenberg-Marquardt fit within your crop window using your marker positions as initial parameters.
+* **Interactive Marker Adjustments**: Drag onset, peak, and end vertical lines directly on the plot.
+* **On-the-Fly Fitting Cropping**: Adjust the crop range slider to exclude baseline noise or recirculation tails.
+* **Manual Re-fitting**: Click **Re-Fit** to run a constrained Levenberg-Marquardt fit within your crop window.
 * **Force Pass / Override**: If a re-fit still flags WARN but the trace looks correct, click **Override** to manually mark as PASS.
 * **Interactive Denoising Strength**: Adjust the **Denoise Strength** slider (0.5× to 3.0×) to interactively control trace smoothing.
 * **Revert / Reset**: Revert individual ROIs or reset all changes. A confirmation modal prevents accidental data loss.
 * **Clear Subject Data**: Unload all datasets and return to the welcome screen.
-* **Multilingual Localization**: 44 languages including Canadian English, OQLF-compliant French, and novelty modes (Pirate, Yoda, Klingon, Minion). Ancient Egyptian is excluded.
+* **Multilingual Localization**: 42 languages including Canadian English, OQLF-compliant French, and novelty modes (Pirate, Yoda, Klingon, Minion).
 * **Sound Effects**: THX crescendo on splash, minion squeak on clicks, Hallelujah on CSV save.
 * **Keyboard Shortcuts**: Arrow keys / `n`/`p` for ROI navigation, `r` for re-fit.
 
 <details>
 <summary>Legacy GUIs (Deprecated)</summary>
 
-##### Legacy: C++ Dear ImGui GUI
-The original native GUI built on Dear ImGui, ImPlot, and GLFW. Requires native graphics libraries.
-```bash
-mkdir -p build && cd build
-cmake -DBUILD_GUI=ON .. && make -j4
-./bolus_tracking_gui
-```
-> ⚠️ **Deprecated.** Retained in `cpp/src/bolus_gui.cpp` for reference. Use the Electron GUI instead.
+##### Legacy: native C++ app
+> ⚠️ **Deprecated.** The `gui/` Electron app is no longer maintained. Use the native C++ app instead.
 
 ##### Legacy: Python tkinter GUI
-The Python reference GUI using tkinter and matplotlib.
 ```bash
 .venv/bin/python python/src/bolus_gui.py
 ```
-> ⚠️ **Deprecated.** Retained in `python/src/bolus_gui.py` for reference. Use the Electron GUI instead.
+> ⚠️ **Deprecated.** Retained in `python/src/bolus_gui.py` for reference. Use the native C++ app instead.
 
 </details>
 
@@ -375,8 +384,7 @@ cd ..
 ## 5. Technical Overview of the Files
 
 Here is what each file does:
-* `gui/`: **The primary Electron-based interactive GUI** (Bolus Tracking Studio). See [gui/README.md](../gui/README.md).
-* `cpp/src/bolus_gui.cpp`: ~~The C++ interactive GUI built on Dear ImGui and ImPlot.~~ **DEPRECATED.**
+* `cpp/src/bolus_gui.cpp`: **Primary native C++ GUI** (Bolus Tracking Studio). Built with Dear ImGui, ImPlot, and GLFW.
 * `python/src/bolus_gui.py`: ~~The Python-based interactive GUI built on Tkinter and Matplotlib.~~ **DEPRECATED.**
 * `run_pipeline.sh`: The master control script that prepares the Python virtual environment and kicks off the processing.
 * `python/src/batch_process.py`: The high-level script that scans for datasets, reads TIFF image stacks, extracts the mean signal from each ROI, fits the Gamma curve, and saves results/plots.

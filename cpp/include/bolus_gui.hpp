@@ -5,6 +5,8 @@
 #include <string>
 #include <filesystem>
 #include <limits>
+#include <thread>
+#include <mutex>
 #include <GLFW/glfw3.h>
 
 #include "imgui.h"
@@ -379,6 +381,25 @@ private:
     void trigger_minion_squeak();
     void apply_theme_colors();
     void ensure_minion_squeak_exists();
+
+    // Pipeline execution
+    void run_pipeline_on_folder(const std::string& folder);
+    void draw_pipeline_modal();
+    bool m_pipeline_running = false;
+    bool m_pipeline_done = false;
+    bool m_pipeline_error = false;
+    std::string m_pipeline_status;
+    std::string m_pipeline_folder;
+    std::string m_pipeline_result_csv;  // first CSV produced by pipeline
+    std::vector<std::string> m_pipeline_log_lines;
+    std::mutex m_pipeline_mutex;
+
+    // Pipeline settings (exposed in modal)
+    bool m_show_pipeline_modal = false;
+    FileBrowser m_pipeline_browser;
+    bool m_pipeline_enable_plots = false;
+    bool m_pipeline_prepare_mats = true;  // auto-convert .mat masks
+    StallSettings m_stall_settings;
 
     // UI subsections
     void draw_gui();

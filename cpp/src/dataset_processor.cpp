@@ -259,7 +259,8 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
         double f_cnr = (auto_res.sd_base > 0.0) ? (popt[0] / auto_res.sd_base) : 0.0;
         qc_flag = BolusFitter::determine_qc_flag(popt[0], popt[1], popt[2], popt[3], f_cnr,
                                                   fitter.min_amp, fitter.max_amp, final_min_t2p, final_max_t2p,
-                                                  final_min_fwhm, final_max_fwhm, fit_success, pass2_run);
+                                                  final_min_fwhm, final_max_fwhm, fit_success, pass2_run,
+                                                  raw_amp);
     } else {
         qc_flag = "FAIL";
     }

@@ -2313,7 +2313,8 @@ void BolusApp::run_fit_on_record(int idx, bool is_auto) {
                 rec.qc_flag = BolusFitter::determine_qc_flag(
                     popt[0], popt[1], popt[2], popt[3], rec.f_cnr,
                     m_fitter.min_amp, m_fitter.max_amp, m_fitter.min_t2p, actual_max_t2p,
-                    m_fitter.min_fwhm, actual_max_fwhm, fit_success, pass2_run
+                    m_fitter.min_fwhm, actual_max_fwhm, fit_success, pass2_run,
+                    guess_amp
                 );
                 
                 if (std::isnan(rec.auc) || std::isnan(rec.aucn) || std::isnan(rec.ttlb) || 
@@ -2575,6 +2576,366 @@ void BolusApp::draw_mip_modal() {
             ImGui::CloseCurrentPopup();
         }
         
+        ImGui::EndPopup();
+    }
+}
+
+// ============================================================================
+// Pipeline Execution
+// ============================================================================
+
+void BolusApp::run_pipeline_on_folder(const std::string& folder) {
+    // Reset state
+    {
+        std::lock_guard<std::mutex> lock(m_pipeline_mutex);
+        m_pipeline_running = true;
+        m_pipeline_done = false;
+        m_pipeline_error = false;
+        m_pipeline_status = "Starting pipeline...";
+        m_pipeline_result_csv.clear();
+        m_pipeline_log_lines.clear();
+        m_pipeline_folder = folder;
+    }
+
+    // Launch in background thread
+    std::thread([this, folder]() {
+        try {
+            // Build fitter with GUI's current settings
+            BolusFitter fitter(m_fitter.min_amp, m_fitter.max_amp,
+                              m_fitter.min_t2p, m_fitter.max_t2p,
+                              m_fitter.min_fwhm, m_fitter.max_fwhm, false);
+
+            // Step 1: Prepare .mat files if enabled
+            if (m_pipeline_prepare_mats) {
+                {
+                    std::lock_guard<std::mutex> lock(m_pipeline_mutex);
+                    m_pipeline_status = "Preparing .mat masks...";
+                    m_pipeline_log_lines.push_back("[PREPARE] Converting .mat masks to _rois.txt...");
+                }
+                BatchProcessor prep(folder, m_drift_win, false, fitter, m_qc_settings, m_stall_settings);
+                prep.run_prepare(false, false); // apply mode, don't force overwrite
+                {
+                    std::lock_guard<std::mutex> lock(m_pipeline_mutex);
+                    m_pipeline_log_lines.push_back("[PREPARE] Done.");
+                }
+            }
+
+            // Step 2: Run preflight
+            {
+                std::lock_guard<std::mutex> lock(m_pipeline_mutex);
+                m_pipeline_status = "Running preflight validation...";
+                m_pipeline_log_lines.push_back("[PREFLIGHT] Scanning folder...");
+            }
+            BatchProcessor batch(folder, m_drift_win, m_pipeline_enable_plots, fitter, m_qc_settings, m_stall_settings);
+            bool pf_warn = false, pf_err = false;
+            batch.run_preflight_scan(pf_warn, pf_err);
+            {
+                std::lock_guard<std::mutex> lock(m_pipeline_mutex);
+                if (pf_err) {
+                    m_pipeline_log_lines.push_back("[PREFLIGHT] ERRORS found — some datasets may be skipped.");
+                } else if (pf_warn) {
+                    m_pipeline_log_lines.push_back("[PREFLIGHT] Warnings found (pipeline will continue).");
+                } else {
+                    m_pipeline_log_lines.push_back("[PREFLIGHT] All OK.");
+                }
+            }
+
+            // Step 3: Run full pipeline
+            {
+                std::lock_guard<std::mutex> lock(m_pipeline_mutex);
+                m_pipeline_status = "Processing datasets...";
+                m_pipeline_log_lines.push_back("[PIPELINE] Running batch processing...");
+            }
+            bool success = batch.run();
+            {
+                std::lock_guard<std::mutex> lock(m_pipeline_mutex);
+                if (success) {
+                    m_pipeline_log_lines.push_back("[PIPELINE] Batch processing complete.");
+                } else {
+                    m_pipeline_log_lines.push_back("[PIPELINE] Batch processing finished with errors.");
+                }
+            }
+
+            // Step 4: Find the first generated CSV to auto-load
+            std::string first_csv;
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(folder)) {
+                if (entry.is_regular_file()) {
+                    std::string fname = entry.path().filename().string();
+                    if (fname.find("_results_cpp.csv") != std::string::npos) {
+                        first_csv = entry.path().string();
+                        break;
+                    }
+                }
+            }
+
+            {
+                std::lock_guard<std::mutex> lock(m_pipeline_mutex);
+                m_pipeline_result_csv = first_csv;
+                m_pipeline_done = true;
+                m_pipeline_running = false;
+                m_pipeline_status = success ? "Pipeline complete!" : "Pipeline finished with errors.";
+                m_pipeline_error = !success;
+                if (!first_csv.empty()) {
+                    m_pipeline_log_lines.push_back("[DONE] Results: " + first_csv);
+                }
+            }
+        } catch (const std::exception& e) {
+            std::lock_guard<std::mutex> lock(m_pipeline_mutex);
+            m_pipeline_running = false;
+            m_pipeline_done = true;
+            m_pipeline_error = true;
+            m_pipeline_status = std::string("Error: ") + e.what();
+            m_pipeline_log_lines.push_back(std::string("[ERROR] ") + e.what());
+        }
+    }).detach();
+}
+
+void BolusApp::draw_pipeline_modal() {
+    if (!m_show_pipeline_modal) return;
+
+    ImGui::OpenPopup("Run Full Pipeline##pipeline_modal");
+
+    ImGui::SetNextWindowSize(ImVec2(620, 560), ImGuiCond_FirstUseEver);
+
+    if (ImGui::BeginPopupModal("Run Full Pipeline##pipeline_modal", &m_show_pipeline_modal,
+                                ImGuiWindowFlags_NoCollapse)) {
+
+        // ── Folder selection ──
+        ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "Subject Folder");
+        ImGui::Separator();
+
+        ImGui::Text("Path:"); ImGui::SameLine();
+        char folder_buf[512] = {0};
+        strncpy(folder_buf, m_pipeline_folder.c_str(), sizeof(folder_buf) - 1);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 80.0f);
+        if (ImGui::InputText("##pipeline_folder", folder_buf, sizeof(folder_buf))) {
+            m_pipeline_folder = folder_buf;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Browse##pf", ImVec2(72, 0))) {
+            m_pipeline_browser.open = true;
+        }
+
+        // Draw the folder browser if open
+        if (m_pipeline_browser.open) {
+            m_pipeline_browser.draw("Select Subject Folder##pipeline_browse");
+            if (!m_pipeline_browser.selected_file.empty()) {
+                std::filesystem::path sel(m_pipeline_browser.selected_file);
+                if (std::filesystem::is_directory(sel)) {
+                    m_pipeline_folder = sel.string();
+                } else {
+                    m_pipeline_folder = sel.parent_path().string();
+                }
+                m_pipeline_browser.selected_file.clear();
+                m_pipeline_browser.open = false;
+            }
+        }
+
+        ImGui::Spacing();
+
+        // ── Options ──
+        ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "Pipeline Options");
+        ImGui::Separator();
+
+        ImGui::Checkbox("Auto-convert .mat masks to _rois.txt", &m_pipeline_prepare_mats);
+        ImGui::Checkbox("Generate SVG fit plots", &m_pipeline_enable_plots);
+
+        ImGui::Spacing();
+
+        // Drift window
+        ImGui::Text("Drift Window (s):"); ImGui::SameLine();
+        ImGui::SetNextItemWidth(80.0f);
+        float dw = (float)m_drift_win;
+        if (ImGui::InputFloat("##drift_win", &dw, 0, 0, "%.1f")) {
+            m_drift_win = dw;
+        }
+
+        ImGui::Spacing();
+
+        // ── Fitting Bounds (collapsible) ──
+        if (ImGui::TreeNode("Fitting Bounds")) {
+            float col_w = 120.0f;
+            ImGui::Text("Amplitude:"); ImGui::SameLine(100);
+            ImGui::SetNextItemWidth(col_w);
+            float v;
+            v = (float)m_fitter.min_amp;
+            if (ImGui::InputFloat("Min##amp", &v, 0, 0, "%.2g")) m_fitter.min_amp = v;
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(col_w);
+            v = (float)m_fitter.max_amp;
+            if (ImGui::InputFloat("Max##amp", &v, 0, 0, "%.1f")) m_fitter.max_amp = v;
+
+            ImGui::Text("T2P (s):"); ImGui::SameLine(100);
+            ImGui::SetNextItemWidth(col_w);
+            v = (float)m_fitter.min_t2p;
+            if (ImGui::InputFloat("Min##t2p", &v, 0, 0, "%.2g")) m_fitter.min_t2p = v;
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(col_w);
+            v = (float)m_fitter.max_t2p;
+            if (ImGui::InputFloat("Max##t2p", &v, 0, 0, "%.2g")) m_fitter.max_t2p = v;
+
+            ImGui::Text("FWHM (s):"); ImGui::SameLine(100);
+            ImGui::SetNextItemWidth(col_w);
+            v = (float)m_fitter.min_fwhm;
+            if (ImGui::InputFloat("Min##fwhm", &v, 0, 0, "%.1f")) m_fitter.min_fwhm = v;
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(col_w);
+            v = (float)m_fitter.max_fwhm;
+            if (ImGui::InputFloat("Max##fwhm", &v, 0, 0, "%.2g")) m_fitter.max_fwhm = v;
+
+            ImGui::TreePop();
+        }
+
+        // ── QC Settings (collapsible) ──
+        if (ImGui::TreeNode("QC Thresholds")) {
+            float col_w = 100.0f;
+            ImGui::Text("PASS thresholds:");
+            ImGui::SetNextItemWidth(col_w);
+            float qv;
+            qv = (float)m_qc_settings.cnr_min;
+            if (ImGui::InputFloat("CNR min##qc", &qv, 0, 0, "%.1f")) m_qc_settings.cnr_min = qv;
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(col_w);
+            qv = (float)m_qc_settings.fwhm_max;
+            if (ImGui::InputFloat("FWHM max##qc", &qv, 0, 0, "%.1f")) m_qc_settings.fwhm_max = qv;
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(col_w);
+            qv = (float)m_qc_settings.t2p_max;
+            if (ImGui::InputFloat("T2P max##qc", &qv, 0, 0, "%.1f")) m_qc_settings.t2p_max = qv;
+
+            ImGui::Spacing();
+            ImGui::Text("FAIL thresholds:");
+            ImGui::SetNextItemWidth(col_w);
+            qv = (float)m_qc_settings.cnr_fail;
+            if (ImGui::InputFloat("CNR fail##qc", &qv, 0, 0, "%.1f")) m_qc_settings.cnr_fail = qv;
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(col_w);
+            qv = (float)m_qc_settings.fwhm_fail;
+            if (ImGui::InputFloat("FWHM fail##qc", &qv, 0, 0, "%.1f")) m_qc_settings.fwhm_fail = qv;
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(col_w);
+            qv = (float)m_qc_settings.t2p_fail;
+            if (ImGui::InputFloat("T2P fail##qc", &qv, 0, 0, "%.1f")) m_qc_settings.t2p_fail = qv;
+
+            ImGui::SetNextItemWidth(col_w);
+            qv = (float)m_qc_settings.amp_fail;
+            if (ImGui::InputFloat("Amp fail##qc", &qv, 0, 0, "%.1f")) m_qc_settings.amp_fail = qv;
+
+            ImGui::TreePop();
+        }
+
+        // ── Stall Detection (collapsible) ──
+        if (ImGui::TreeNode("Stall Detection")) {
+            float col_w = 100.0f;
+            ImGui::Text("Onset heuristics:");
+            ImGui::SetNextItemWidth(col_w);
+            float sv;
+            sv = (float)m_stall_settings.ont_offset;
+            if (ImGui::InputFloat("Onset offset##st", &sv, 0, 0, "%.1f")) m_stall_settings.ont_offset = sv;
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(col_w);
+            sv = (float)m_stall_settings.ont_mult;
+            if (ImGui::InputFloat("Onset mult##st", &sv, 0, 0, "%.1f")) m_stall_settings.ont_mult = sv;
+
+            ImGui::Text("T2P heuristics:");
+            ImGui::SetNextItemWidth(col_w);
+            sv = (float)m_stall_settings.t2p_mult;
+            if (ImGui::InputFloat("T2P mult##st", &sv, 0, 0, "%.1f")) m_stall_settings.t2p_mult = sv;
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(col_w);
+            sv = (float)m_stall_settings.t2p_abs;
+            if (ImGui::InputFloat("T2P abs##st", &sv, 0, 0, "%.1f")) m_stall_settings.t2p_abs = sv;
+
+            ImGui::Text("Other:");
+            ImGui::SetNextItemWidth(col_w);
+            sv = (float)m_stall_settings.sd_base;
+            if (ImGui::InputFloat("SD base##st", &sv, 0, 0, "%.1f")) m_stall_settings.sd_base = sv;
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(col_w);
+            sv = (float)m_stall_settings.step_t2p;
+            if (ImGui::InputFloat("Step T2P##st", &sv, 0, 0, "%.1f")) m_stall_settings.step_t2p = sv;
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(col_w);
+            sv = (float)m_stall_settings.step_fwhm;
+            if (ImGui::InputFloat("Step FWHM##st", &sv, 0, 0, "%.1f")) m_stall_settings.step_fwhm = sv;
+
+            ImGui::TreePop();
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+
+        // ── Action buttons / progress ──
+        bool is_running = false;
+        bool is_done = false;
+        std::string status_text;
+        {
+            std::lock_guard<std::mutex> lock(m_pipeline_mutex);
+            is_running = m_pipeline_running;
+            is_done = m_pipeline_done;
+            status_text = m_pipeline_status;
+        }
+
+        if (is_running) {
+            // Animated spinner
+            float t = (float)glfwGetTime();
+            const char* spinner_chars[] = { "|", "/", "-", "\\" };
+            int spinner_idx = (int)(t * 8.0f) % 4;
+            ImGui::TextColored(ImVec4(0.88f, 0.55f, 0.25f, 1.0f), "%s %s",
+                              spinner_chars[spinner_idx], status_text.c_str());
+        } else if (is_done) {
+            if (m_pipeline_error) {
+                ImGui::TextColored(ImVec4(0.9f, 0.3f, 0.3f, 1.0f), "%s", status_text.c_str());
+            } else {
+                ImGui::TextColored(ImVec4(0.4f, 0.85f, 0.4f, 1.0f), "%s", status_text.c_str());
+            }
+        }
+
+        // Log output area
+        {
+            std::lock_guard<std::mutex> lock(m_pipeline_mutex);
+            if (!m_pipeline_log_lines.empty()) {
+                ImGui::BeginChild("##pipeline_log", ImVec2(0, 100), true);
+                for (const auto& line : m_pipeline_log_lines) {
+                    ImGui::TextWrapped("%s", line.c_str());
+                }
+                if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
+                    ImGui::SetScrollHereY(1.0f);
+                }
+                ImGui::EndChild();
+            }
+        }
+
+        ImGui::Spacing();
+
+        // Buttons
+        if (!is_running) {
+            bool can_run = !m_pipeline_folder.empty() && std::filesystem::exists(m_pipeline_folder);
+            if (!can_run) ImGui::BeginDisabled();
+            if (ImGui::Button("Run Pipeline", ImVec2(140, 28))) {
+                m_pipeline_done = false;
+                run_pipeline_on_folder(m_pipeline_folder);
+            }
+            if (!can_run) ImGui::EndDisabled();
+
+            ImGui::SameLine();
+
+            // Load results button (only after completion)
+            if (is_done && !m_pipeline_error && !m_pipeline_result_csv.empty()) {
+                if (ImGui::Button("Load Results", ImVec2(140, 28))) {
+                    load_dataset(m_pipeline_result_csv);
+                    m_show_pipeline_modal = false;
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("Close", ImVec2(80, 28))) {
+                m_show_pipeline_modal = false;
+                ImGui::CloseCurrentPopup();
+            }
+        }
+
         ImGui::EndPopup();
     }
 }
@@ -2897,6 +3258,7 @@ void BolusApp::draw_gui() {
         // Draw file browser modal
         m_browser.draw("Open Folder or File");
         draw_mip_modal();
+        draw_pipeline_modal();
         
         static bool last_item_active = false;
         bool any_item_active = ImGui::IsAnyItemActive();
@@ -2916,7 +3278,7 @@ void BolusApp::draw_top_bar() {
     // Align controls to the right dynamically on the same line as the title to eliminate vertical dead space
     float title_w = ImGui::CalcTextSize(m_tr.title_app.c_str()).x;
     float right_margin = 16.0f;
-    float buttons_width = 140.0f + 145.0f + 145.0f + 100.0f + 100.0f + 100.0f + 120.0f + ImGui::GetStyle().ItemSpacing.x * 7.0f;
+    float buttons_width = 140.0f + 145.0f + 145.0f + 100.0f + 100.0f + 100.0f + 120.0f + 130.0f + ImGui::GetStyle().ItemSpacing.x * 8.0f;
     float start_x = ImGui::GetWindowWidth() - buttons_width - right_margin;
     if (start_x < title_w + 20.0f) {
         start_x = title_w + 20.0f; // Prevent overlapping
@@ -3065,6 +3427,13 @@ void BolusApp::draw_top_bar() {
             ImGui::OpenPopup(m_tr.modal_save_success.c_str());
         }
     }
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.55f, 0.35f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25f, 0.65f, 0.42f, 1.0f));
+    if (ImGui::Button("Run Full Pipeline", ImVec2(130, 24))) {
+        m_show_pipeline_modal = true;
+    }
+    ImGui::PopStyleColor(2);
         
         if (ImGui::BeginPopupModal(m_tr.modal_save_success.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::Text(m_tr.text_save_csv_msg.c_str(), m_csv_path.c_str());

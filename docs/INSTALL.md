@@ -8,84 +8,65 @@ This guide describes how to install and configure **Bolus Tracking Studio** on m
 
 ---
 
-## Electron GUI Installation (Recommended — All Platforms)
-
-The primary interactive GUI runs on Electron (Chromium). This is the recommended method for all platforms.
-
-### Prerequisites:
-- **Node.js** ≥ 18 and **npm** ≥ 9 ([download](https://nodejs.org/))
-- The `bolus_server` C++ binary (see build instructions below)
-
-### Build the C++ backend:
-```bash
-mkdir -p build && cd build
-cmake .. && make bolus_server -j4
-```
-
-### Install and launch:
-```bash
-cd gui
-npm install
-npm start
-```
-
-See **[gui/README.md](../gui/README.md)** for full documentation.
-
----
-
-## Legacy: Native GUI Installation
-
-> ⚠️ **The native Dear ImGui GUI is deprecated.** The sections below are retained for reference. Use the Electron GUI above instead.
-
 ## macOS Installation (Recommended)
 
-On macOS, you can build a native clickable `.app` bundle with a custom icon.
+### Option A: Download the DMG (Easiest)
 
-### Automatic Installer:
-Open your terminal, navigate to the project directory, and run the macOS installer script:
+1. Download the DMG from the [latest release](https://github.com/mrozak4/Bolus_Tracking/releases/latest):
+   - **Apple Silicon** (M1/M2/M3/M4): `BolusTrackingStudio-2.3.1-arm64.dmg`
+   - **Intel**: `BolusTrackingStudio-2.3.1-x86_64.dmg`
+2. Open the `.dmg` and drag **Bolus Tracking Studio** to **Applications**.
+3. On first launch, macOS Gatekeeper may block the app. Fix with:
+   ```bash
+   xattr -cr "/Applications/Bolus Tracking Studio.app"
+   ```
+
+### Option B: Build from Source
+
+#### Prerequisites:
 ```bash
-bash install_macos.sh
+brew install eigen libtiff
 ```
 
-This script will:
-1. Compile the high-performance C++ GUI application.
-2. Build the macOS application bundle structure `BolusTrackingStudio.app`.
-3. Create a beautiful app icon from `resources/app_icon.png`.
-4. Copy the bundle to your Applications directory (`/Applications` or fallback to user-local `~/Applications` if not writable) for automatic indexing in **Launchpad**.
+#### Build:
+```bash
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --target bolus_tracking_gui -j8
+```
 
-### Launching the Application:
-* **Option A (Launchpad)**: Press `F4` or click the Launchpad icon on your Dock, search for **Bolus Tracking Studio**, and click the application icon.
-* **Option B (Finder)**: Open your Applications folder and double-click **Bolus Tracking Studio** (represented by the custom capillary and mathematical curve icon).
-* **Option C (Terminal)**: Run it from the terminal:
-  ```bash
-  open /Applications/BolusTrackingStudio.app
-  # or user-local fallback path:
-  open ~/Applications/BolusTrackingStudio.app
-  ```
+#### Launch:
+```bash
+open "Bolus Tracking Studio.app"
+```
+
+#### Create a DMG:
+```bash
+./macos/create_dmg.sh              # Builds for current architecture
+./macos/create_dmg.sh --arch arm64  # Apple Silicon
+./macos/create_dmg.sh --arch x86_64 # Intel
+```
 
 ---
 
 ## Linux Installation
 
-On Linux, you can compile the app and add a desktop launcher shortcut.
-
 ### Prerequisites:
-Make sure you have CMake, a C++17 compiler, and the development libraries for GLFW, OpenGL, and LibTIFF installed. *(Only required for the legacy native GUI, not the Electron GUI.)*
-On Ubuntu/Debian, install them via:
 ```bash
 sudo apt-get update
-sudo apt-get install build-essential cmake libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev libtiff5-dev -y
+sudo apt-get install build-essential cmake libeigen3-dev libtiff5-dev \
+    libglfw3-dev libgl1-mesa-dev zlib1g-dev -y
 ```
 
-### Build the App:
+### Build:
 ```bash
 mkdir -p build && cd build
-cmake -DBUILD_GUI=ON ..
-make -j$(nproc)
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --target bolus_tracking_gui -j$(nproc)
 ```
 
 ### Create a Desktop Entry Launcher:
-Create a file at `~/.local/share/applications/bolus_tracking.desktop` with the following content:
+Create a file at `~/.local/share/applications/bolus_tracking.desktop`:
 ```ini
 [Desktop Entry]
 Type=Application
@@ -102,27 +83,45 @@ Categories=Science;ScientificVisualization;
 
 ## Windows Installation
 
-On Windows, you can compile the GUI using Visual Studio and set up a clickable desktop shortcut.
-
 ### Prerequisites:
-1. Install **Visual Studio Community** (2019 or newer) with the **C++ Desktop Development** workload selected.
-2. Download and install **CMake for Windows** (make sure to add CMake to your system PATH during setup).
-
-### Build the App:
-1. Open Developer PowerShell / Command Prompt for Visual Studio.
-2. Navigate to your project folder:
+1. Install **Visual Studio Community** (2019 or newer) with the **C++ Desktop Development** workload.
+2. Install **CMake for Windows** (add to PATH during setup).
+3. Install **vcpkg** and use it to install dependencies:
    ```cmd
-   mkdir build
-   cd build
-   cmake -G "Visual Studio 17 2022" -A x64 -DBUILD_GUI=ON ..
-   cmake --build . --config Release
+   vcpkg install eigen3 tiff glfw3 zlib
    ```
-3. The executable will be created at `build/Release/bolus_tracking_gui.exe`.
+
+### Build:
+```cmd
+mkdir build
+cd build
+cmake -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --target bolus_tracking_gui --config Release
+```
 
 ### Create a Desktop Shortcut:
-1. Right-click the desktop and choose **New > Shortcut**.
-2. Browse to the path of `build/Release/bolus_tracking_gui.exe`.
+1. Right-click the desktop → **New > Shortcut**.
+2. Browse to `build/Release/bolus_tracking_gui.exe`.
 3. Name it **Bolus Tracking Studio**.
-4. To set the custom icon:
-   * Right-click the shortcut and select **Properties**.
-   * Click **Change Icon...** and browse to `resources/app_icon.png` (or convert `resources/app_icon.png` to `app_icon.ico` using a web converter and select it).
+
+---
+
+## CLI Pipeline Only (No GUI)
+
+To build only the command-line pipeline tool:
+```bash
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --target bolus_tracking_cpp -j8
+```
+
+Run it with:
+```bash
+./bolus_tracking_cpp --folder /path/to/subject/data
+```
+
+---
+
+## Deprecated GUIs
+
+> ⚠️ The native C++ app (`gui/`) and Python GUI (`python/src/bolus_gui.py`) are **deprecated**. Use the native C++ app instead.

@@ -419,7 +419,7 @@ static std::vector<ROI> g_rois;
 static std::vector<CsvRecord> g_records;
 static std::unordered_map<int, size_t> g_record_map;  // roi_id -> index in g_records
 static double g_fr = 1.0;
-static int g_upsample_factor = 10;  // Match CLI pipeline default (10)
+static int g_upsample_factor = 20;  // Match CLI pipeline default (20)
 static double g_drift_win = 15.0;
 
 /// Look up CSV record by ROI ID (not array index). Returns nullptr if not found.
@@ -1400,7 +1400,8 @@ static json handle_run_fit(const json& params) {
         qc_flag = BolusFitter::determine_qc_flag(
             popt[0], popt[1], popt[2], popt[3], popt[0] / c.sd_base,
             g_fitter.min_amp, g_fitter.max_amp, g_fitter.min_t2p, actual_max_t2p,
-            g_fitter.min_fwhm, actual_max_fwhm, fit_success, pass2_run);
+            g_fitter.min_fwhm, actual_max_fwhm, fit_success, pass2_run,
+            guess_amp);
     }
 
     // ── Kinetics computation (matches dataset_processor.cpp L269-357) ──
@@ -1577,6 +1578,7 @@ static json handle_batch_fit(const json& /*params*/) {
         // but the CLI pipeline always uses the raw CNR-adaptive settings.
         // Recompute from y_raw_detrended to match process_single_roi exactly.
         bool is_low_cnr = false;
+        double raw_amp = 0.0;
         {
             const auto& detrended = c.y_raw_detrended;
             int n_base = std::min((int)std::round(2.0 * g_fr), (int)std::round(detrended.size() * 0.1));
@@ -1588,7 +1590,8 @@ static json handle_batch_fit(const json& /*params*/) {
             c.raw_sd_base = raw_sd;
             double raw_max_val = -1e9;
             for (double v : detrended) if (v > raw_max_val) raw_max_val = v;
-            double raw_cnr = (raw_sd > 0) ? ((raw_max_val - raw_baseline) / raw_sd) : 0;
+            raw_amp = raw_max_val - raw_baseline;
+            double raw_cnr = (raw_sd > 0) ? (raw_amp / raw_sd) : 0;
 
             // CLI-matching adaptive denoise (no user strength modifier)
             double denoise_thresh = 2.0;
@@ -1665,7 +1668,8 @@ static json handle_batch_fit(const json& /*params*/) {
             qc_flag = BolusFitter::determine_qc_flag(
                 popt[0], popt[1], popt[2], popt[3], f_cnr,
                 g_fitter.min_amp, g_fitter.max_amp, g_fitter.min_t2p, actual_max_t2p,
-                g_fitter.min_fwhm, actual_max_fwhm, fit_success, pass2_run);
+                g_fitter.min_fwhm, actual_max_fwhm, fit_success, pass2_run,
+                raw_amp);
         }
         rec.qc_flag = qc_flag;
         rec.fit_source = "auto";
@@ -1784,7 +1788,8 @@ static json handle_batch_fit(const json& /*params*/) {
             std::string rqc = BolusFitter::determine_qc_flag(
                 rpopt[0], rpopt[1], rpopt[2], rpopt[3], rpopt[0] / auto_res.sd_base,
                 g_fitter.min_amp, g_fitter.max_amp, 0.5 * median_t2p, act_max_t2p,
-                0.5 * median_fwhm, act_max_fwhm, refit_ok, false);
+                0.5 * median_fwhm, act_max_fwhm, refit_ok, false,
+                raw_amp);
 
             bool improvement = (rqc == "PASS" && rec.qc_flag != "PASS") ||
                               (rqc == "WARN" && rec.qc_flag == "FAIL") ||

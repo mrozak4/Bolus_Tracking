@@ -157,14 +157,13 @@ bash run_pipeline_cpp.sh sample-subject-2259 --qc-fwhm-max 20.0 --qc-cnr-min 6.0
 
 ---
 
-## 3. Exécuter l'interface graphique interactive : Bolus Tracking Studio (Electron)
+## 3. Exécuter l'interface graphique interactive : Bolus Tracking Studio (C++ natif)
 
-![Capture d'écran de Bolus Tracking Studio](app_screenshot_fr.png)
 
 > [!TIP]
-> **Recommandation d'application graphique** : Le Bolus Tracking Studio basé sur Electron est l'**outil principal recommandé** pour le triage et le contrôle qualité des modélisations. Il utilise Chromium pour un rendu multiplateforme, des graphiques SVG en C++ pour la performance et le thème sombre MCM caractéristique. Les graphiques sont rendus entièrement en C++ — aucune bibliothèque JavaScript de visualisation n'est utilisée.
+> **Recommandation d'application graphique** : Le Bolus Tracking Studio natif C++ est l'**outil principal recommandé** pour le triage et le contrôle qualité des modélisations. Il utilise Chromium pour un rendu multiplateforme, des graphiques SVG en C++ pour la performance et le thème sombre MCM caractéristique. Les graphiques sont rendus entièrement en C++ — aucune bibliothèque JavaScript de visualisation n'est utilisée.
 
-L'interface graphique Electron communique avec `bolus_server` (un dorsal C++ à état persistant) via JSON délimité par lignes sur stdin/stdout. Cette architecture maintient tous les calculs lourds (chargement TIFF, extraction de traces, ajustement, rendu SVG) en C++ natif tout en offrant une interface web moderne et accessible.
+L'application C++ native communique avec `bolus_server` (un dorsal C++ à état persistant) via JSON délimité par lignes sur stdin/stdout. Cette architecture maintient tous les calculs lourds (chargement TIFF, extraction de traces, ajustement, rendu SVG) en C++ natif tout en offrant une interface web moderne et accessible.
 
 #### Prérequis
 - **Node.js** ≥ 18 et **npm** ≥ 9
@@ -174,7 +173,7 @@ L'interface graphique Electron communique avec `bolus_server` (un dorsal C++ à 
   cmake .. && make bolus_server -j4
   ```
 
-#### Comment lancer l'interface graphique Electron :
+#### Comment lancer l'application C++ native :
 ```bash
 cd gui
 npm install   # première fois uniquement
@@ -239,14 +238,14 @@ mkdir -p build && cd build
 cmake -DBUILD_GUI=ON .. && make -j4
 ./bolus_tracking_gui
 ```
-> ⚠️ **Obsolète.** Conservé dans `cpp/src/bolus_gui.cpp` à titre de référence. Utilisez l'interface Electron.
+> ⚠️ **Obsolète.** Conservé dans `cpp/src/bolus_gui.cpp` à titre de référence. Utilisez l'application C++ native.
 
 ##### Ancien : Interface graphique Python tkinter
 L'interface Python de référence utilisant tkinter et matplotlib.
 ```bash
 .venv/bin/python python/src/bolus_gui.py
 ```
-> ⚠️ **Obsolète.** Conservé dans `python/src/bolus_gui.py` à titre de référence. Utilisez l'interface Electron.
+> ⚠️ **Obsolète.** Conservé dans `python/src/bolus_gui.py` à titre de référence. Utilisez l'application C++ native.
 
 </details>
 
@@ -305,7 +304,7 @@ Pour modifier la durée de la ligne de base utilisée pour corriger la dérive (
 
 ## 5. Description technique des fichiers du projet
 
-* `gui/` : **L'interface graphique interactive principale** (Bolus Tracking Studio) basée sur Electron. Voir [gui/README_FR.md](../gui/README_FR.md).
+* `gui/` : **L'interface graphique interactive principale** (Bolus Tracking Studio) native C++. Voir [gui/README_FR.md](../gui/README_FR.md).
 * `cpp/src/bolus_gui.cpp` : ~~L'interface graphique C++ interactive sous Dear ImGui et ImPlot.~~ **OBSOLÈTE.**
 * `python/src/bolus_gui.py` : ~~L'interface graphique Python de référence basée sur Tkinter et Matplotlib.~~ **OBSOLÈTE.**
 * `run_pipeline.sh` : Script de contrôle principal configurant l'environnement virtuel Python et lançant le traitement.

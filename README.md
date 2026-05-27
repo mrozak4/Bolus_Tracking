@@ -6,7 +6,7 @@
 
 **[English](README.md) | [Français (Québec)](README_FR.md)**
 
-![Bolus Tracking Studio](docs/app_screenshot_en.png?v=2.3.1)
+
 
 ### 1-Click Install
 
@@ -14,10 +14,8 @@ Click the **Download Latest Release** button above, then pick the right file for
 
 | Platform | File to Download | Install Steps |
 |----------|-----------------|---------------|
-| 🍎 **macOS** (Apple Silicon) | `Bolus.Tracking.Studio-2.3.1-arm64.dmg` | (M1/M2/M3/M4 chips) Open the `.dmg`, drag to **Applications**, see note below ⬇️ |
-| 🍎 **macOS** (Intel) | `Bolus.Tracking.Studio-2.3.1.dmg` | (Older Intel-based Macs) Open the `.dmg`, drag to **Applications**, see note below ⬇️ |
-| 🪟 **Windows** | `Bolus.Tracking.Studio.Setup.2.3.1.exe` | Run the installer |
-| 🐧 **Linux** | `Bolus.Tracking.Studio-2.3.1.AppImage` | `chmod +x *.AppImage` then run it (see note below ⬇️) |
+| 🍎 **macOS** (Apple Silicon) | `BolusTrackingStudio-2.3.1-arm64.dmg` | (M1/M2/M3/M4 chips) Open the `.dmg`, drag to **Applications**, see note below ⬇️ |
+| 🍎 **macOS** (Intel) | `BolusTrackingStudio-2.3.1-x86_64.dmg` | (Older Intel-based Macs) Open the `.dmg`, drag to **Applications**, see note below ⬇️ |
 
 > [!IMPORTANT]
 > **macOS "damaged and can't be opened" fix** — Because the app is not signed with an Apple Developer ID, macOS Gatekeeper will block it. After dragging the app to Applications, open **Terminal** and run:
@@ -27,20 +25,16 @@ Click the **Download Latest Release** button above, then pick the right file for
 > Then open the app normally. Alternatively, **right-click → Open** on the first launch to bypass Gatekeeper.
 
 > [!TIP]
-> **Linux AppImage not working?** If you get a FUSE error or the app won't start, try one of these:
+> **Building from source (Linux/Windows):** Install dependencies (`libtiff-dev`, `libeigen3-dev`, `zlib1g-dev`, `libglfw3-dev`) and build:
 > ```bash
-> # Option 1: Run without FUSE
-> ./Bolus.Tracking.Studio-*.AppImage --appimage-extract-and-run
->
-> # Option 2: Download the .tar.gz instead from the Releases page
-> tar xzf Bolus.Tracking.Studio-*.tar.gz
-> cd bolus-tracking-studio
-> ./bolus-tracking-studio
+> mkdir build && cd build
+> cmake .. -DCMAKE_BUILD_TYPE=Release
+> cmake --build . --target bolus_tracking_gui -j8
 > ```
 
 ---
 
-Welcome to the **Capillary Bolus Tracking & Gamma Curve Fitting** repository. This project is a comprehensive suite of MATLAB, Python, and C++ tools designed to extract, analyze, and mathematically model fluorescent dye transit kinetics in brain capillaries for neurovascular coupling research.
+Welcome to the **Capillary Bolus Tracking & Gamma Curve Fitting** repository. This project is a comprehensive suite of MATLAB, Python, and C++ tools designed to extract, analyze, and mathematically model fluorescent dye transit kinetics in brain capillaries for neurovascular coupling research. The primary application is a **native C++ desktop app** built with Dear ImGui, ImPlot, and GLFW.
 
 ---
 
@@ -86,16 +80,16 @@ We provide detailed documentation for each part of the codebase. Please refer to
   * **`cpp/src/batch_processor.cpp`**: Directory tree crawler, frame rate parsing, and dataset pairing logic.
   * **`cpp/src/main.cpp`**: Command-line execution entry point.
 * **`cpp/include/bolus_tracking_cpp.hpp`**: Unified C++ header declaring all pipeline structures, parameters, and class interfaces.
-* **`cpp/src/bolus_gui.cpp`**: ~~Cross-platform interactive C++ GUI built with Dear ImGui and ImPlot.~~ **DEPRECATED** — retained for reference. See `gui/` for the current GUI.
+* **`cpp/src/bolus_gui.cpp`**: **Primary interactive GUI** built with Dear ImGui, ImPlot, and GLFW. Features 42 languages, integrated batch pipeline, interactive fitting, and full triage workflow.
 * **`cpp/tests/test_bolus_tracking_cpp.cpp`**: C++ test suite verifying all math routines, fit models, and edge cases.
 * **`CMakeLists.txt`**: C++ build configuration file.
 * **`Dockerfile.cpp`**: Docker configuration for compiling, testing, and containerizing the C++ pipeline.
 
-### Electron GUI (Primary Interactive Tool)
-* **`gui/`**: The **primary interactive GUI** for triage and quality control. Built on Electron (Chromium) with C++ SVG plot rendering and the MCM dark theme. See **[gui/README.md](gui/README.md)** for full documentation.
+### Electron GUI (Deprecated)
+* **`gui/`**: ~~Former Electron-based GUI.~~ **DEPRECATED** — retained for reference. Use the native C++ app instead.
 
 ### Python-Based Reference Tools
-* **`python/src/bolus_gui.py`**: ~~Interactive Python GUI.~~ **DEPRECATED** — retained for reference. Use the Electron GUI instead.
+* **`python/src/bolus_gui.py`**: ~~Interactive Python GUI.~~ **DEPRECATED** — retained for reference. Use the native C++ app instead.
 * **`run_pipeline.sh`**: Command-line wrapper script that sets up python virtual environments and executes the reference Python batch pipeline.
 * **`python/src/batch_process.py`**: Scans folders for triplets (TIFF image, MAT mask, metadata TXT), extracts traces, runs fitting, and saves CSVs.
 * **`python/src/bolus_tracking.py`**: Core mathematical algorithms containing filtering, upsampling, peak/onset/end detections, and curve fitting.
@@ -123,32 +117,35 @@ This processes all subject datasets in parallel. To run the reference Python pip
 bash run_pipeline.sh
 ```
 
-### Launch Interactive GUI (Electron — Recommended)
-```bash
-cd gui && npm install && npm start
-```
-This launches the Bolus Tracking Studio with the MCM dark theme, C++ SVG plots, splash screen animation, 44 languages, and full triage workflow. See **[gui/README.md](gui/README.md)** for details.
+### Launch Interactive GUI (Native C++ App — Recommended)
 
-> [!NOTE]
-> **Prerequisites**: Node.js ≥ 18 and a built `bolus_server` binary (run `cd build && cmake .. && make bolus_server`).
+**Option A: Download the DMG** from GitHub Releases and double-click the app.
+
+**Option B: Build from source:**
+```bash
+brew install eigen libtiff   # macOS only
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --target bolus_tracking_gui -j8
+open "Bolus Tracking Studio.app"   # macOS
+```
+
+The app includes 42 languages, integrated batch pipeline ("Run Full Pipeline" button), interactive curve fitting, drag-and-drop onset/peak/end markers, ROI MIP viewer, and full triage workflow.
+
+> [!TIP]
+> **Create a distributable DMG:** Run `./macos/create_dmg.sh` to build and package the app.
 
 <details>
 <summary>Legacy GUIs (Deprecated)</summary>
 
-#### Legacy: C++ Dear ImGui GUI
-```bash
-mkdir -p build && cd build
-cmake -DBUILD_GUI=ON ..
-make -j4
-./bolus_tracking_gui
-```
-> ⚠️ **Deprecated.** Requires GLFW, OpenGL, and native graphics libraries. Use the Electron GUI instead.
+#### Legacy: Electron GUI
+> ⚠️ **Deprecated.** The `gui/` Electron app is no longer maintained. Use the native C++ app instead.
 
 #### Legacy: Python tkinter GUI
 ```bash
 .venv/bin/python python/src/bolus_gui.py
 ```
-> ⚠️ **Deprecated.** Slower, no multi-language support, limited QC workflow. Use the Electron GUI instead.
+> ⚠️ **Deprecated.** Slower, no multi-language support, limited QC workflow. Use the native C++ app instead.
 
 </details>
 

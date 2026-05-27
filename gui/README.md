@@ -1,10 +1,23 @@
-# Bolus Tracking Studio — Electron GUI
+# ⚠️ DEPRECATED — Electron GUI
 
-> **The primary interactive GUI for bolus tracking triage and quality control.**
+> [!CAUTION]
+> **This Electron GUI is DEPRECATED and no longer works.** It has been replaced by the **native C++ Bolus Tracking Studio** app built with Dear ImGui, ImPlot, and GLFW.
+>
+> To use the current app:
+> - **Download the DMG** from [GitHub Releases](https://github.com/mrozak4/Bolus_Tracking/releases/latest)
+> - **Or build from source:** `cmake --build . --target bolus_tracking_gui`
+>
+> See the [main README](../README.md) for instructions.
 
-![Bolus Tracking Studio Screenshot](../docs/app_screenshot_en.png)
+---
 
-Built on Electron (Chromium) with C++ SVG plot rendering, the studio provides a memory-efficient, cross-platform interface that maintains the exact Mid-Century Modern (MCM) visual design of the original native application.
+*The content below is retained for historical reference only.*
+
+# Bolus Tracking Studio — Electron GUI (Archived)
+
+> **This was the former primary interactive GUI for bolus tracking triage and quality control.**
+
+Built on Electron (Chromium) with C++ SVG plot rendering, the studio provided a cross-platform interface with the Mid-Century Modern (MCM) visual design.
 
 ---
 

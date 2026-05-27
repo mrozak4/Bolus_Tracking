@@ -4,7 +4,7 @@
 
 **[English](README.md) | [Français (Québec)](README_FR.md)**
 
-![Bolus Tracking Studio](docs/app_screenshot_fr.png?v=2.3.1)
+
 
 ### Installation en 1 clic
 
@@ -84,16 +84,16 @@ Nous fournissons une documentation détaillée pour chaque partie du code. Veuil
   * **`cpp/src/batch_processor.cpp`** : Analyseur de répertoire, analyse des métadonnées de fréquence d'acquisition et appariement de fichiers.
   * **`cpp/src/main.cpp`** : Point d'entrée de l'exécution en ligne de commande.
 * **`cpp/include/bolus_tracking_cpp.hpp`** : En-tête C++ unifié déclarant toutes les structures, paramètres et interfaces de classe du pipeline.
-* **`cpp/src/bolus_gui.cpp`** : ~~Interface graphique interactive en C++ construite avec Dear ImGui et ImPlot.~~ **OBSOLÈTE** — conservé à titre de référence. Voir `gui/` pour l'interface actuelle.
+* **`cpp/src/bolus_gui.cpp`** : **Interface graphique interactive principale** construite avec Dear ImGui, ImPlot et GLFW. Inclut 42 langues, pipeline intégré, ajustement interactif et flux de triage complet.
 * **`cpp/tests/test_bolus_tracking_cpp.cpp`** : Suite de tests unitaires C++ vérifiant les calculs mathématiques, les modèles d'ajustement et les cas limites.
 * **`CMakeLists.txt`** : Fichier de configuration de compilation CMake.
 * **`Dockerfile.cpp`** : Configuration Docker pour compiler, tester et conteneuriser le pipeline C++.
 
-### Interface graphique Electron (outil interactif principal)
-* **`gui/`** : L'**interface graphique interactive principale** pour le triage et le contrôle qualité. Construite sur Electron (Chromium) avec rendu SVG en C++ et le thème sombre MCM. Voir **[gui/README_FR.md](gui/README_FR.md)** pour la documentation complète.
+### Interface graphique Electron (obsolète)
+* **`gui/`** : ~~Ancienne interface Electron.~~ **OBSOLÈTE** — conservé à titre de référence. Utilisez l'application C++ native.
 
 ### Outils de référence en Python
-* **`python/src/bolus_gui.py`** : ~~Interface Python interactive.~~ **OBSOLÈTE** — conservé à titre de référence. Utilisez l'interface graphique Electron.
+* **`python/src/bolus_gui.py`** : ~~Interface Python interactive.~~ **OBSOLÈTE** — conservé à titre de référence. Utilisez l'application C++ native.
 * **`run_pipeline.sh`** : Script enveloppe pour configurer l'environnement virtuel Python et exécuter le pipeline par lots de référence.
 * **`python/src/batch_process.py`** : Scanne les répertoires pour identifier les triplets (image TIFF, masque MAT, métadonnées TXT), extrait les signaux, exécute les modélisations et enregistre les CSV.
 * **`python/src/bolus_tracking.py`** : Algorithmes mathématiques centraux (filtrage, suréchantillonnage, détection du début/pic/fin et modélisation de courbe).
@@ -121,32 +121,35 @@ Cela traite tous les sujets en parallèle. Pour exécuter plutôt le pipeline Py
 bash run_pipeline.sh
 ```
 
-### Lancer l'interface graphique interactive (Electron — Recommandé)
-```bash
-cd gui && npm install && npm start
-```
-Cela lance le Bolus Tracking Studio avec le thème sombre MCM, les graphiques SVG en C++, l'animation d'écran d'accueil, 44 langues et le flux de travail complet de triage. Voir **[gui/README_FR.md](gui/README_FR.md)** pour les détails.
+### Lancer l'interface graphique interactive (application C++ native — Recommandé)
 
-> [!NOTE]
-> **Prérequis** : Node.js ≥ 18 et un binaire `bolus_server` compilé (exécutez `cd build && cmake .. && make bolus_server`).
+**Option A : Téléchargez le DMG** depuis les versions GitHub et double-cliquez sur l'application.
+
+**Option B : Compiler depuis les sources :**
+```bash
+brew install eigen libtiff   # macOS seulement
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --target bolus_tracking_gui -j8
+open "Bolus Tracking Studio.app"   # macOS
+```
+
+L'application inclut 42 langues, un pipeline intégré (bouton « Run Full Pipeline »), l'ajustement interactif des courbes, et un flux de triage complet.
+
+> [!TIP]
+> **Créer un DMG distribuable :** Exécutez `./macos/create_dmg.sh` pour compiler et empaqueter l'application.
 
 <details>
 <summary>Interfaces graphiques héritées (obsolètes)</summary>
 
-#### Ancien : Interface graphique C++ Dear ImGui
-```bash
-mkdir -p build && cd build
-cmake -DBUILD_GUI=ON ..
-make -j4
-./bolus_tracking_gui
-```
-> ⚠️ **Obsolète.** Nécessite GLFW, OpenGL et des bibliothèques graphiques natives. Utilisez l'interface Electron.
+#### Ancien : Interface Electron
+> ⚠️ **Obsolète.** L'interface Electron (`gui/`) n'est plus maintenue. Utilisez l'application C++ native.
 
 #### Ancien : Interface graphique Python tkinter
 ```bash
 .venv/bin/python python/src/bolus_gui.py
 ```
-> ⚠️ **Obsolète.** Plus lente, sans prise en charge multilingue. Utilisez l'interface Electron.
+> ⚠️ **Obsolète.** Plus lente, sans prise en charge multilingue. Utilisez l'application C++ native.
 
 </details>
 
