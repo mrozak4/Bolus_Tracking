@@ -28,9 +28,12 @@
     },
     "mac": {
       "target": [
-        "dmg"
+        "dmg",
+        "zip"
       ],
       "icon": "../resources/AppIcon.icns",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
       "extraResources": [
         {
           "from": "../build/bolus_server",

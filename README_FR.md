@@ -12,9 +12,16 @@ Cliquez sur le bouton **Télécharger** ci-dessus, puis choisissez le bon fichie
 
 | Plateforme | Fichier à télécharger | Étapes d'installation |
 |----------|-----------------|---------------|
-| 🍎 **macOS** (Apple Silicon) | `Bolus.Tracking.Studio-X.X.X-arm64.dmg` | Ouvrir le `.dmg`, glisser l'app dans **Applications** |
+| 🍎 **macOS** (Apple Silicon) | `Bolus.Tracking.Studio-X.X.X-arm64.dmg` | Ouvrir le `.dmg`, glisser l'app dans **Applications**, puis voir la note ci-dessous ⬇️ |
 | 🪟 **Windows** | `Bolus.Tracking.Studio.Setup.X.X.X.exe` | Exécuter l'installateur |
 | 🐧 **Linux** | `Bolus.Tracking.Studio-X.X.X.AppImage` | `chmod +x *.AppImage` puis exécuter |
+
+> [!IMPORTANT]
+> **macOS « fichier endommagé et ne peut pas être ouvert »** — L'application n'est pas signée avec un identifiant de développeur Apple, donc macOS Gatekeeper la bloquera. Après avoir glissé l'application dans Applications, ouvrez le **Terminal** et exécutez :
+> ```bash
+> xattr -cr "/Applications/Bolus Tracking Studio.app"
+> ```
+> Puis ouvrez l'application normalement. Vous pouvez aussi faire **clic droit → Ouvrir** au premier lancement.
 
 ---
 

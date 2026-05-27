@@ -14,9 +14,16 @@ Click the **Download Latest Release** button above, then pick the right file for
 
 | Platform | File to Download | Install Steps |
 |----------|-----------------|---------------|
-| 🍎 **macOS** (Apple Silicon) | `Bolus.Tracking.Studio-X.X.X-arm64.dmg` | Open the `.dmg`, drag the app to **Applications** |
+| 🍎 **macOS** (Apple Silicon) | `Bolus.Tracking.Studio-X.X.X-arm64.dmg` | Open the `.dmg`, drag the app to **Applications**, then see note below ⬇️ |
 | 🪟 **Windows** | `Bolus.Tracking.Studio.Setup.X.X.X.exe` | Run the installer |
 | 🐧 **Linux** | `Bolus.Tracking.Studio-X.X.X.AppImage` | `chmod +x *.AppImage` then run it |
+
+> [!IMPORTANT]
+> **macOS "damaged and can't be opened" fix** — Because the app is not signed with an Apple Developer ID, macOS Gatekeeper will block it. After dragging the app to Applications, open **Terminal** and run:
+> ```bash
+> xattr -cr "/Applications/Bolus Tracking Studio.app"
+> ```
+> Then open the app normally. Alternatively, **right-click → Open** on the first launch to bypass Gatekeeper.
 
 ---
 
