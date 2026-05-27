@@ -876,10 +876,18 @@ async function directLoad(paths) {
         state.csvPath = csvResp.data.path || '';
         state.roiRecords = csvResp.data.records || [];
         // Build lookup map: roi_id -> record
+        // The C++ pipeline writes 1-indexed roi_ids to CSV (mask_id + 1),
+        // but the server returns 0-indexed mask IDs. So we store both:
+        //   roiRecordMap[roi_id]     (for direct match)
+        //   roiRecordMap[roi_id - 1] (for 0-indexed mask -> 1-indexed CSV)
         state.roiRecordMap = {};
         for (const rec of state.roiRecords) {
             if (rec.roi_id !== undefined) {
                 state.roiRecordMap[rec.roi_id] = rec;
+                // Also map roi_id-1 so mask ROI 0 matches CSV ROI 1
+                if (rec.roi_id > 0 && !(rec.roi_id - 1 in state.roiRecordMap)) {
+                    state.roiRecordMap[rec.roi_id - 1] = rec;
+                }
             }
         }
     }
@@ -1483,6 +1491,9 @@ async function handleBatchFit() {
         for (const rec of (d.records || [])) {
             if (rec.roi_id !== undefined) {
                 state.roiRecordMap[rec.roi_id] = rec;
+                if (rec.roi_id > 0 && !(rec.roi_id - 1 in state.roiRecordMap)) {
+                    state.roiRecordMap[rec.roi_id - 1] = rec;
+                }
             }
         }
         buildRoiList();
@@ -1734,6 +1745,35 @@ function initBatchPanel() {
         const args = ['--folder', batchState.folder];
         if (document.getElementById('batch-opt-plot').checked) args.push('--plot');
         if (document.getElementById('batch-opt-verbose').checked) args.push('--verbose');
+
+        // Collect fit bounds & QC thresholds — only append if user entered a value
+        const paramMap = [
+            ['bp-min-amp',           '--min-amp'],
+            ['bp-max-amp',           '--max-amp'],
+            ['bp-min-t2p',           '--min-t2p'],
+            ['bp-max-t2p',           '--max-t2p'],
+            ['bp-min-fwhm',          '--min-fwhm'],
+            ['bp-max-fwhm',          '--max-fwhm'],
+            ['bp-qc-amp-fail',       '--qc-amp-fail'],
+            ['bp-qc-t2p-max',        '--qc-t2p-max'],
+            ['bp-qc-t2p-fail',       '--qc-t2p-fail'],
+            ['bp-qc-fwhm-max',       '--qc-fwhm-max'],
+            ['bp-qc-fwhm-fail',      '--qc-fwhm-fail'],
+            ['bp-qc-cnr-min',        '--qc-cnr-min'],
+            ['bp-qc-cnr-fail',       '--qc-cnr-fail'],
+            ['bp-stall-ont-offset',  '--stall-ont-offset'],
+            ['bp-stall-ont-mult',    '--stall-ont-mult'],
+            ['bp-stall-t2p-mult',    '--stall-t2p-mult'],
+            ['bp-stall-t2p-abs',     '--stall-t2p-abs'],
+            ['bp-stall-sd-base',     '--stall-sd-base'],
+            ['bp-stall-step-t2p',    '--stall-step-t2p'],
+            ['bp-stall-step-fwhm',   '--stall-step-fwhm'],
+        ];
+        for (const [inputId, flag] of paramMap) {
+            const val = document.getElementById(inputId).value.trim();
+            if (val !== '') args.push(flag, val);
+        }
+
         runBatchPipeline(args);
     });
 

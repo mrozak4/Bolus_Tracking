@@ -18,8 +18,8 @@
 /**
  * @brief Constructs a DatasetProcessor instance.
  */
-DatasetProcessor::DatasetProcessor(double drift_window, bool enable_plots, const BolusFitter& fitter, const QCSettings& qc_settings)
-    : drift_window(drift_window), enable_plots(enable_plots), fitter(fitter), qc_settings(qc_settings) {}
+DatasetProcessor::DatasetProcessor(double drift_window, bool enable_plots, const BolusFitter& fitter, const QCSettings& qc_settings, const StallSettings& stall_settings)
+    : drift_window(drift_window), enable_plots(enable_plots), fitter(fitter), qc_settings(qc_settings), stall_settings(stall_settings) {}
 
 /**
  * @brief Extracts the subject number from a filepath using regex matching.
@@ -592,19 +592,19 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
         bool is_stall = false;
         // Heuristic A: Late onset & slow transit
         if (!std::isnan(rec.ont) && !std::isnan(rec.f_t2p)) {
-            bool late_ont = (rec.ont > median_ont + 3.0) || (median_ont > 0.0 && rec.ont > 2.5 * median_ont);
-            bool slow_transit = (rec.f_t2p > 2.5 * med_t2p) || (rec.f_t2p > 12.0);
+            bool late_ont = (rec.ont > median_ont + stall_settings.ont_offset) || (median_ont > 0.0 && rec.ont > stall_settings.ont_mult * median_ont);
+            bool slow_transit = (rec.f_t2p > stall_settings.t2p_mult * med_t2p) || (rec.f_t2p > stall_settings.t2p_abs);
             if (late_ont && slow_transit) {
                 is_stall = true;
             }
         }
         // Heuristic B: Baseline Instability
-        if (!std::isnan(rec.raw_sd_base) && rec.raw_sd_base > 15.0) {
+        if (!std::isnan(rec.raw_sd_base) && rec.raw_sd_base > stall_settings.sd_base) {
             is_stall = true;
         }
         // Heuristic C: Step-function rise
         if (!std::isnan(rec.f_t2p) && !std::isnan(rec.f_fwhm)) {
-            if (rec.f_t2p < 0.8 && rec.f_fwhm > 6.0) {
+            if (rec.f_t2p < stall_settings.step_t2p && rec.f_fwhm > stall_settings.step_fwhm) {
                 is_stall = true;
             }
         }

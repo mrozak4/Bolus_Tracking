@@ -1041,6 +1041,65 @@ html, body {
     height: 16px;
     cursor: pointer;
 }
+.batch-advanced {
+    margin-top: var(--space-md);
+}
+.batch-advanced summary {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-burnt-orange);
+    cursor: pointer;
+    padding: var(--space-xs) 0;
+    user-select: none;
+}
+.batch-advanced summary:hover { color: var(--accent-warm-gold); }
+.batch-advanced h4 {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: var(--space-sm) 0 var(--space-xs);
+}
+.batch-params-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--space-sm);
+}
+.batch-param {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.batch-param label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+.batch-param input[type="number"] {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-warm);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 4px 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.batch-param input[type="number"]:focus {
+    border-color: var(--accent-burnt-orange);
+    outline: none;
+}
+.batch-param input[type="number"]::placeholder {
+    color: var(--text-muted);
+    font-style: italic;
+}
+.param-hint {
+    font-size: 10px;
+    color: var(--text-muted);
+}
 
 /* Action buttons */
 .batch-actions {

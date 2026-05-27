@@ -62,6 +62,16 @@ struct QCSettings {
     double amp_fail = 1.0;
 };
 
+struct StallSettings {
+    double ont_offset = 3.0;     // Heuristic A: onset > median + ont_offset
+    double ont_mult = 2.5;       // Heuristic A: onset > ont_mult × median
+    double t2p_mult = 2.5;       // Heuristic A: t2p > t2p_mult × median
+    double t2p_abs = 12.0;       // Heuristic A: t2p > t2p_abs (absolute)
+    double sd_base = 15.0;       // Heuristic B: raw_sd_base > sd_base
+    double step_t2p = 0.8;       // Heuristic C: t2p < step_t2p
+    double step_fwhm = 6.0;      // Heuristic C: fwhm > step_fwhm
+};
+
 struct AutoEstimateResults {
     std::vector<double> init_params; // [amp, t2p, fwhm, baseline]
     int start_idx;
@@ -224,9 +234,10 @@ private:
     bool enable_plots;
     BolusFitter fitter;
     QCSettings qc_settings;
+    StallSettings stall_settings;
 
 public:
-    DatasetProcessor(double drift_window = 15.0, bool enable_plots = false, const BolusFitter& fitter = BolusFitter(), const QCSettings& qc_settings = QCSettings());
+    DatasetProcessor(double drift_window = 15.0, bool enable_plots = false, const BolusFitter& fitter = BolusFitter(), const QCSettings& qc_settings = QCSettings(), const StallSettings& stall_settings = StallSettings());
     
     int parse_subject_number(const std::string& filepath) const;
     std::string parse_experiment(const std::string& filepath) const;
@@ -249,6 +260,7 @@ private:
     bool enable_plots;
     BolusFitter fitter;
     QCSettings qc_settings;
+    StallSettings stall_settings;
 
     struct PathInfo {
         std::filesystem::path path;
@@ -257,7 +269,7 @@ private:
     };
 
 public:
-    BatchProcessor(const std::string& folder_path, double drift_window = 15.0, bool enable_plots = false, const BolusFitter& fitter = BolusFitter(), const QCSettings& qc_settings = QCSettings());
+    BatchProcessor(const std::string& folder_path, double drift_window = 15.0, bool enable_plots = false, const BolusFitter& fitter = BolusFitter(), const QCSettings& qc_settings = QCSettings(), const StallSettings& stall_settings = StallSettings());
     
     double parse_frame_rate(const std::string& filepath) const;
     std::string extract_identifier(const std::string& filename) const;

@@ -28,6 +28,7 @@ int main(int argc, char** argv) {
     double max_fwhm = 1e6;   // dynamically capped inside fit function
     
     QCSettings qc_settings;
+    StallSettings stall_settings;
     
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -119,6 +120,20 @@ int main(int argc, char** argv) {
             apply_mode = true;
         } else if (arg == "--force") {
             force_overwrite = true;
+        } else if (arg == "--stall-ont-offset") {
+            if (i + 1 < argc) { stall_settings.ont_offset = std::stod(argv[i + 1]); i++; }
+        } else if (arg == "--stall-ont-mult") {
+            if (i + 1 < argc) { stall_settings.ont_mult = std::stod(argv[i + 1]); i++; }
+        } else if (arg == "--stall-t2p-mult") {
+            if (i + 1 < argc) { stall_settings.t2p_mult = std::stod(argv[i + 1]); i++; }
+        } else if (arg == "--stall-t2p-abs") {
+            if (i + 1 < argc) { stall_settings.t2p_abs = std::stod(argv[i + 1]); i++; }
+        } else if (arg == "--stall-sd-base") {
+            if (i + 1 < argc) { stall_settings.sd_base = std::stod(argv[i + 1]); i++; }
+        } else if (arg == "--stall-step-t2p") {
+            if (i + 1 < argc) { stall_settings.step_t2p = std::stod(argv[i + 1]); i++; }
+        } else if (arg == "--stall-step-fwhm") {
+            if (i + 1 < argc) { stall_settings.step_fwhm = std::stod(argv[i + 1]); i++; }
         } else {
             pos_args.push_back(arg);
         }
@@ -138,7 +153,7 @@ int main(int argc, char** argv) {
             std::cerr << "Folder does not exist: " << folder_path << std::endl;
             return 1;
         }
-        BatchProcessor batch_processor(folder_path, drift_window, enable_plots, fitter, qc_settings);
+        BatchProcessor batch_processor(folder_path, drift_window, enable_plots, fitter, qc_settings, stall_settings);
         bool has_warns = false;
         bool has_errs = false;
         batch_processor.run_preflight_scan(has_warns, has_errs);
@@ -157,7 +172,7 @@ int main(int argc, char** argv) {
             std::cerr << "Folder does not exist: " << folder_path << std::endl;
             return 1;
         }
-        BatchProcessor batch_processor(folder_path, drift_window, enable_plots, fitter, qc_settings);
+        BatchProcessor batch_processor(folder_path, drift_window, enable_plots, fitter, qc_settings, stall_settings);
         bool dry_run = !apply_mode;
         bool success = batch_processor.run_prepare(dry_run, force_overwrite);
         return success ? 0 : 1;
@@ -173,7 +188,7 @@ int main(int argc, char** argv) {
             return 1;
         }
         
-        BatchProcessor batch_processor(folder_path, drift_window, enable_plots, fitter, qc_settings);
+        BatchProcessor batch_processor(folder_path, drift_window, enable_plots, fitter, qc_settings, stall_settings);
         bool run_success = batch_processor.run();
         return run_success ? 0 : 1;
     }
@@ -185,7 +200,7 @@ int main(int argc, char** argv) {
         int up_f = std::stoi(pos_args[3]);
         std::string out_csv = pos_args[4];
         
-        DatasetProcessor ds_processor(drift_window, enable_plots, fitter, qc_settings);
+        DatasetProcessor ds_processor(drift_window, enable_plots, fitter, qc_settings, stall_settings);
         bool success = ds_processor.process_dataset_file(tiff_path, rois_path, fr, up_f, out_csv);
         return success ? 0 : 1;
     }
@@ -201,7 +216,11 @@ int main(int argc, char** argv) {
               << "  --min-fwhm (0.5)   --max-fwhm (dynamically set)\n\n"
               << "QC Options (Defaults):\n"
               << "  --qc-cnr-min (5.0)   --qc-fwhm-max (15.0)   --qc-t2p-max (10.0)\n"
-              << "  --qc-cnr-fail (3.0)  --qc-fwhm-fail (100.0)  --qc-t2p-fail (50.0)  --qc-amp-fail (1.0)\n" << std::endl;
+              << "  --qc-cnr-fail (3.0)  --qc-fwhm-fail (100.0)  --qc-t2p-fail (50.0)  --qc-amp-fail (1.0)\n\n"
+              << "Stall Detection Options (Defaults):\n"
+              << "  --stall-ont-offset (3.0)   --stall-ont-mult (2.5)    --stall-t2p-mult (2.5)\n"
+              << "  --stall-t2p-abs (12.0)     --stall-sd-base (15.0)\n"
+              << "  --stall-step-t2p (0.8)     --stall-step-fwhm (6.0)\n" << std::endl;
     return 1;
 }
 #endif

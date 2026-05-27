@@ -141,6 +141,13 @@ You can configure both the absolute optimization bounds and the warning/failure 
 | **`--qc-fwhm-fail <val>`** | FWHM Failure Limit | `100.0` | Fits with FWHM above this are flagged `FAIL`. |
 | **`--qc-cnr-min <val>`** | CNR Warning Limit | `5.0` | Fits with CNR below this are flagged `WARN`. |
 | **`--qc-cnr-fail <val>`** | CNR Failure Limit | `3.0` | Fits with CNR below this are flagged `FAIL`. |
+| **`--stall-ont-offset <val>`** | Stall Onset Offset | `3.0` | Heuristic A: flag if onset > median + this value (seconds). |
+| **`--stall-ont-mult <val>`** | Stall Onset Multiplier | `2.5` | Heuristic A: flag if onset > this × median onset. |
+| **`--stall-t2p-mult <val>`** | Stall T₂ₚ Multiplier | `2.5` | Heuristic A: flag if T₂ₚ > this × median T₂ₚ. |
+| **`--stall-t2p-abs <val>`** | Stall Absolute T₂ₚ | `12.0` | Heuristic A: flag if T₂ₚ > this value (seconds). |
+| **`--stall-sd-base <val>`** | Stall Baseline SD | `15.0` | Heuristic B: flag if baseline noise SD exceeds this. |
+| **`--stall-step-t2p <val>`** | Stall Step T₂ₚ | `0.8` | Heuristic C: flag if T₂ₚ < this AND FWHM > step-fwhm. |
+| **`--stall-step-fwhm <val>`** | Stall Step FWHM | `6.0` | Heuristic C: flag if FWHM > this AND T₂ₚ < step-t2p. |
 
 For example, to process a dataset with a custom FWHM warning threshold of `20.0` seconds and a minimum CNR warning threshold of `6.0`:
 ```bash
@@ -149,7 +156,7 @@ bash run_pipeline_cpp.sh sample-subject-2259 --qc-fwhm-max 20.0 --qc-cnr-min 6.0
 
 * **`PASS`**: The fit completed successfully, did not hit parameter bounds, CNR > 5.0, FWHM is between 0.5–15.0 s, and $T_{2p}$ is between 0.1–10.0 s.
 * **`WARN`**: The fit succeeded, but one or more parameters crossed the warning/pass limits (e.g. FWHM > 15 s, CNR 3.0–5.0, or landed within 1% of a solver boundary—using the relaxed solver bounds `Amplitude: [1.0, max_amp]`, `T2p: [0.01, 12.0]`, and `FWHM: [0.1, 20.0]` if a second-pass refit was run).
-* **`STALL`**: The trace morphology indicates a capillary stall (slow or interrupted blood flow). Stalling capillaries represent vascular health changes, not errors, and their genuine slow transit parameters are kept (prior refitting is skipped to prevent overriding slow transit kinetics). Flagged if:
+* **`STALL`**: The trace morphology indicates a capillary stall (slow or interrupted blood flow). Stalling capillaries represent vascular health changes, not errors, and their genuine slow transit parameters are kept (prior refitting is skipped to prevent overriding slow transit kinetics). All thresholds are configurable via the `--stall-*` flags above. Flagged if:
   * *Late Onset & Slow Transit:* $OnT > median\_ont + 3.0$ s (or $> 2.5 \times$ median) AND $T_{2p} > 2.5 \times$ median (or $> 12.0$ s).
   * *Baseline Instability:* Pre-bolus baseline noise $SD > 15.0$ (indicates white blood cell plugging or flow interruption).
   * *Step-function rise:* $T_{2p} < 0.8$ s AND $FWHM > 6.0$ s (very slow wash-out/step rise).

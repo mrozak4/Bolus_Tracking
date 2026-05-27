@@ -19,8 +19,8 @@
 /**
  * @brief Constructs a BatchProcessor instance.
  */
-BatchProcessor::BatchProcessor(const std::string& folder_path, double drift_window, bool enable_plots, const BolusFitter& fitter, const QCSettings& qc_settings)
-    : folder_path(folder_path), drift_window(drift_window), enable_plots(enable_plots), fitter(fitter), qc_settings(qc_settings) {}
+BatchProcessor::BatchProcessor(const std::string& folder_path, double drift_window, bool enable_plots, const BolusFitter& fitter, const QCSettings& qc_settings, const StallSettings& stall_settings)
+    : folder_path(folder_path), drift_window(drift_window), enable_plots(enable_plots), fitter(fitter), qc_settings(qc_settings), stall_settings(stall_settings) {}
 
 /**
  * @brief Parses the camera frame rate from the Fluoview metadata file format.
@@ -206,7 +206,7 @@ bool BatchProcessor::run() const {
     std::cout << "Found " << tiff_files.size() << " TIFF files to process." << std::endl;
     int processed_count = 0;
     
-    DatasetProcessor ds_processor(drift_window, enable_plots, fitter, qc_settings);
+    DatasetProcessor ds_processor(drift_window, enable_plots, fitter, qc_settings, stall_settings);
     
     for (const auto& tiff_path : tiff_files) {
         std::string filename = tiff_path.filename().string();

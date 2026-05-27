@@ -360,6 +360,122 @@
                         <input type="checkbox" id="batch-opt-verbose"> Verbose debug output (--verbose)
                     </label>
                 </div>
+
+                <details class="batch-advanced" id="batch-advanced-toggle">
+                    <summary>Fit Bounds &amp; QC Thresholds</summary>
+
+                    <h4>Fit Bounds (Optimizer Constraints)</h4>
+                    <div class="batch-params-grid">
+                        <div class="batch-param">
+                            <label for="bp-min-amp">--min-amp</label>
+                            <input type="number" id="bp-min-amp" step="any" placeholder="1e-6">
+                            <span class="param-hint">Min Amplitude</span>
+                        </div>
+                        <div class="batch-param">
+                            <label for="bp-max-amp">--max-amp</label>
+                            <input type="number" id="bp-max-amp" step="any" placeholder="1023.0">
+                            <span class="param-hint">Max Amplitude</span>
+                        </div>
+                        <div class="batch-param">
+                            <label for="bp-min-t2p">--min-t2p</label>
+                            <input type="number" id="bp-min-t2p" step="any" placeholder="1e-6">
+                            <span class="param-hint">Min T₂ₚ</span>
+                        </div>
+                        <div class="batch-param">
+                            <label for="bp-max-t2p">--max-t2p</label>
+                            <input type="number" id="bp-max-t2p" step="any" placeholder="scan duration">
+                            <span class="param-hint">Max T₂ₚ</span>
+                        </div>
+                        <div class="batch-param">
+                            <label for="bp-min-fwhm">--min-fwhm</label>
+                            <input type="number" id="bp-min-fwhm" step="any" placeholder="0.5">
+                            <span class="param-hint">Min FWHM</span>
+                        </div>
+                        <div class="batch-param">
+                            <label for="bp-max-fwhm">--max-fwhm</label>
+                            <input type="number" id="bp-max-fwhm" step="any" placeholder="scan duration">
+                            <span class="param-hint">Max FWHM</span>
+                        </div>
+                    </div>
+
+                    <h4>QC Triage Thresholds</h4>
+                    <div class="batch-params-grid">
+                        <div class="batch-param">
+                            <label for="bp-qc-amp-fail">--qc-amp-fail</label>
+                            <input type="number" id="bp-qc-amp-fail" step="any" placeholder="1.0">
+                            <span class="param-hint">Amp → FAIL</span>
+                        </div>
+                        <div class="batch-param">
+                            <label for="bp-qc-t2p-max">--qc-t2p-max</label>
+                            <input type="number" id="bp-qc-t2p-max" step="any" placeholder="10.0">
+                            <span class="param-hint">T₂ₚ → WARN</span>
+                        </div>
+                        <div class="batch-param">
+                            <label for="bp-qc-t2p-fail">--qc-t2p-fail</label>
+                            <input type="number" id="bp-qc-t2p-fail" step="any" placeholder="50.0">
+                            <span class="param-hint">T₂ₚ → FAIL</span>
+                        </div>
+                        <div class="batch-param">
+                            <label for="bp-qc-fwhm-max">--qc-fwhm-max</label>
+                            <input type="number" id="bp-qc-fwhm-max" step="any" placeholder="15.0">
+                            <span class="param-hint">FWHM → WARN</span>
+                        </div>
+                        <div class="batch-param">
+                            <label for="bp-qc-fwhm-fail">--qc-fwhm-fail</label>
+                            <input type="number" id="bp-qc-fwhm-fail" step="any" placeholder="100.0">
+                            <span class="param-hint">FWHM → FAIL</span>
+                        </div>
+                        <div class="batch-param">
+                            <label for="bp-qc-cnr-min">--qc-cnr-min</label>
+                            <input type="number" id="bp-qc-cnr-min" step="any" placeholder="5.0">
+                            <span class="param-hint">CNR → WARN</span>
+                        </div>
+                        <div class="batch-param">
+                            <label for="bp-qc-cnr-fail">--qc-cnr-fail</label>
+                            <input type="number" id="bp-qc-cnr-fail" step="any" placeholder="3.0">
+                            <span class="param-hint">CNR → FAIL</span>
+                        </div>
+                    </div>
+
+                    <h4>Stall Detection Thresholds</h4>
+                    <div class="batch-params-grid">
+                        <div class="batch-param">
+                            <label for="bp-stall-ont-offset">--stall-ont-offset</label>
+                            <input type="number" id="bp-stall-ont-offset" step="any" placeholder="3.0">
+                            <span class="param-hint">A: onset &gt; median + X</span>
+                        </div>
+                        <div class="batch-param">
+                            <label for="bp-stall-ont-mult">--stall-ont-mult</label>
+                            <input type="number" id="bp-stall-ont-mult" step="any" placeholder="2.5">
+                            <span class="param-hint">A: onset &gt; X × median</span>
+                        </div>
+                        <div class="batch-param">
+                            <label for="bp-stall-t2p-mult">--stall-t2p-mult</label>
+                            <input type="number" id="bp-stall-t2p-mult" step="any" placeholder="2.5">
+                            <span class="param-hint">A: t2p &gt; X × median</span>
+                        </div>
+                        <div class="batch-param">
+                            <label for="bp-stall-t2p-abs">--stall-t2p-abs</label>
+                            <input type="number" id="bp-stall-t2p-abs" step="any" placeholder="12.0">
+                            <span class="param-hint">A: absolute t2p limit (s)</span>
+                        </div>
+                        <div class="batch-param">
+                            <label for="bp-stall-sd-base">--stall-sd-base</label>
+                            <input type="number" id="bp-stall-sd-base" step="any" placeholder="15.0">
+                            <span class="param-hint">B: baseline SD limit</span>
+                        </div>
+                        <div class="batch-param">
+                            <label for="bp-stall-step-t2p">--stall-step-t2p</label>
+                            <input type="number" id="bp-stall-step-t2p" step="any" placeholder="0.8">
+                            <span class="param-hint">C: step t2p &lt; X</span>
+                        </div>
+                        <div class="batch-param">
+                            <label for="bp-stall-step-fwhm">--stall-step-fwhm</label>
+                            <input type="number" id="bp-stall-step-fwhm" step="any" placeholder="6.0">
+                            <span class="param-hint">C: step fwhm &gt; X</span>
+                        </div>
+                    </div>
+                </details>
             </div>
 
             <!-- Action buttons -->
