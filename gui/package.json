@@ -1,7 +1,7 @@
 {
   "name": "bolus-tracking-studio",
-  "version": "2.2.0",
-  "description": "Bolus Tracking Studio — Interactive capillary bolus tracking analysis with Mid-Century Modern design",
+  "version": "2.2.1",
+  "description": "Capillary Bolus Tracking & Gamma Curve Fitting Studio",
   "main": "main.js",
   "scripts": {
     "start": "electron . --js-flags='--max-old-space-size=256'",
