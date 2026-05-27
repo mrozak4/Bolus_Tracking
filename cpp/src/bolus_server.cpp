@@ -714,8 +714,8 @@ static json handle_scan_folder(const json& params) {
         std::string ext = to_lower(entry.path().extension().string());
 
         if (ext == ".tif" || ext == ".tiff") {
-            // Skip MIP/MAX projection files and registered files
-            if (lower.find("max_") == 0 || lower.find("registered") != std::string::npos ||
+            // Skip MIP/MAX projection files
+            if (lower.find("max_") == 0 ||
                 lower.find("xyz_") == 0) continue;
             all_tiffs.push_back({p, lower});
         } else if (lower.find("_rois.txt") != std::string::npos) {
@@ -768,16 +768,23 @@ static json handle_scan_folder(const json& params) {
         std::string bid = get_bolus_id(t.lower_name);
         if (bid.empty()) bid = "unknown";
         std::string key = make_key(t.path, bid);
+        bool is_reg = t.lower_name.find("registered") != std::string::npos;
+
         if (!datasets.count(key)) {
             datasets[key] = json{
                 {"bolus_id", bid}, {"label", make_label(key)},
-                {"tiff_path", ""}, {"roi_path", ""},
-                {"csv_path", ""}, {"tiff_name", ""}, {"roi_name", ""},
-                {"csv_name", ""}, {"ready", false}
+                {"tiff_path", t.path}, {"roi_path", ""},
+                {"csv_path", ""}, {"tiff_name", fs::path(t.path).filename().string()}, {"roi_name", ""},
+                {"csv_name", ""}, {"ready", false}, {"is_registered", is_reg}
             };
+        } else {
+            // If we already have one, only overwrite if the new one is registered and the old one isn't
+            if (is_reg && !datasets[key].value("is_registered", false)) {
+                datasets[key]["tiff_path"] = t.path;
+                datasets[key]["tiff_name"] = fs::path(t.path).filename().string();
+                datasets[key]["is_registered"] = true;
+            }
         }
-        datasets[key]["tiff_path"] = t.path;
-        datasets[key]["tiff_name"] = fs::path(t.path).filename().string();
     }
 
     // Match ROIs to datasets — try same-dir first, then any dir with same bolus_id
