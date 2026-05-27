@@ -419,7 +419,7 @@ static std::vector<ROI> g_rois;
 static std::vector<CsvRecord> g_records;
 static std::unordered_map<int, size_t> g_record_map;  // roi_id -> index in g_records
 static double g_fr = 1.0;
-static int g_upsample_factor = 20;
+static int g_upsample_factor = 10;  // Match CLI pipeline default (10)
 static double g_drift_win = 15.0;
 
 /// Look up CSV record by ROI ID (not array index). Returns nullptr if not found.
@@ -442,6 +442,7 @@ static const CsvRecord* find_record_for_roi(int roi_idx) {
 }
 static BolusFitter g_fitter;
 static QCSettings g_qc_settings;
+static StallSettings g_stall_settings;
 
 // Per-ROI cached trace data
 struct TraceCache {
@@ -1555,20 +1556,74 @@ static json handle_batch_fit(const json& /*params*/) {
 
     int pass_count = 0, warn_count = 0, fail_count = 0, stall_count = 0;
 
-    // ── Pass 1: Auto-estimate + fit each ROI ──
+    // ── Pass 1: Auto-estimate + fit each ROI (matches process_single_roi) ──
     for (size_t r = 0; r < g_traces.size(); ++r) {
-        const auto& c = g_traces[r];
-        int roi_id = (r < g_rois.size()) ? g_rois[r].id : (int)r;
+        auto& c = g_traces[r];
+        // 1-indexed ROI IDs to match CLI pipeline (dataset_processor.cpp:499)
+        int roi_id = (r < g_rois.size()) ? (g_rois[r].id + 1) : (int)(r + 1);
         CsvRecord& rec = g_records[r];
         rec.roi_id = roi_id;
         g_record_map[roi_id] = r;
 
-        // Auto-estimate
-        AutoEstimateResults auto_res = g_fitter.auto_estimate_params(c.y_us, c.t_us, g_fr, g_upsample_factor);
+        // ── Recompute trace with CLI-matching denoising ──
+        // The GUI compute_trace may have used a user-adjusted denoise_strength,
+        // but the CLI pipeline always uses the raw CNR-adaptive settings.
+        // Recompute from y_raw_detrended to match process_single_roi exactly.
+        bool is_low_cnr = false;
+        {
+            const auto& detrended = c.y_raw_detrended;
+            int n_base = std::min((int)std::round(2.0 * g_fr), (int)std::round(detrended.size() * 0.1));
+            n_base = std::max(2, n_base);
+            std::vector<double> raw_base_win(detrended.begin(), detrended.begin() + n_base);
+            double raw_baseline = SignalProcessor::compute_median(raw_base_win);
+            double sum_rb = 0; for (double v : raw_base_win) sum_rb += v;
+            double raw_sd = SignalProcessor::compute_std(raw_base_win, sum_rb / raw_base_win.size());
+            c.raw_sd_base = raw_sd;
+            double raw_max_val = -1e9;
+            for (double v : detrended) if (v > raw_max_val) raw_max_val = v;
+            double raw_cnr = (raw_sd > 0) ? ((raw_max_val - raw_baseline) / raw_sd) : 0;
+
+            // CLI-matching adaptive denoise (no user strength modifier)
+            double denoise_thresh = 2.0;
+            int denoise_half_win = 5;
+            if (raw_cnr < 4.0) { denoise_thresh = 1.5; denoise_half_win = 7; is_low_cnr = true; }
+            else if (raw_cnr >= 15.0) { denoise_thresh = 3.0; denoise_half_win = 3; }
+            else if (raw_cnr >= 8.0) { denoise_thresh = 2.5; denoise_half_win = 5; }
+
+            c.y_denoised = SignalProcessor::denoise_trace(detrended, denoise_thresh, denoise_half_win);
+
+            // Rebuild spline and upsampled trace
+            SplineInterpolator spline;
+            spline.build(c.t_raw, c.y_denoised);
+            for (size_t i = 0; i < c.t_us.size(); ++i) c.y_us[i] = spline.eval(c.t_us[i]);
+
+            // Recompute upsampled baseline SD
+            int n_base_us = std::min((int)std::round(2.0 * g_fr * g_upsample_factor), (int)std::round(c.y_us.size() * 0.1));
+            n_base_us = std::max(1, n_base_us);
+            std::vector<double> base_win(c.y_us.begin(), c.y_us.begin() + n_base_us);
+            double mb = 0; for (double x : base_win) mb += x; mb /= base_win.size();
+            c.sd_base = SignalProcessor::compute_std(base_win, mb);
+            if (c.sd_base <= 0) c.sd_base = 0.05;
+        }
+
+        // Auto-estimate with correct is_low_cnr flag (matches dataset_processor.cpp:163)
+        AutoEstimateResults auto_res = g_fitter.auto_estimate_params(c.y_us, c.t_us, g_fr, g_upsample_factor, is_low_cnr);
+        double init_cnr = (auto_res.sd_base > 0.0) ? (auto_res.init_params[0] / auto_res.sd_base) : 0.0;
+        // Only re-denoise if init_cnr < 5 AND not already using low-CNR settings
+        // (matches dataset_processor.cpp:166 guard: "if (init_cnr < 5.0 && !is_low_cnr)")
+        if (init_cnr < 5.0 && !is_low_cnr) {
+            c.y_denoised = SignalProcessor::denoise_trace(c.y_raw_detrended, 1.5, 7);
+            SplineInterpolator spline;
+            spline.build(c.t_raw, c.y_denoised);
+            for (size_t i = 0; i < c.t_us.size(); ++i) c.y_us[i] = spline.eval(c.t_us[i]);
+            auto_res = g_fitter.auto_estimate_params(c.y_us, c.t_us, g_fr, g_upsample_factor, true);
+        }
+
         rec.init_amp = auto_res.init_params[0];
         rec.init_t2p = auto_res.init_params[1];
         rec.init_fwhm = auto_res.init_params[2];
         rec.init_m = auto_res.init_params[3];
+        rec.init_snr = (auto_res.sd_base > 0) ? (auto_res.init_params[3] / auto_res.sd_base) : NAN;
         rec.init_cnr = (auto_res.sd_base > 0) ? (auto_res.init_params[0] / auto_res.sd_base) : 0;
         rec.click_start = auto_res.click_start;
         rec.click_onset = auto_res.click_onset;
@@ -1577,50 +1632,43 @@ static json handle_batch_fit(const json& /*params*/) {
         rec.raw_sd_base = c.raw_sd_base;
         rec.roi_size = (r < g_rois.size()) ? (int)g_rois[r].poly.size() : 0;
 
-        // Build fit window
         int start_idx = auto_res.start_idx, end_idx = auto_res.end_idx;
-        if (start_idx < 0 || end_idx <= start_idx || end_idx >= (int)c.t_us.size()) {
-            rec.qc_flag = "FAIL";
-            rec.fit_source = "auto";
-            fail_count++;
-            continue;
+        // Clamp indices to valid range (CLI doesn't early-exit, just builds empty arrays)
+        if (start_idx < 0) start_idx = 0;
+        if (end_idx > (int)c.t_us.size()) end_idx = (int)c.t_us.size();
+        if (end_idx < start_idx) end_idx = start_idx;
+
+        std::vector<double> t_fit(end_idx - start_idx), y_fit(end_idx - start_idx);
+        // CLI uses exclusive end: for (int i = start_idx; i < end_idx; ++i)
+        for (int i = start_idx; i < end_idx; ++i) {
+            t_fit[i - start_idx] = c.t_us[i] - c.t_us[start_idx];
+            y_fit[i - start_idx] = c.y_us[i];
         }
 
-        std::vector<double> t_fit, y_fit;
-        for (int i = start_idx; i <= end_idx; ++i) {
-            t_fit.push_back(c.t_us[i] - c.t_us[start_idx]);
-            y_fit.push_back(c.y_us[i]);
-        }
-        if (t_fit.size() < 5) {
-            rec.qc_flag = "FAIL";
-            rec.fit_source = "auto";
-            fail_count++;
-            continue;
-        }
-
-        // Fit
+        // Fit (matches dataset_processor.cpp:195-227)
         bool fit_success = false, pass2_run = false;
-        std::vector<double> popt = g_fitter.run_nonlinear_fit(t_fit, y_fit, auto_res.init_params, c.sd_base, fit_success, pass2_run);
+        std::vector<double> popt = g_fitter.run_nonlinear_fit(t_fit, y_fit, auto_res.init_params, auto_res.sd_base, fit_success, pass2_run);
 
-        // QC flag
+        // QC flag (matches dataset_processor.cpp:249-265)
         std::string qc_flag = "FAIL";
-        if (fit_success && popt[0] > 1e-6 && popt[1] > 1e-6 && popt[2] > 0.5) {
-            double act_max_t2p = (g_fitter.max_t2p >= 1e5 && !t_fit.empty()) ? t_fit.back() : g_fitter.max_t2p;
-            double act_max_fwhm = (g_fitter.max_fwhm >= 1e5 && !t_fit.empty()) ? t_fit.back() : g_fitter.max_fwhm;
+        if (fit_success) {
+            double actual_max_t2p = (g_fitter.max_t2p >= 1e5 && !t_fit.empty()) ? (c.t_us[end_idx] - c.t_us[start_idx]) : g_fitter.max_t2p;
+            double actual_max_fwhm = (g_fitter.max_fwhm >= 1e5 && !t_fit.empty()) ? (c.t_us[end_idx] - c.t_us[start_idx]) : g_fitter.max_fwhm;
+            double f_cnr = (auto_res.sd_base > 0.0) ? (popt[0] / auto_res.sd_base) : 0.0;
             qc_flag = BolusFitter::determine_qc_flag(
-                popt[0], popt[1], popt[2], popt[3], popt[0] / c.sd_base,
-                g_fitter.min_amp, g_fitter.max_amp, g_fitter.min_t2p, act_max_t2p,
-                g_fitter.min_fwhm, act_max_fwhm, fit_success, pass2_run);
+                popt[0], popt[1], popt[2], popt[3], f_cnr,
+                g_fitter.min_amp, g_fitter.max_amp, g_fitter.min_t2p, actual_max_t2p,
+                g_fitter.min_fwhm, actual_max_fwhm, fit_success, pass2_run);
         }
         rec.qc_flag = qc_flag;
         rec.fit_source = "auto";
 
         if (fit_success && popt.size() >= 4) {
             rec.f_amp = popt[0]; rec.f_t2p = popt[1]; rec.f_fwhm = popt[2]; rec.f_m = popt[3];
-            rec.f_cnr = (c.sd_base > 0) ? (popt[0] / c.sd_base) : NAN;
-            rec.f_snr = (c.sd_base > 0) ? (popt[3] / c.sd_base) : NAN;
+            rec.f_cnr = (auto_res.sd_base > 0) ? (popt[0] / auto_res.sd_base) : NAN;
+            rec.f_snr = (auto_res.sd_base > 0) ? (popt[3] / auto_res.sd_base) : NAN;
 
-            // Kinetics
+            // Kinetics (matches dataset_processor.cpp:277-337)
             std::vector<double> y_fit_model(t_fit.size());
             for (size_t i = 0; i < t_fit.size(); ++i)
                 y_fit_model[i] = evaluate_gamma_model(t_fit[i], popt[0], popt[1], popt[2], popt[3]);
@@ -1636,7 +1684,6 @@ static json handle_batch_fit(const json& /*params*/) {
             double lyn = (rng > 0) ? (y_fit_model.back() - mn) / rng : 0;
             rec.aucn = syn - (fyn + lyn) / 2.0;
 
-            // Onset
             std::vector<int> I;
             for (size_t i = 0; i < y_fit_model.size(); ++i) {
                 double vn = (rng > 0) ? (y_fit_model[i] - mn) / rng : 0;
@@ -1651,7 +1698,6 @@ static json handle_batch_fit(const json& /*params*/) {
             rec.ont = (double)oidx / (g_fr * g_upsample_factor);
             rec.ttm = std::abs(popt[1] - rec.ont);
 
-            // SE / CI
             double ssr = 0;
             for (size_t i = 0; i < y_fit.size(); ++i) { double d = y_fit[i] - y_fit_model[i]; ssr += d*d; }
             double mse = (y_fit.size() > 4) ? ssr / (y_fit.size() - 4) : 0;
@@ -1659,15 +1705,17 @@ static json handle_batch_fit(const json& /*params*/) {
             rec.ttlb = std::abs((popt[1] - 1.96 * se[1]) - rec.ont);
             rec.tthb = std::abs((popt[1] + 1.96 * se[1]) - rec.ont);
 
-            // NaN guard
             if (std::isnan(rec.f_amp) || std::isnan(rec.f_t2p) || std::isnan(rec.f_fwhm) || std::isnan(rec.f_m) ||
                 std::isnan(rec.f_cnr) || std::isnan(rec.f_snr) || std::isnan(rec.auc) || std::isnan(rec.aucn) ||
                 std::isnan(rec.ttlb) || std::isnan(rec.ttm) || std::isnan(rec.tthb) || std::isnan(rec.ont)) {
                 rec.qc_flag = "FAIL";
             }
+        } else {
+            rec.f_amp = NAN; rec.f_t2p = NAN; rec.f_fwhm = NAN; rec.f_m = NAN;
+            rec.f_cnr = NAN; rec.f_snr = NAN;
+            rec.auc = NAN; rec.aucn = NAN; rec.ttlb = NAN; rec.ttm = NAN; rec.tthb = NAN; rec.ont = NAN;
         }
 
-        // Vessel type & denoise_rms
         rec.ves_type = BolusFitter::suggest_vessel_type(rec.ont, rec.f_t2p, rec.f_fwhm, rec.f_amp, rec.qc_flag);
         double sd2 = 0;
         for (size_t i = 0; i < c.y_raw_detrended.size(); ++i) {
@@ -1676,94 +1724,135 @@ static json handle_batch_fit(const json& /*params*/) {
         rec.denoise_rms = (c.y_raw_detrended.size() > 0) ? std::sqrt(sd2 / c.y_raw_detrended.size()) : 0;
     }
 
-    // ── Pass 2: Population prior refit (matches dataset_processor L490-562) ──
-    std::vector<double> pass_t2ps, pass_fwhms;
+    // ── Pass 2: Quality-Aware Population Priors Refitting ──
+    // (matches dataset_processor.cpp:509-562 — uses high-CNR PASS only)
+    std::vector<double> high_quality_t2ps, high_quality_fwhms;
+    for (const auto& rec : g_records) {
+        if (rec.qc_flag == "PASS" && rec.f_cnr > 10.0) {
+            high_quality_t2ps.push_back(rec.f_t2p);
+            high_quality_fwhms.push_back(rec.f_fwhm);
+        }
+    }
+
+    if (!high_quality_t2ps.empty()) {
+        double median_t2p = SignalProcessor::compute_median(high_quality_t2ps);
+        double median_fwhm = SignalProcessor::compute_median(high_quality_fwhms);
+
+        for (size_t r = 0; r < g_records.size(); ++r) {
+            CsvRecord& rec = g_records[r];
+            if (rec.qc_flag != "FAIL" && rec.qc_flag != "WARN") continue;
+            // Divergence guard (matches dataset_processor.cpp:533-534)
+            if (!std::isnan(rec.f_t2p) && rec.f_t2p > 3.0 * median_t2p) continue;
+
+            const auto& c = g_traces[r];
+            AutoEstimateResults auto_res = g_fitter.auto_estimate_params(c.y_us, c.t_us, g_fr, g_upsample_factor, false);
+            double icnr = (auto_res.sd_base > 0.0) ? (auto_res.init_params[0] / auto_res.sd_base) : 0.0;
+            if (icnr < 5.0) {
+                auto_res = g_fitter.auto_estimate_params(c.y_us, c.t_us, g_fr, g_upsample_factor, true);
+            }
+
+            int si = auto_res.start_idx, ei = auto_res.end_idx;
+            if (si < 0 || ei <= si || ei >= (int)c.t_us.size()) continue;
+            std::vector<double> t_fit, y_fit;
+            for (int i = si; i < ei; ++i) {
+                t_fit.push_back(c.t_us[i] - c.t_us[si]);
+                y_fit.push_back(c.y_us[i]);
+            }
+            if (t_fit.size() < 5) continue;
+
+            bool refit_ok = false;
+            // CLI replaces T2P/FWHM initial estimates with population medians
+            std::vector<double> prior_params = auto_res.init_params;
+            prior_params[1] = median_t2p;
+            prior_params[2] = median_fwhm;
+            std::vector<double> rpopt = g_fitter.run_nonlinear_fit_with_bounds(
+                t_fit, y_fit, prior_params, auto_res.sd_base,
+                g_fitter.min_amp, g_fitter.max_amp,
+                0.5 * median_t2p, 1.5 * median_t2p,
+                0.5 * median_fwhm, 1.5 * median_fwhm, refit_ok);
+            if (!refit_ok || rpopt.size() < 4) continue;
+
+            double act_max_t2p = 1.5 * median_t2p;
+            double act_max_fwhm = 1.5 * median_fwhm;
+            std::string rqc = BolusFitter::determine_qc_flag(
+                rpopt[0], rpopt[1], rpopt[2], rpopt[3], rpopt[0] / auto_res.sd_base,
+                g_fitter.min_amp, g_fitter.max_amp, 0.5 * median_t2p, act_max_t2p,
+                0.5 * median_fwhm, act_max_fwhm, refit_ok, false);
+
+            bool improvement = (rqc == "PASS" && rec.qc_flag != "PASS") ||
+                              (rqc == "WARN" && rec.qc_flag == "FAIL") ||
+                              (rqc == "WARN" && rec.qc_flag == "WARN" &&
+                               (rec.f_t2p < 0.1 || rec.f_fwhm < 0.5) &&
+                               rpopt[1] >= 0.1 && rpopt[2] >= 0.5);
+            if (!improvement) continue;
+
+            rec.f_amp = rpopt[0]; rec.f_t2p = rpopt[1]; rec.f_fwhm = rpopt[2]; rec.f_m = rpopt[3];
+            rec.f_cnr = rpopt[0] / auto_res.sd_base; rec.f_snr = rpopt[3] / auto_res.sd_base;
+            rec.qc_flag = rqc;
+            rec.fit_source = "population_prior";
+
+            // Recompute kinetics for refit
+            std::vector<double> y_fit_model(t_fit.size());
+            for (size_t i = 0; i < t_fit.size(); ++i)
+                y_fit_model[i] = evaluate_gamma_model(t_fit[i], rpopt[0], rpopt[1], rpopt[2], rpopt[3]);
+            double mn = y_fit_model[0], mx = y_fit_model[0];
+            for (double v : y_fit_model) { if (v < mn) mn = v; if (v > mx) mx = v; }
+            double rng = mx - mn;
+            double syn = 0; for (double v : y_fit_model) syn += (rng > 0) ? (v - mn) / rng : 0;
+            double fyn = (rng > 0) ? (y_fit_model.front() - mn) / rng : 0;
+            double lyn = (rng > 0) ? (y_fit_model.back() - mn) / rng : 0;
+            rec.aucn = syn - (fyn + lyn) / 2.0;
+            double sum_y = 0; for (double v : y_fit_model) sum_y += v;
+            rec.auc = sum_y - (y_fit_model.front() + y_fit_model.back()) / 2.0;
+            std::vector<int> I;
+            for (size_t i = 0; i < y_fit_model.size(); ++i) {
+                double vn = (rng > 0) ? (y_fit_model[i] - mn) / rng : 0;
+                if (vn < 0.1) I.push_back(i);
+            }
+            int oidx = 0;
+            if (!I.empty()) {
+                int li = -1;
+                for (size_t k = 0; k + 1 < I.size(); ++k) { if (I[k+1] - I[k] == 1) li = k; }
+                oidx = (li != -1) ? I[li] + 1 : I[0];
+            }
+            rec.ont = (double)oidx / (g_fr * g_upsample_factor);
+            rec.ttm = std::abs(rpopt[1] - rec.ont);
+            double ssr = 0;
+            for (size_t i = 0; i < y_fit.size(); ++i) { double d = y_fit[i] - y_fit_model[i]; ssr += d*d; }
+            double mse = (y_fit.size() > 4) ? ssr / (y_fit.size() - 4) : 0;
+            auto se = g_fitter.get_parameter_se(t_fit, rpopt, mse);
+            rec.ttlb = std::abs((rpopt[1] - 1.96 * se[1]) - rec.ont);
+            rec.tthb = std::abs((rpopt[1] + 1.96 * se[1]) - rec.ont);
+            rec.ves_type = BolusFitter::suggest_vessel_type(rec.ont, rec.f_t2p, rec.f_fwhm, rec.f_amp, rec.qc_flag);
+        }
+    }
+
+    // ── Pass 3: Capillary Stall Heuristics ──
+    // (matches dataset_processor.cpp:569-617, using configurable g_stall_settings)
+    std::vector<double> stall_t2ps, stall_fwhms, stall_onts;
     for (const auto& rec : g_records) {
         if (rec.qc_flag == "PASS") {
-            pass_t2ps.push_back(rec.f_t2p);
-            pass_fwhms.push_back(rec.f_fwhm);
+            stall_t2ps.push_back(rec.f_t2p);
+            stall_fwhms.push_back(rec.f_fwhm);
+            stall_onts.push_back(rec.ont);
         }
     }
-    double med_t2p = 3.0, med_fwhm = 5.0;
-    if (!pass_t2ps.empty()) {
-        med_t2p = SignalProcessor::compute_median(pass_t2ps);
-        med_fwhm = SignalProcessor::compute_median(pass_fwhms);
-    }
-
-    for (size_t r = 0; r < g_records.size(); ++r) {
-        CsvRecord& rec = g_records[r];
-        if (rec.qc_flag != "FAIL" && rec.qc_flag != "WARN") continue;
-        if (pass_t2ps.empty()) continue;  // no priors available
-        const auto& c = g_traces[r];
-
-        AutoEstimateResults auto_res = g_fitter.auto_estimate_params(c.y_us, c.t_us, g_fr, g_upsample_factor);
-        int si = auto_res.start_idx, ei = auto_res.end_idx;
-        if (si < 0 || ei <= si || ei >= (int)c.t_us.size()) continue;
-
-        std::vector<double> t_fit, y_fit;
-        for (int i = si; i <= ei; ++i) {
-            t_fit.push_back(c.t_us[i] - c.t_us[si]);
-            y_fit.push_back(c.y_us[i]);
-        }
-        if (t_fit.size() < 5) continue;
-
-        // Refit with population-prior-narrowed bounds
-        bool refit_ok = false;
-        std::vector<double> rpopt = g_fitter.run_nonlinear_fit_with_bounds(
-            t_fit, y_fit, auto_res.init_params, c.sd_base,
-            g_fitter.min_amp, g_fitter.max_amp,
-            0.5 * med_t2p, 1.5 * med_t2p,
-            0.5 * med_fwhm, 1.5 * med_fwhm, refit_ok);
-        if (!refit_ok || rpopt.size() < 4) continue;
-
-        double act_max_t2p = 1.5 * med_t2p;
-        double act_max_fwhm = 1.5 * med_fwhm;
-        bool rp2 = false;  // no pass2 for bounded refit
-        std::string rqc = BolusFitter::determine_qc_flag(
-            rpopt[0], rpopt[1], rpopt[2], rpopt[3], rpopt[0] / c.sd_base,
-            g_fitter.min_amp, g_fitter.max_amp, 0.5 * med_t2p, act_max_t2p,
-            0.5 * med_fwhm, act_max_fwhm, refit_ok, rp2);
-
-        // Accept only if improvement
-        bool improvement = (rqc == "PASS" && rec.qc_flag != "PASS") ||
-                          (rqc == "WARN" && rec.qc_flag == "FAIL") ||
-                          (rqc == "WARN" && rec.qc_flag == "WARN" &&
-                           (rec.f_t2p < 0.1 || rec.f_fwhm < 0.5) &&
-                           rpopt[1] >= 0.1 && rpopt[2] >= 0.5);
-        if (!improvement) continue;
-
-        rec.f_amp = rpopt[0]; rec.f_t2p = rpopt[1]; rec.f_fwhm = rpopt[2]; rec.f_m = rpopt[3];
-        rec.f_cnr = rpopt[0] / c.sd_base; rec.f_snr = rpopt[3] / c.sd_base;
-        rec.qc_flag = rqc;
-        rec.fit_source = "population_prior";
-        rec.ves_type = BolusFitter::suggest_vessel_type(rec.ont, rec.f_t2p, rec.f_fwhm, rec.f_amp, rec.qc_flag);
-    }
-
-    // ── Pass 3: Stall detection (matches dataset_processor L569-616) ──
-    std::vector<double> valid_onts;
-    pass_t2ps.clear();
-    for (const auto& rec : g_records) {
-        if (rec.qc_flag == "PASS") {
-            pass_t2ps.push_back(rec.f_t2p);
-            valid_onts.push_back(rec.ont);
-        }
-    }
-    med_t2p = pass_t2ps.empty() ? 3.0 : SignalProcessor::compute_median(pass_t2ps);
-    double median_ont = valid_onts.empty() ? 0.0 : SignalProcessor::compute_median(valid_onts);
+    double s_med_t2p = stall_t2ps.empty() ? 3.0 : SignalProcessor::compute_median(stall_t2ps);
+    double s_med_fwhm = stall_fwhms.empty() ? 5.0 : SignalProcessor::compute_median(stall_fwhms);
+    double s_median_ont = stall_onts.empty() ? 0.0 : SignalProcessor::compute_median(stall_onts);
 
     for (auto& rec : g_records) {
         bool is_stall = false;
-        // Heuristic A: Late onset & slow transit
         if (!std::isnan(rec.ont) && !std::isnan(rec.f_t2p)) {
-            bool late_ont = (rec.ont > median_ont + 3.0) || (median_ont > 0.0 && rec.ont > 2.5 * median_ont);
-            bool slow_transit = (rec.f_t2p > 2.5 * med_t2p) || (rec.f_t2p > 12.0);
+            bool late_ont = (rec.ont > s_median_ont + g_stall_settings.ont_offset) ||
+                           (s_median_ont > 0.0 && rec.ont > g_stall_settings.ont_mult * s_median_ont);
+            bool slow_transit = (rec.f_t2p > g_stall_settings.t2p_mult * s_med_t2p) ||
+                               (rec.f_t2p > g_stall_settings.t2p_abs);
             if (late_ont && slow_transit) is_stall = true;
         }
-        // Heuristic B: Baseline instability
-        if (!std::isnan(rec.raw_sd_base) && rec.raw_sd_base > 15.0) is_stall = true;
-        // Heuristic C: Step-function rise
+        if (!std::isnan(rec.raw_sd_base) && rec.raw_sd_base > g_stall_settings.sd_base) is_stall = true;
         if (!std::isnan(rec.f_t2p) && !std::isnan(rec.f_fwhm)) {
-            if (rec.f_t2p < 0.8 && rec.f_fwhm > 6.0) is_stall = true;
+            if (rec.f_t2p < g_stall_settings.step_t2p && rec.f_fwhm > g_stall_settings.step_fwhm) is_stall = true;
         }
         if (is_stall) {
             rec.stall_flag = 1;
@@ -1778,7 +1867,11 @@ static json handle_batch_fit(const json& /*params*/) {
         if (!std::isnan(rec.ont) && rec.ont < min_ont) min_ont = rec.ont;
     }
     for (auto& rec : g_records) {
-        rec.ont_sc = std::isnan(rec.ont) ? NAN : (rec.ont - min_ont);
+        if (!std::isnan(rec.ont) && min_ont < 99999.0) {
+            rec.ont_sc = rec.ont - min_ont;
+        } else {
+            rec.ont_sc = NAN;
+        }
     }
 
     // Count results
@@ -1790,7 +1883,6 @@ static json handle_batch_fit(const json& /*params*/) {
         else fail_count++;
     }
 
-    // Build records JSON for GUI
     json records = json::array();
     for (const auto& rec : g_records) {
         records.push_back(record_to_json(rec));
@@ -1803,6 +1895,7 @@ static json handle_batch_fit(const json& /*params*/) {
         {"records", records}
     }}};
 }
+
 
 static json handle_get_fit_limits(const json& /*params*/) {
     return json{{"ok", true}, {"data", {
