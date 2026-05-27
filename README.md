@@ -1,8 +1,6 @@
 # Capillary Bolus Tracking & Gamma Curve Fitting Studio
 
-[![Download Latest macOS App](https://img.shields.io/github/v/release/mrozak4/Bolus_Tracking?label=Download%20Latest%20macOS%20App&style=for-the-badge&color=E08C40)](https://github.com/mrozak4/Bolus_Tracking/releases/latest)
-[![Download Latest Windows App](https://img.shields.io/github/v/release/mrozak4/Bolus_Tracking?label=Download%20Latest%20Windows%20App&style=for-the-badge&color=0078D6)](https://github.com/mrozak4/Bolus_Tracking/releases/latest)
-[![Download Latest Linux App](https://img.shields.io/github/v/release/mrozak4/Bolus_Tracking?label=Download%20Latest%20Linux%20App&style=for-the-badge&color=E95420)](https://github.com/mrozak4/Bolus_Tracking/releases/latest)
+[![Download Latest Release](https://img.shields.io/github/v/release/mrozak4/Bolus_Tracking?label=Download%20Latest%20Release&style=for-the-badge&color=E08C40)](https://github.com/mrozak4/Bolus_Tracking/releases/latest)
 
 
 
@@ -11,20 +9,14 @@
 ![Bolus Tracking Studio](docs/app_screenshot_en.png)
 
 ### 1-Click Install
-**macOS**:
-1. Click the macOS download button above.
-2. Download the `.dmg` file from the latest release.
-3. Open the `.dmg` and drag the **Bolus Tracking Studio.app** to your Applications folder.
 
-**Windows**:
-1. Click the Windows download button above.
-2. Download the `.exe` Setup file from the latest release.
-3. Run the installer.
+Click the **Download Latest Release** button above, then pick the right file for your system:
 
-**Linux**:
-1. Click the Linux download button above.
-2. Download the `.AppImage` file from the latest release.
-3. Make it executable (`chmod +x`) and run it.
+| Platform | File to Download | Install Steps |
+|----------|-----------------|---------------|
+| 🍎 **macOS** (Apple Silicon) | `Bolus.Tracking.Studio-X.X.X-arm64.dmg` | Open the `.dmg`, drag the app to **Applications** |
+| 🪟 **Windows** | `Bolus.Tracking.Studio.Setup.X.X.X.exe` | Run the installer |
+| 🐧 **Linux** | `Bolus.Tracking.Studio-X.X.X.AppImage` | `chmod +x *.AppImage` then run it |
 
 ---
 
