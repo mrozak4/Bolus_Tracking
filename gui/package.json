@@ -1,6 +1,6 @@
 {
   "name": "bolus-tracking-studio",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "Capillary Bolus Tracking & Gamma Curve Fitting Studio",
   "main": "main.js",
   "scripts": {

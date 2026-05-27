@@ -4,7 +4,7 @@
 
 **[English](README.md) | [Français (Québec)](README_FR.md)**
 
-![Bolus Tracking Studio](docs/app_screenshot_fr.png?v=2.2.1)
+![Bolus Tracking Studio](docs/app_screenshot_fr.png?v=2.2.2)
 
 ### Installation en 1 clic
 
@@ -12,7 +12,8 @@ Cliquez sur le bouton **Télécharger** ci-dessus, puis choisissez le bon fichie
 
 | Plateforme | Fichier à télécharger | Étapes d'installation |
 |----------|-----------------|---------------|
-| 🍎 **macOS** (Apple Silicon) | `Bolus.Tracking.Studio-X.X.X-arm64.dmg` | Ouvrir le `.dmg`, glisser l'app dans **Applications**, puis voir la note ci-dessous ⬇️ |
+| 🍎 **macOS** (Apple Silicon) | `Bolus.Tracking.Studio-X.X.X-arm64.dmg` | (Puces M1/M2/M3/M4) Ouvrir le `.dmg`, glisser dans **Applications**, voir la note ⬇️ |
+| 🍎 **macOS** (Intel) | `Bolus.Tracking.Studio-X.X.X-x64.dmg` | (Anciens Mac Intel) Ouvrir le `.dmg`, glisser dans **Applications**, voir la note ⬇️ |
 | 🪟 **Windows** | `Bolus.Tracking.Studio.Setup.X.X.X.exe` | Exécuter l'installateur |
 | 🐧 **Linux** | `Bolus.Tracking.Studio-X.X.X.AppImage` | `chmod +x *.AppImage` puis exécuter (voir la note ci-dessous ⬇️) |
 
