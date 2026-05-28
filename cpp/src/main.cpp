@@ -220,7 +220,10 @@ int main(int argc, char** argv) {
               << "Stall Detection Options (Defaults):\n"
               << "  --stall-ont-offset (3.0)   --stall-ont-mult (2.5)    --stall-t2p-mult (2.5)\n"
               << "  --stall-t2p-abs (12.0)     --stall-sd-base (15.0)\n"
-              << "  --stall-step-t2p (0.8)     --stall-step-fwhm (6.0)\n" << std::endl;
+              << "  --stall-step-t2p (0.8)     --stall-step-fwhm (6.0)\n\n"
+              << "Output Verbosity:\n"
+              << "  --verbose / --debug    Print per-ROI optimizer parameters, bounds, and QC decisions.\n"
+              << "                         Default output shows only: file info, ROI count, timing, and CSV path.\n" << std::endl;
     return 1;
 }
 #endif

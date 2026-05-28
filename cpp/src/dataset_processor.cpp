@@ -458,7 +458,7 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
         rois.reserve(raw_rois.size());
         for (const auto& roi : raw_rois) {
             if (roi.poly.size() < 3) {
-                std::cout << "Skipping ROI " << roi.id + 1 << ": Not enough points for a polygon (" << roi.poly.size() << ")." << std::endl;
+                if (fitter.verbose) std::cout << "Skipping ROI " << roi.id + 1 << ": Not enough points for a polygon (" << roi.poly.size() << ")." << std::endl;
                 continue;
             }
             rois.push_back(roi);
@@ -481,7 +481,7 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
                 rois_file >> poly[j].first >> poly[j].second;
             }
             if (n_pts < 3) {
-                std::cout << "Skipping ROI " << roi_id + 1 << ": Not enough points for a polygon (" << n_pts << ")." << std::endl;
+                if (fitter.verbose) std::cout << "Skipping ROI " << roi_id + 1 << ": Not enough points for a polygon (" << n_pts << ")." << std::endl;
                 continue;
             }
             rois.push_back({roi_id, poly});
@@ -521,9 +521,11 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
         double median_t2p = SignalProcessor::compute_median(high_quality_t2ps);
         double median_fwhm = SignalProcessor::compute_median(high_quality_fwhms);
         
-        std::cout << "[Population Priors] Calculated scan-wide medians: median_t2p = " << median_t2p 
-                  << " s, median_fwhm = " << median_fwhm << " s from " 
-                  << high_quality_t2ps.size() << " high-CNR PASS vessels." << std::endl;
+        if (fitter.verbose) {
+            std::cout << "[Population Priors] Calculated scan-wide medians: median_t2p = " << median_t2p 
+                      << " s, median_fwhm = " << median_fwhm << " s from " 
+                      << high_quality_t2ps.size() << " high-CNR PASS vessels." << std::endl;
+        }
                   
         // Parallel rerun of warned/failed vessels using the population priors
         std::vector<std::pair<size_t, std::future<FitRecord>>> prior_futures;
@@ -558,7 +560,7 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
             }
             if (improvement) {
                 results[idx] = refit_rec;
-                std::cout << "  ROI " << results[idx].roi_id << " successfully refit with population priors: QC -> " << results[idx].qc_flag << std::endl;
+                if (fitter.verbose) std::cout << "  ROI " << results[idx].roi_id << " successfully refit with population priors: QC -> " << results[idx].qc_flag << std::endl;
             }
         }
     }

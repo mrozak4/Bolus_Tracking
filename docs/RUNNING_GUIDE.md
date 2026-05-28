@@ -10,13 +10,25 @@ This guide is designed for **both human users (even with zero coding experience)
 
 You can download the files from GitHub using either of the following two methods:
 
-### Option A: Download as a ZIP File (No Coding Experience Needed)
-1. Open your web browser and navigate to the repository page on GitHub.
+### Option A: Download the App (Easiest — No Coding Required)
+
+> [!TIP]
+> **If you just want to run the app**, you don't need to download the source code at all. Go to the [Releases page](https://github.com/mrozak4/Bolus_Tracking/releases/latest) and download the pre-built app for your platform:
+> - **macOS (Apple Silicon / M1–M4)**: `BolusTrackingStudio-*-arm64.dmg`
+> - **macOS (Intel)**: `BolusTrackingStudio-*-x86_64.dmg`
+> - **Linux**: `BolusTrackingStudio-*-linux-x64.tar.gz`
+> - **Windows**: `BolusTrackingStudio-*-windows-x64.zip`
+>
+> Double-click the DMG (macOS), extract the archive (Linux/Windows), and run the app. No compilation, no terminal, no coding needed.
+
+### Option B: Download the Source Code as a ZIP (No Coding Experience Needed)
+If you need the source code (e.g., to run Docker batch pipelines or build from source):
+1. Open your web browser and go to the [repository page](https://github.com/mrozak4/Bolus_Tracking) on GitHub. *(GitHub is a website where software projects store their code — think of it as a shared folder in the cloud.)*
 2. Click the green **`<> Code`** button located at the top-right of the file list.
 3. Select **Download ZIP** from the dropdown menu.
 4. Once the download is complete, locate the ZIP file on your computer and extract (unzip) it.
 
-### Option B: Clone via Git (For Programmers & AI Agents)
+### Option C: Clone via Git (For Programmers & AI Agents)
 Open your terminal (macOS/Linux) or PowerShell (Windows) and run:
 ```bash
 git clone https://github.com/mrozak4/Bolus_Tracking.git
@@ -28,8 +40,10 @@ cd Bolus_Tracking
 ## 2. Recommended Workflow: Running the C++ Pipeline with Docker
 
 > [!IMPORTANT]
-> **Docker is the highly recommended and preferred way to run the C++ pipeline.**
-> Using Docker guarantees that all library versions are identical, prevents dependency conflicts, and requires zero installation of C++ compilers or packages on your system.
+> **Docker is the recommended way to run batch processing from the command line.**
+> Docker guarantees that all library versions are identical, prevents dependency conflicts, and requires zero installation of C++ compilers or packages on your system.
+>
+> **What is Docker?** Docker is a free tool that runs software in a self-contained "container" — like a virtual mini-computer inside your computer. It ensures the pipeline runs identically on every machine, regardless of what software you have installed. You only need Docker if you want to run the command-line batch pipeline; **the GUI app does not require Docker**.
 
 > [!NOTE]
 > **No MATLAB Prerequisite:** Both the C++ and Python pipelines natively parse MATLAB `.mat` mask files directly. You do not need to install MATLAB or run any mask conversion scripts to process your datasets.
@@ -148,6 +162,7 @@ You can configure both the absolute optimization bounds and the warning/failure 
 | **`--stall-sd-base <val>`** | Stall Baseline SD | `15.0` | Heuristic B: flag if baseline noise SD exceeds this. |
 | **`--stall-step-t2p <val>`** | Stall Step T₂ₚ | `0.8` | Heuristic C: flag if T₂ₚ < this AND FWHM > step-fwhm. |
 | **`--stall-step-fwhm <val>`** | Stall Step FWHM | `6.0` | Heuristic C: flag if FWHM > this AND T₂ₚ < step-t2p. |
+| **`--verbose`** | Debug Output | `off` | Print per-ROI optimizer parameters, bounds, and fitting details. Useful for debugging but produces very large output for many ROIs. |
 
 For example, to process a dataset with a custom FWHM warning threshold of `20.0` seconds and a minimum CNR warning threshold of `6.0`:
 ```bash
@@ -197,6 +212,13 @@ If a batch run yields `WARN` or `FAIL` flags, you can easily inspect and correct
 #### Prerequisites
 - **macOS**: `brew install eigen libtiff`
 - **Linux**: `sudo apt-get install build-essential cmake libeigen3-dev libtiff5-dev libglfw3-dev libgl1-mesa-dev zlib1g-dev`
+- **Windows**: Download the pre-built `.zip` from [GitHub Releases](https://github.com/mrozak4/Bolus_Tracking/releases/latest) — no prerequisites needed. To build from source: install [Visual Studio 2022](https://visualstudio.microsoft.com/) (Community Edition is free) with the "Desktop development with C++" workload, then use [vcpkg](https://vcpkg.io) to install dependencies.
+
+> [!NOTE]
+> **macOS users**: The first time you open the app, macOS may show a warning saying the app is from an "unidentified developer". To open it:
+> 1. Right-click (or Control-click) the app icon and select **Open**.
+> 2. Click **Open** in the dialog that appears.
+> 3. After doing this once, the app will open normally in the future.
 
 #### How to Launch:
 
@@ -377,6 +399,18 @@ cd ..
 > ./build/bolus_tracking_cpp --folder sample-subject-2259 --plot --min-t2p 2.0 --max-t2p 8.0
 > ```
 > This is also supported in the C++ runner script (`run_pipeline_cpp.sh`).
+
+### C++ Pipeline (Windows Local)
+Install [Visual Studio 2022](https://visualstudio.microsoft.com/) with the **"Desktop development with C++"** workload (Community Edition is free). Then install dependencies using [vcpkg](https://vcpkg.io):
+```cmd
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg && bootstrap-vcpkg.bat
+vcpkg install eigen3 tiff zlib glfw3
+cd ..\Bolus_Tracking
+mkdir build && cd build
+cmake .. -DCMAKE_TOOLCHAIN_FILE=..\vcpkg\scripts\buildsystems\vcpkg.cmake
+cmake --build . --config Release
+```
 
 ---
 

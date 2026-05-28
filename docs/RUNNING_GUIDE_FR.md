@@ -10,13 +10,25 @@ Ce guide est conçu tant pour les **utilisateurs humains (même sans expérience
 
 Vous pouvez télécharger les fichiers du dépôt GitHub en utilisant l'une des deux méthodes suivantes :
 
-### Option A : Téléchargement sous forme de fichier ZIP (Aucune expérience requise)
-1. Ouvrez votre navigateur web et accédez à la page du dépôt sur GitHub.
+### Option A : Télécharger l'application (Le plus simple — Aucune programmation requise)
+
+> [!TIP]
+> **Si vous souhaitez simplement utiliser l'application**, vous n'avez pas besoin de télécharger le code source. Rendez-vous sur la [page des versions](https://github.com/mrozak4/Bolus_Tracking/releases/latest) et téléchargez l'application pré-compilée pour votre plateforme :
+> - **macOS (Apple Silicon / M1–M4)** : `BolusTrackingStudio-*-arm64.dmg`
+> - **macOS (Intel)** : `BolusTrackingStudio-*-x86_64.dmg`
+> - **Linux** : `BolusTrackingStudio-*-linux-x64.tar.gz`
+> - **Windows** : `BolusTrackingStudio-*-windows-x64.zip`
+>
+> Double-cliquez le DMG (macOS), extrayez l'archive (Linux/Windows) et lancez l'application. Aucune compilation, aucun terminal, aucune programmation nécessaire.
+
+### Option B : Téléchargement sous forme de fichier ZIP (Aucune expérience requise)
+Si vous avez besoin du code source (par exemple pour les pipelines Docker ou la compilation) :
+1. Ouvrez votre navigateur web et accédez à la [page du dépôt](https://github.com/mrozak4/Bolus_Tracking) sur GitHub. *(GitHub est un site web où les projets logiciels stockent leur code — pensez-y comme un dossier partagé dans le nuage.)*
 2. Cliquez sur le bouton vert **`<> Code`** situé en haut à droite de la liste des fichiers.
 3. Sélectionnez **Download ZIP** dans le menu déroulant.
 4. Une fois le téléchargement terminé, localisez le fichier ZIP sur votre ordinateur et extrayez-le (décompressez-le).
 
-### Option B : Cloner via Git (Pour les développeurs et agents IA)
+### Option C : Cloner via Git (Pour les développeurs et agents IA)
 Ouvrez votre terminal (macOS/Linux) ou PowerShell (Windows) et exécutez :
 ```bash
 git clone https://github.com/mrozak4/Bolus_Tracking.git
@@ -28,8 +40,10 @@ cd Bolus_Tracking
 ## 2. Flux de travail recommandé : Exécuter le pipeline C++ avec Docker
 
 > [!IMPORTANT]
-> **L'utilisation de Docker est la méthode fortement recommandée pour exécuter le pipeline C++.**
+> **L'utilisation de Docker est la méthode recommandée pour exécuter le traitement par lots en ligne de commande.**
 > Elle garantit que toutes les versions de bibliothèques sont identiques, évite les conflits de dépendances et ne nécessite aucune installation de compilateur C++ ou de packages sur votre machine hôte.
+>
+> **Qu'est-ce que Docker ?** Docker est un outil gratuit qui exécute des logiciels dans un « conteneur » autonome — comme un mini-ordinateur virtuel à l'intérieur de votre ordinateur. Il s'assure que le pipeline fonctionne de façon identique sur toutes les machines, peu importe les logiciels installés. Vous n'avez besoin de Docker que pour le pipeline par lots en ligne de commande ; **l'application graphique (GUI) ne nécessite pas Docker**.
 
 > [!NOTE]
 > **Pas de prérequis MATLAB :** Les pipelines C++ et Python analysent tous deux nativement les fichiers de masque MATLAB `.mat` directement. Vous n'avez pas besoin d'installer MATLAB ni d'exécuter de scripts de conversion de masque pour traiter vos jeux de données.
@@ -166,6 +180,13 @@ bash run_pipeline_cpp.sh sample-subject-2259 --qc-fwhm-max 20.0 --qc-cnr-min 6.0
 #### Prérequis
 - **macOS** : `brew install eigen libtiff`
 - **Linux** : `sudo apt-get install build-essential cmake libeigen3-dev libtiff5-dev libglfw3-dev libgl1-mesa-dev zlib1g-dev`
+- **Windows** : Téléchargez le fichier `.zip` pré-compilé depuis les [versions GitHub](https://github.com/mrozak4/Bolus_Tracking/releases/latest) — aucun prérequis. Pour compiler depuis les sources : installez [Visual Studio 2022](https://visualstudio.microsoft.com/) (l'édition Community est gratuite) avec le module « Développement Desktop en C++ », puis utilisez [vcpkg](https://vcpkg.io) pour installer les dépendances.
+
+> [!NOTE]
+> **Utilisateurs macOS** : La première fois que vous ouvrez l'application, macOS peut afficher un avertissement indiquant que l'application provient d'un « développeur non identifié ». Pour l'ouvrir :
+> 1. Faites un clic droit (ou Contrôle-clic) sur l'icône de l'application et sélectionnez **Ouvrir**.
+> 2. Cliquez sur **Ouvrir** dans la boîte de dialogue qui apparaît.
+> 3. Après cette opération, l'application s'ouvrira normalement à l'avenir.
 
 #### Comment lancer l'application :
 
@@ -286,6 +307,18 @@ Pour générer les graphiques SVG associés, ajoutez l'argument `--plot` :
 Pour modifier la durée de la ligne de base utilisée pour corriger la dérive (ex: 10 secondes au lieu de 15) :
 ```bash
 ./build/bolus_tracking_cpp --folder sample-subject-2259 --plot --drift 10
+```
+
+### Pipeline C++ (Windows local)
+Installez [Visual Studio 2022](https://visualstudio.microsoft.com/) avec le module **« Développement Desktop en C++ »** (l'édition Community est gratuite). Puis installez les dépendances avec [vcpkg](https://vcpkg.io) :
+```cmd
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg && bootstrap-vcpkg.bat
+vcpkg install eigen3 tiff zlib glfw3
+cd ..\Bolus_Tracking
+mkdir build && cd build
+cmake .. -DCMAKE_TOOLCHAIN_FILE=..\vcpkg\scripts\buildsystems\vcpkg.cmake
+cmake --build . --config Release
 ```
 
 ---
