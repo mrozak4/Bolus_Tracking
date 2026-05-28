@@ -23,6 +23,10 @@
 #include "imgui_impl_opengl3.h"
 #include "implot.h"
 #include <GLFW/glfw3.h>
+// Windows GL headers only expose OpenGL 1.1; GL_CLAMP_TO_EDGE is 1.2+
+#ifndef GL_CLAMP_TO_EDGE
+#define GL_CLAMP_TO_EDGE 0x812F
+#endif
 #include <tiffio.h>
 
 #include "bolus_tracking_cpp.hpp"
