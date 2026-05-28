@@ -17,10 +17,6 @@ imgui.ini
 compile_commands.json
 plots_cpp/
 
-# Electron GUI (deprecated)
-gui/node_modules/
-gui/dist/
-
 # Temp files
 clangd_check.log
 patch.diff
