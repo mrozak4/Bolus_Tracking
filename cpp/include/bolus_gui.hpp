@@ -397,6 +397,7 @@ private:
     // Pipeline settings (exposed in modal)
     bool m_show_pipeline_modal = false;
     FileBrowser m_pipeline_browser;
+    bool m_pipeline_browser_was_open = false;
     bool m_pipeline_enable_plots = false;
     bool m_pipeline_prepare_mats = true;  // auto-convert .mat masks
     StallSettings m_stall_settings;

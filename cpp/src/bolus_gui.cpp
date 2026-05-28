@@ -2719,7 +2719,10 @@ void BolusApp::draw_pipeline_modal() {
         // Draw the folder browser if open
         if (m_pipeline_browser.open) {
             m_pipeline_browser.draw("Select Subject Folder##pipeline_browse");
+        } else if (m_pipeline_browser_was_open) {
+            // Browser just closed — grab whatever was selected
             if (!m_pipeline_browser.selected_file.empty()) {
+                // A file was selected — use its parent directory
                 std::filesystem::path sel(m_pipeline_browser.selected_file);
                 if (std::filesystem::is_directory(sel)) {
                     m_pipeline_folder = sel.string();
@@ -2727,9 +2730,12 @@ void BolusApp::draw_pipeline_modal() {
                     m_pipeline_folder = sel.parent_path().string();
                 }
                 m_pipeline_browser.selected_file.clear();
-                m_pipeline_browser.open = false;
+            } else {
+                // "Select Current Folder" was clicked — use current_path
+                m_pipeline_folder = m_pipeline_browser.current_path.string();
             }
         }
+        m_pipeline_browser_was_open = m_pipeline_browser.open;
 
         ImGui::Spacing();
 
