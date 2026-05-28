@@ -75,11 +75,10 @@ The script will output a CSV file (e.g., `3554_bolus1_baseline_123-300_shifted_r
 
 ## Interactive Python GUI (Tkinter & Matplotlib Studio)
 
-> ⚠️ **DEPRECATED.** The Python tkinter GUI is no longer maintained. Use the **native C++ Bolus Tracking Studio** instead:
+> ⚠️ **DEPRECATED.** The Python tkinter GUI is no longer maintained. Use the **native C++ Bolus Tracking Studio** instead — download the pre-built app from [GitHub Releases](https://github.com/mrozak4/Bolus_Tracking/releases/latest) or build from source:
 > ```bash
-> cd gui && npm install && npm start
+> mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build . --target bolus_tracking_gui -j8
 > ```
-> See **[gui/README.md](../gui/README.md)** for full documentation.
 
 <details>
 <summary>Legacy Python GUI Instructions (for reference only)</summary>
