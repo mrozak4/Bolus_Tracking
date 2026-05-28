@@ -221,6 +221,20 @@ if(BUILD_GUI)
             MACOSX_BUNDLE_BUNDLE_VERSION "3.0.0"
             MACOSX_BUNDLE_SHORT_VERSION_STRING "3.0.0"
             OUTPUT_NAME "Bolus Tracking Studio"
+            MACOSX_BUNDLE_ICON_FILE "AppIcon.icns"
         )
+        
+        # Copy the .icns icon into the app bundle Resources
+        set(ICON_SRC "${CMAKE_SOURCE_DIR}/resources/AppIcon.icns")
+        if(EXISTS "${ICON_SRC}")
+            add_custom_command(TARGET bolus_tracking_gui POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E make_directory
+                    "$<TARGET_BUNDLE_DIR:bolus_tracking_gui>/Contents/Resources"
+                COMMAND ${CMAKE_COMMAND} -E copy
+                    "${ICON_SRC}"
+                    "$<TARGET_BUNDLE_DIR:bolus_tracking_gui>/Contents/Resources/AppIcon.icns"
+                COMMENT "Copying AppIcon.icns into app bundle"
+            )
+        endif()
     endif()
 endif()
