@@ -14,6 +14,8 @@ Cliquez sur le bouton **Télécharger** ci-dessus, puis choisissez le bon fichie
 |----------|-----------------|---------------|
 | 🍎 **macOS** (Apple Silicon) | `BolusTrackingStudio-*-arm64.dmg` | (Puces M1/M2/M3/M4) Ouvrir le `.dmg`, glisser dans **Applications**, voir la note ⬇️ |
 | 🍎 **macOS** (Intel) | `BolusTrackingStudio-*-x86_64.dmg` | (Anciens Mac Intel) Ouvrir le `.dmg`, glisser dans **Applications**, voir la note ⬇️ |
+| 🐧 **Linux** (x64) | `BolusTrackingStudio-*-linux-x64.tar.gz` | Extraire et exécuter `./bolus_tracking_gui` |
+| 🪟 **Windows** (x64) | `BolusTrackingStudio-*-windows-x64.zip` | Extraire et exécuter `bolus_tracking_gui.exe` |
 
 > [!IMPORTANT]
 > **macOS « fichier endommagé et ne peut pas être ouvert »** — L'application n'est pas signée avec un identifiant de développeur Apple, donc macOS Gatekeeper la bloquera. Après avoir glissé l'application dans Applications, ouvrez le **Terminal** et exécutez :

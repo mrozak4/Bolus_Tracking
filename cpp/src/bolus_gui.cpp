@@ -3006,9 +3006,40 @@ void BolusApp::draw_pipeline_modal() {
             // Load results button (only after completion)
             if (is_done && !m_pipeline_error && !m_pipeline_result_csv.empty()) {
                 if (ImGui::Button("Load Results", ImVec2(140, 28))) {
-                    load_dataset(m_pipeline_result_csv);
+                    // Scan the folder for all results CSVs, same as folder selection
+                    std::filesystem::path result_dir = std::filesystem::path(m_pipeline_result_csv).parent_path();
+                    std::vector<std::string> csvs;
+                    for (const auto& entry : std::filesystem::directory_iterator(result_dir)) {
+                        if (!entry.is_regular_file()) continue;
+                        std::string fname = entry.path().filename().string();
+                        std::string ext = entry.path().extension().string();
+                        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                        if (ext == ".csv" && fname.find("_results") != std::string::npos) {
+                            csvs.push_back(entry.path().string());
+                        }
+                    }
+                    std::sort(csvs.begin(), csvs.end());
+
                     m_show_pipeline_modal = false;
                     ImGui::CloseCurrentPopup();
+
+                    if (csvs.size() == 1) {
+                        if (!load_dataset(csvs[0])) {
+                            m_load_error_msg = "Failed to load:\n" + csvs[0];
+                            play_doom_music();
+                            ImGui::OpenPopup("##LoadError");
+                        }
+                    } else if (csvs.size() > 1) {
+                        m_csv_candidates = csvs;
+                        ImGui::OpenPopup("##CsvPicker");
+                    } else {
+                        // Fallback: just load the single known CSV
+                        if (!load_dataset(m_pipeline_result_csv)) {
+                            m_load_error_msg = "Failed to load:\n" + m_pipeline_result_csv;
+                            play_doom_music();
+                            ImGui::OpenPopup("##LoadError");
+                        }
+                    }
                 }
             }
 

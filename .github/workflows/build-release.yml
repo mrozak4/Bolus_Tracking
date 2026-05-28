@@ -10,6 +10,9 @@ permissions:
   contents: write
 
 jobs:
+  # ==============================================================
+  # macOS (arm64 + x64)
+  # ==============================================================
   build-macos:
     name: build-macos-${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
@@ -40,6 +43,97 @@ jobs:
         with:
           name: "Bolus Tracking Studio ${{ github.ref_name }}"
           files: build_${{ matrix.cmake_arch }}/*.dmg
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ==============================================================
+  # Linux (x64)
+  # ==============================================================
+  build-linux:
+    name: build-linux-x64
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libeigen3-dev libtiff-dev \
+            libglfw3-dev libgl1-mesa-dev zlib1g-dev xorg-dev
+      - name: Build native GUI
+        run: |
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          cmake --build . --target bolus_tracking_gui -j$(nproc)
+      - name: Package tarball
+        run: |
+          TAG="${GITHUB_REF_NAME:-dev}"
+          BUNDLE="BolusTrackingStudio-${TAG}-linux-x64"
+          mkdir -p "$BUNDLE"
+          cp build/bolus_tracking_gui "$BUNDLE/"
+          cp -r resources "$BUNDLE/"
+          tar czf "${BUNDLE}.tar.gz" "$BUNDLE"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tarball-linux-x64
+          path: "*.tar.gz"
+      - name: Upload Release Assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Bolus Tracking Studio ${{ github.ref_name }}"
+          files: "*.tar.gz"
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ==============================================================
+  # Windows (x64)
+  # ==============================================================
+  build-windows:
+    name: build-windows-x64
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install vcpkg dependencies
+        run: |
+          vcpkg install eigen3:x64-windows tiff:x64-windows zlib:x64-windows
+      - name: Build native GUI
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows
+          cmake --build . --target bolus_tracking_gui --config Release
+      - name: Package zip
+        shell: pwsh
+        run: |
+          $tag = if ($env:GITHUB_REF_NAME) { $env:GITHUB_REF_NAME } else { "dev" }
+          $bundle = "BolusTrackingStudio-${tag}-windows-x64"
+          New-Item -ItemType Directory -Path $bundle | Out-Null
+          Copy-Item "build/Release/bolus_tracking_gui.exe" "$bundle/"
+          # Copy vcpkg DLLs next to exe
+          $vcpkgBin = "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin"
+          if (Test-Path $vcpkgBin) {
+            Get-ChildItem "$vcpkgBin/*.dll" | Copy-Item -Destination "$bundle/"
+          }
+          Copy-Item -Recurse "resources" "$bundle/"
+          Compress-Archive -Path "$bundle" -DestinationPath "${bundle}.zip"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zip-windows-x64
+          path: "*.zip"
+      - name: Upload Release Assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Bolus Tracking Studio ${{ github.ref_name }}"
+          files: "*.zip"
           draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
