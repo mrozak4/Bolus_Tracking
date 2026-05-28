@@ -21,3 +21,8 @@ plots_cpp/
 clangd_check.log
 patch.diff
 AppIcon.iconset/
+build_arm64.sh
+build_x64.sh
+generate_doom.py
+parity_check.py
+parity_test.sh

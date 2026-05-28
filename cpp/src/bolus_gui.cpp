@@ -206,6 +206,17 @@ void play_sound_cross_platform(const std::string& audio_path) {
 #endif
 }
 
+/**
+ * @brief Play doom music on any failure — because when things go wrong,
+ *        you should FEEL it.
+ */
+void play_doom_music() {
+    std::string doom_path = get_resource_path("resources/doom.wav");
+    if (std::filesystem::exists(doom_path)) {
+        play_sound_cross_platform(doom_path);
+    }
+}
+
 std::string to_klingon_piqad(const std::string& input) {
     std::string result = "";
     size_t i = 0;
@@ -2738,6 +2749,7 @@ void BolusApp::run_pipeline_on_folder(const std::string& folder) {
                 m_pipeline_running = false;
                 m_pipeline_status = success ? "Pipeline complete!" : "Pipeline finished with errors.";
                 m_pipeline_error = !success;
+                if (!success) play_doom_music();
                 if (!first_csv.empty()) {
                     m_pipeline_log_lines.push_back("[DONE] Results: " + first_csv);
                 }
@@ -2747,6 +2759,7 @@ void BolusApp::run_pipeline_on_folder(const std::string& folder) {
             m_pipeline_running = false;
             m_pipeline_done = true;
             m_pipeline_error = true;
+            play_doom_music();
             m_pipeline_status = std::string("Error: ") + e.what();
             m_pipeline_log_lines.push_back(std::string("[ERROR] ") + e.what());
         }
@@ -3340,6 +3353,7 @@ void BolusApp::draw_gui() {
                 std::filesystem::path full_p = m_browser.current_path / m_browser.selected_file;
                 if (std::filesystem::exists(full_p)) {
                     if (!load_dataset(full_p.string())) {
+                        play_doom_music();
                         ImGui::OpenPopup("##LoadError");
                     }
                 }
@@ -3360,6 +3374,7 @@ void BolusApp::draw_gui() {
 
                 if (csvs.size() == 1) {
                     if (!load_dataset(csvs[0])) {
+                        play_doom_music();
                         ImGui::OpenPopup("##LoadError");
                     }
                 } else if (csvs.size() > 1) {
@@ -3367,6 +3382,7 @@ void BolusApp::draw_gui() {
                     ImGui::OpenPopup("##CsvPicker");
                 } else {
                     m_load_error_msg = "No *_results*.csv file found in folder:\n" + dir_p.string();
+                    play_doom_music();
                     ImGui::OpenPopup("##LoadError");
                 }
             }
@@ -3390,6 +3406,7 @@ void BolusApp::draw_gui() {
                     ImGui::EndPopup();
                     if (!load_dataset(chosen)) {
                         m_load_error_msg = "Failed to load:\n" + chosen + "\n\n" + m_load_error_msg;
+                        play_doom_music();
                         ImGui::OpenPopup("##LoadError");
                     }
                     goto after_popups;

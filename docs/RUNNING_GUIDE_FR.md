@@ -161,26 +161,23 @@ bash run_pipeline_cpp.sh sample-subject-2259 --qc-fwhm-max 20.0 --qc-cnr-min 6.0
 
 
 > [!TIP]
-> **Recommandation d'application graphique** : Le Bolus Tracking Studio natif C++ est l'**outil principal recommandé** pour le triage et le contrôle qualité des modélisations. Il utilise Chromium pour un rendu multiplateforme, des graphiques SVG en C++ pour la performance et le thème sombre MCM caractéristique. Les graphiques sont rendus entièrement en C++ — aucune bibliothèque JavaScript de visualisation n'est utilisée.
-
-L'application C++ native communique avec `bolus_server` (un dorsal C++ à état persistant) via JSON délimité par lignes sur stdin/stdout. Cette architecture maintient tous les calculs lourds (chargement TIFF, extraction de traces, ajustement, rendu SVG) en C++ natif tout en offrant une interface web moderne et accessible.
+> **Recommandation d'application graphique** : Le Bolus Tracking Studio natif C++ est l'**outil principal recommandé** pour le triage et le contrôle qualité des modélisations. Il est construit avec Dear ImGui, ImPlot et GLFW — une seule application native, sans navigateur, sans Node.js, sans Electron.
 
 #### Prérequis
-- **Node.js** ≥ 18 et **npm** ≥ 9
-- Le binaire C++ `bolus_server` doit d'abord être compilé :
-  ```bash
-  mkdir -p build && cd build
-  cmake .. && make bolus_server -j4
-  ```
+- **macOS** : `brew install eigen libtiff`
+- **Linux** : `sudo apt-get install build-essential cmake libeigen3-dev libtiff5-dev libglfw3-dev libgl1-mesa-dev zlib1g-dev`
 
-#### Comment lancer l'application C++ native :
+#### Comment lancer l'application :
+
+**Option A : Téléchargez le DMG** depuis les [versions GitHub](https://github.com/mrozak4/Bolus_Tracking/releases/latest) et double-cliquez.
+
+**Option B : Compiler depuis les sources :**
 ```bash
-cd gui
-npm install   # première fois uniquement
-npm start
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --target bolus_tracking_gui -j8
+open "Bolus Tracking Studio.app"   # macOS
 ```
-
-Voir **[gui/README_FR.md](../gui/README_FR.md)** pour la documentation architecturale complète.
 
 #### Aperçu de la disposition de l'interface graphique
 
@@ -230,15 +227,6 @@ Chaque ROI dans la barre latérale affiche un insigne de statut de CQ coloré :
 
 <details>
 <summary>Interfaces graphiques héritées (obsolètes)</summary>
-
-##### Ancien : Interface graphique C++ Dear ImGui
-L'interface native originale construite sur Dear ImGui, ImPlot et GLFW. Nécessite des bibliothèques graphiques natives.
-```bash
-mkdir -p build && cd build
-cmake -DBUILD_GUI=ON .. && make -j4
-./bolus_tracking_gui
-```
-> ⚠️ **Obsolète.** Conservé dans `cpp/src/bolus_gui.cpp` à titre de référence. Utilisez l'application C++ native.
 
 ##### Ancien : Interface graphique Python tkinter
 L'interface Python de référence utilisant tkinter et matplotlib.
@@ -304,8 +292,7 @@ Pour modifier la durée de la ligne de base utilisée pour corriger la dérive (
 
 ## 5. Description technique des fichiers du projet
 
-* `gui/` : **L'interface graphique interactive principale** (Bolus Tracking Studio) native C++. Voir [gui/README_FR.md](../gui/README_FR.md).
-* `cpp/src/bolus_gui.cpp` : ~~L'interface graphique C++ interactive sous Dear ImGui et ImPlot.~~ **OBSOLÈTE.**
+* `cpp/src/bolus_gui.cpp` : **L'interface graphique interactive principale** (Bolus Tracking Studio) construite avec Dear ImGui, ImPlot et GLFW.
 * `python/src/bolus_gui.py` : ~~L'interface graphique Python de référence basée sur Tkinter et Matplotlib.~~ **OBSOLÈTE.**
 * `run_pipeline.sh` : Script de contrôle principal configurant l'environnement virtuel Python et lançant le traitement.
 * `python/src/batch_process.py` : Script Python principal lisant les images TIFF, extrayant le signal des ROI et enregistrant les résultats et graphiques.

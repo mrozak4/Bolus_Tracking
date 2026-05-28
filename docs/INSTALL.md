@@ -13,8 +13,8 @@ This guide describes how to install and configure **Bolus Tracking Studio** on m
 ### Option A: Download the DMG (Easiest)
 
 1. Download the DMG from the [latest release](https://github.com/mrozak4/Bolus_Tracking/releases/latest):
-   - **Apple Silicon** (M1/M2/M3/M4): `BolusTrackingStudio-3.0.0-arm64.dmg`
-   - **Intel**: `BolusTrackingStudio-3.0.0-x86_64.dmg`
+   - **Apple Silicon** (M1/M2/M3/M4): `BolusTrackingStudio-*-arm64.dmg`
+   - **Intel**: `BolusTrackingStudio-*-x86_64.dmg`
 2. Open the `.dmg` and drag **Bolus Tracking Studio** to **Applications**.
 3. On first launch, macOS Gatekeeper may block the app. Fix with:
    ```bash
@@ -122,6 +122,5 @@ Run it with:
 
 ---
 
-## Deprecated GUIs
 
-> ⚠️ The native C++ app (`gui/`) and Python GUI (`python/src/bolus_gui.py`) are **deprecated**. Use the native C++ app instead.
+> ⚠️ The Python GUI (`python/src/bolus_gui.py`) is **deprecated**. Use the native C++ app instead.

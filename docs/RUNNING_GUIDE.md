@@ -282,7 +282,6 @@ Each ROI in the sidebar displays a colour-coded QC status badge:
 <summary>Legacy GUIs (Deprecated)</summary>
 
 ##### Legacy: native C++ app
-> ⚠️ **Deprecated.** The `gui/` Electron app is no longer maintained. Use the native C++ app instead.
 
 ##### Legacy: Python tkinter GUI
 ```bash

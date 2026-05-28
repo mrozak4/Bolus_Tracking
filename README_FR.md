@@ -12,10 +12,8 @@ Cliquez sur le bouton **Télécharger** ci-dessus, puis choisissez le bon fichie
 
 | Plateforme | Fichier à télécharger | Étapes d'installation |
 |----------|-----------------|---------------|
-| 🍎 **macOS** (Apple Silicon) | `Bolus.Tracking.Studio-3.0.0-arm64.dmg` | (Puces M1/M2/M3/M4) Ouvrir le `.dmg`, glisser dans **Applications**, voir la note ⬇️ |
-| 🍎 **macOS** (Intel) | `Bolus.Tracking.Studio-3.0.0.dmg` | (Anciens Mac Intel) Ouvrir le `.dmg`, glisser dans **Applications**, voir la note ⬇️ |
-| 🪟 **Windows** | `Bolus.Tracking.Studio.Setup.3.0.0.exe` | Exécuter l'installateur |
-| 🐧 **Linux** | `Bolus.Tracking.Studio-3.0.0.AppImage` | `chmod +x *.AppImage` puis exécuter (voir la note ci-dessous ⬇️) |
+| 🍎 **macOS** (Apple Silicon) | `BolusTrackingStudio-*-arm64.dmg` | (Puces M1/M2/M3/M4) Ouvrir le `.dmg`, glisser dans **Applications**, voir la note ⬇️ |
+| 🍎 **macOS** (Intel) | `BolusTrackingStudio-*-x86_64.dmg` | (Anciens Mac Intel) Ouvrir le `.dmg`, glisser dans **Applications**, voir la note ⬇️ |
 
 > [!IMPORTANT]
 > **macOS « fichier endommagé et ne peut pas être ouvert »** — L'application n'est pas signée avec un identifiant de développeur Apple, donc macOS Gatekeeper la bloquera. Après avoir glissé l'application dans Applications, ouvrez le **Terminal** et exécutez :
@@ -24,17 +22,7 @@ Cliquez sur le bouton **Télécharger** ci-dessus, puis choisissez le bon fichie
 > ```
 > Puis ouvrez l'application normalement. Vous pouvez aussi faire **clic droit → Ouvrir** au premier lancement.
 
-> [!TIP]
-> **L'AppImage Linux ne fonctionne pas ?** Si vous obtenez une erreur FUSE ou si l'application ne démarre pas, essayez :
-> ```bash
-> # Option 1 : Exécuter sans FUSE
-> ./Bolus.Tracking.Studio-*.AppImage --appimage-extract-and-run
->
-> # Option 2 : Téléchargez le .tar.gz depuis la page des Releases
-> tar xzf Bolus.Tracking.Studio-*.tar.gz
-> cd bolus-tracking-studio
-> ./bolus-tracking-studio
-> ```
+
 
 ---
 
@@ -89,8 +77,6 @@ Nous fournissons une documentation détaillée pour chaque partie du code. Veuil
 * **`CMakeLists.txt`** : Fichier de configuration de compilation CMake.
 * **`Dockerfile.cpp`** : Configuration Docker pour compiler, tester et conteneuriser le pipeline C++.
 
-### Interface graphique Electron (obsolète)
-* **`gui/`** : ~~Ancienne interface Electron.~~ **OBSOLÈTE** — conservé à titre de référence. Utilisez l'application C++ native.
 
 ### Outils de référence en Python
 * **`python/src/bolus_gui.py`** : ~~Interface Python interactive.~~ **OBSOLÈTE** — conservé à titre de référence. Utilisez l'application C++ native.
@@ -141,9 +127,6 @@ L'application inclut 42 langues, un pipeline intégré (bouton « Run Full Pipel
 
 <details>
 <summary>Interfaces graphiques héritées (obsolètes)</summary>
-
-#### Ancien : Interface Electron
-> ⚠️ **Obsolète.** L'interface Electron (`gui/`) n'est plus maintenue. Utilisez l'application C++ native.
 
 #### Ancien : Interface graphique Python tkinter
 ```bash
