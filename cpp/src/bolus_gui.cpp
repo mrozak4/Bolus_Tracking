@@ -3631,6 +3631,13 @@ void BolusApp::draw_sidebar() {
     ImGui::PushFont(m_font_bold);
     ImGui::Text("%s", m_tr.sidebar_title.c_str());
     ImGui::PopFont();
+    if (!m_csv_path.empty()) {
+        std::string csv_name = std::filesystem::path(m_csv_path).filename().string();
+        ImGui::TextColored(ImVec4(0.55f, 0.55f, 0.55f, 1.0f), "%s", csv_name.c_str());
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("%s", m_csv_path.c_str());
+        }
+    }
     ImGui::Separator();
     
     const char* items[] = {
