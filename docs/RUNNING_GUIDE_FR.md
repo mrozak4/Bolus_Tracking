@@ -207,6 +207,7 @@ L'interface est organisée en trois régions principales :
 * **Barre supérieure** : Titre de l'application, sélecteur de langue et boutons d'action — **Charger** (ouvrir les données du sujet), **Vider** (décharger le jeu de données), **Sauvegarder** (exporter le CSV) et **Réinitialiser** (rétablir toutes les modifications manuelles).
 * **Barre latérale** (panneau gauche) :
   - **Menu déroulant de filtre** : Afficher toutes les ROI ou filtrer par statut de CQ (ALERTE/ÉCHEC uniquement, STAGNATION uniquement, RÉVISION uniquement).
+  - **Menu déroulant de tri** : Classez les ROI par numéro de ROI (par défaut), sévérité QC (pires en premier : ÉCHEC → STALL → AVERT. → RÉVISION → CONFORME) ou RCB (les plus faibles en premier pour un triage rapide).
   - **Navigation de triage** : Boutons Précédent/Suivant pour passer d'une ROI signalée à la suivante.
   - **Liste des ROI** : Liste déroulante de toutes les ROI avec insignes de CQ colorés.
   - **Information du jeu de données** : Sujet en cours, expérience, fréquence d'acquisition et nombre de ROI.
@@ -217,7 +218,7 @@ L'interface est organisée en trois régions principales :
   - **Grille de contrôle à 3 colonnes** :
     1. **Relevé des marqueurs** : Affichage numérique des temps actuels de début, de pic et de fin (en secondes).
     2. **Rognage et débruitage** : Contrôles de la plage de rognage et curseur d'intensité du débruitage (0,5× à 3,0×).
-    3. **Actions d'ajustement** : Boutons Réajuster (LM), Forcer CONFORME et Rétablir.
+    3. **Actions d'ajustement** : Boutons Réajuster (LM), Forcer CONFORME, Forcer ÉCHEC, Forcer STAGNATION et Rétablir.
   - **Tableau des paramètres hémodynamiques** : Affiche l'amplitude ajustée, le temps au pic, la LMH, la ligne de base, le RSB, le RCB et l'AUC.
   - **Tableau de cinétique** : Affiche les métriques de transit dérivées — temps de début (OnT), temps de début dans le balayage (OnTSc), bornes du temps de transit (TTlb, TTm, TThb) et classification suggérée du type de vaisseau.
 
@@ -237,8 +238,9 @@ Chaque ROI dans la barre latérale affiche un insigne de statut de CQ coloré :
 * **Barre latérale de triage** : Passez en revue les ROI avec des insignes de CQ couleur. Utilisez le menu déroulant pour isoler les cas signalés.
 * **Ajustement interactif des marqueurs** : Glissez les lignes verticales de début, de pic et de fin directement sur le graphique SVG.
 * **Rognage à la volée** : Ajustez le curseur de plage de rognage (aligné avec l'axe x du graphique) pour exclure le bruit de la ligne de base ou les queues de recirculation.
+* **Tri par qualité d'ajustement** : Utilisez le menu déroulant **Tri** pour classer les ROI par sévérité QC (pires en premier) ou par RCB (les plus faibles en premier) au lieu du numéro de ROI — cela permet de traiter les pires ajustements en priorité.
 * **Remodélisation manuelle** : Cliquez sur **Réajuster** pour lancer un ajustement contraint de Levenberg-Marquardt dans votre fenêtre rognée en utilisant vos positions de marqueurs comme paramètres initiaux.
-* **Forcer la conformité** : Si une remodélisation affiche toujours ALERTE mais le tracé semble correct, cliquez sur **Forcer** pour le marquer manuellement comme CONFORME.
+* **Forcer CONFORME / Forcer ÉCHEC / Forcer STAGNATION** : Surchargez manuellement le statut QC de toute ROI. Utilisez **Forcer CONFORME** si un tracé en AVERT. semble correct, **Forcer ÉCHEC** pour rejeter un tracé qui a passé le CQ mais semble incorrect, ou **Forcer STAGNATION** pour signaler un arrêt capillaire non détecté automatiquement.
 * **Intensité du débruitage** : Ajustez le curseur **Denoise Strength** (0,5× à 3,0×) pour contrôler interactivement le lissage des traces.
 * **Rétablir / Réinitialiser** : Rétablissez des ROI individuelles ou réinitialisez toutes les modifications. Une fenêtre de confirmation prévient les pertes accidentelles.
 * **Vider les données du sujet** : Déchargez tous les jeux de données et revenez à l'écran d'accueil.
@@ -280,6 +282,8 @@ Si des capillaires sont marqués `AVERT.` ou `ÉCHEC` après l'exécution par lo
 5. **Lancer la remodélisation manuelle :**
    * Cliquez sur **Réajuster (LM)**. Le résolveur C++ s'exécute *uniquement* à l'intérieur de la fenêtre rognée en utilisant vos marqueurs comme paramètres initiaux. Le graphique et le statut de la ROI se mettent à jour instantanément.
    * *Forcer la conformité (Force PASS) :* Si la remodélisation affiche toujours un statut `AVERT.` mais que vous confirmez visuellement que l'ajustement est correct, cliquez sur **Forcer CONFORME** (ou **Force PASS** en anglais) pour verrouiller la ROI comme valide.
+   * *Forcer ÉCHEC :* Si un tracé a passé le CQ automatique mais semble incorrect à l'inspection visuelle, cliquez sur **Forcer ÉCHEC** pour le rejeter.
+   * *Forcer STAGNATION :* Si un tracé présente des caractéristiques d'arrêt capillaire non détectées automatiquement, cliquez sur **Forcer STAGNATION** pour le signaler comme événement de stagnation physiologique.
 6. **Sauvegarder et exporter** :
    * Une fois les ajustements terminés, cliquez sur **Save Final CSV**. Les paramètres révisés sont enregistrés. Les temps calculés restent calibrés par rapport à l'échelle temporelle d'origine non rognée.
 

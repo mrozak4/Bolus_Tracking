@@ -122,7 +122,7 @@ cmake --build . --target bolus_tracking_gui -j8
 open "Bolus Tracking Studio.app"   # macOS
 ```
 
-L'application inclut 42 langues, un pipeline intégré (bouton « Run Full Pipeline »), l'ajustement interactif des courbes, et un flux de triage complet.
+L'application inclut 42 langues, un pipeline intégré (bouton « Run Full Pipeline »), l'ajustement interactif des courbes, le tri par qualité d'ajustement (N° de ROI, sévérité QC ou RCB), les boutons Forcer CONFORME/ÉCHEC/STAGNATION, la prise en charge des insignes STALL, et un flux de triage complet.
 
 > [!TIP]
 > **Créer un DMG distribuable :** Exécutez `./macos/create_dmg.sh` pour compiler et empaqueter l'application.

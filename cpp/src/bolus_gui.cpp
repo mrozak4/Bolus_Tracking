@@ -2106,8 +2106,8 @@ void BolusApp::build_triage_queue() {
             bool matches = false;
             if (m_qc_filter_type == 0) { // All
                 matches = true;
-            } else if (m_qc_filter_type == 1) { // Flagged (FAIL/WARN/REVIEW)
-                matches = (m_records[i].qc_flag == "FAIL" || m_records[i].qc_flag == "WARN" || m_records[i].qc_flag == "REVIEW");
+            } else if (m_qc_filter_type == 1) { // Flagged (FAIL/WARN/REVIEW/STALL)
+                matches = (m_records[i].qc_flag == "FAIL" || m_records[i].qc_flag == "WARN" || m_records[i].qc_flag == "REVIEW" || m_records[i].qc_flag == "STALL");
             } else if (m_qc_filter_type == 2) { // FAIL Only
                 matches = (m_records[i].qc_flag == "FAIL");
             } else if (m_qc_filter_type == 3) { // WARN Only
@@ -2116,11 +2116,43 @@ void BolusApp::build_triage_queue() {
                 matches = (m_records[i].qc_flag == "PASS");
             } else if (m_qc_filter_type == 5) { // REVIEW Only
                 matches = (m_records[i].qc_flag == "REVIEW");
+            } else if (m_qc_filter_type == 6) { // STALL Only
+                matches = (m_records[i].qc_flag == "STALL");
             }
             if (matches) {
                 m_triage_queue.push_back(i);
             }
         }
+
+        // Apply sort
+        if (m_sort_mode == 1) {
+            // QC severity: FAIL > STALL > WARN > REVIEW > PASS > other
+            auto qc_rank = [](const std::string& flag) -> int {
+                if (flag == "FAIL") return 0;
+                if (flag == "STALL") return 1;
+                if (flag == "WARN") return 2;
+                if (flag == "REVIEW") return 3;
+                if (flag == "PASS") return 4;
+                return 5;
+            };
+            std::sort(m_triage_queue.begin(), m_triage_queue.end(),
+                [&](int a, int b) {
+                    int ra = qc_rank(m_records[a].qc_flag);
+                    int rb = qc_rank(m_records[b].qc_flag);
+                    if (ra != rb) return ra < rb;
+                    return a < b; // stable secondary sort by ROI#
+                });
+        } else if (m_sort_mode == 2) {
+            // CNR ascending (worst fits first)
+            std::sort(m_triage_queue.begin(), m_triage_queue.end(),
+                [&](int a, int b) {
+                    double ca = std::isnan(m_records[a].f_cnr) ? -1e9 : m_records[a].f_cnr;
+                    double cb = std::isnan(m_records[b].f_cnr) ? -1e9 : m_records[b].f_cnr;
+                    if (ca != cb) return ca < cb;
+                    return a < b;
+                });
+        }
+        // m_sort_mode == 0: default ROI# order (already in order from the loop)
         
         // Find current position in queue
         m_queue_pos = -1;
@@ -3010,7 +3042,7 @@ void BolusApp::draw_pipeline_modal() {
             // Load results button (only after completion)
             if (is_done && !m_pipeline_error && !m_pipeline_result_csv.empty()) {
                 if (ImGui::Button("Load Results", ImVec2(140, 28))) {
-                    // Scan the folder for all results CSVs, same as folder selection
+                    // Scan the folder for all results CSVs
                     std::filesystem::path result_dir = std::filesystem::path(m_pipeline_result_csv).parent_path();
                     std::vector<std::string> csvs;
                     for (const auto& entry : std::filesystem::directory_iterator(result_dir)) {
@@ -3024,25 +3056,17 @@ void BolusApp::draw_pipeline_modal() {
                     }
                     std::sort(csvs.begin(), csvs.end());
 
+                    // Defer the load — can't open popups or load_dataset from inside a modal
                     m_show_pipeline_modal = false;
                     ImGui::CloseCurrentPopup();
 
                     if (csvs.size() == 1) {
-                        if (!load_dataset(csvs[0])) {
-                            m_load_error_msg = "Failed to load:\n" + csvs[0];
-                            play_doom_music();
-                            ImGui::OpenPopup("##LoadError");
-                        }
+                        m_pending_pipeline_load = csvs[0];
                     } else if (csvs.size() > 1) {
-                        m_csv_candidates = csvs;
-                        ImGui::OpenPopup("##CsvPicker");
+                        m_pending_pipeline_csvs = csvs;
                     } else {
                         // Fallback: just load the single known CSV
-                        if (!load_dataset(m_pipeline_result_csv)) {
-                            m_load_error_msg = "Failed to load:\n" + m_pipeline_result_csv;
-                            play_doom_music();
-                            ImGui::OpenPopup("##LoadError");
-                        }
+                        m_pending_pipeline_load = m_pipeline_result_csv;
                     }
                 }
             }
@@ -3425,6 +3449,21 @@ void BolusApp::draw_gui() {
         }
         draw_mip_modal();
         draw_pipeline_modal();
+
+        // Deferred pipeline load (executed after pipeline modal is closed)
+        if (!m_pending_pipeline_load.empty()) {
+            std::string csv_to_load = m_pending_pipeline_load;
+            m_pending_pipeline_load.clear();
+            if (!load_dataset(csv_to_load)) {
+                m_load_error_msg = "Failed to load:\n" + csv_to_load;
+                play_doom_music();
+                ImGui::OpenPopup("##LoadError");
+            }
+        } else if (!m_pending_pipeline_csvs.empty()) {
+            m_csv_candidates = m_pending_pipeline_csvs;
+            m_pending_pipeline_csvs.clear();
+            ImGui::OpenPopup("##CsvPicker");
+        }
         
         // CSV picker popup (multiple results files in folder)
         if (ImGui::BeginPopupModal("##CsvPicker", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -3735,7 +3774,8 @@ void BolusApp::draw_sidebar() {
         m_tr.filter_fail.c_str(),
         m_tr.filter_warn.c_str(),
         m_tr.filter_pass.c_str(),
-        m_tr.filter_review.c_str()
+        m_tr.filter_review.c_str(),
+        m_tr.filter_stall.c_str()
     };
     ImGui::Text("%s", m_tr.label_filter.c_str());
     ImGui::SameLine();
@@ -3754,6 +3794,20 @@ void BolusApp::draw_sidebar() {
                 select_record(m_triage_queue[0]);
             }
         }
+    }
+    ImGui::PopItemWidth();
+
+    // Sort dropdown
+    const char* sort_items[] = {
+        m_tr.sort_roi_number.c_str(),
+        m_tr.sort_qc_severity.c_str(),
+        m_tr.sort_cnr_asc.c_str()
+    };
+    ImGui::Text("%s", m_tr.label_sort.c_str());
+    ImGui::SameLine();
+    ImGui::PushItemWidth(-10.0f);
+    if (ImGui::Combo("##SortCombo", &m_sort_mode, sort_items, IM_ARRAYSIZE(sort_items))) {
+        build_triage_queue();
     }
     ImGui::PopItemWidth();
     {
@@ -3796,6 +3850,7 @@ void BolusApp::draw_sidebar() {
             if (rec.qc_flag == "PASS") status_color = ImVec4(0.55f, 0.62f, 0.45f, 1.0f);
             else if (rec.qc_flag == "WARN") status_color = ImVec4(0.92f, 0.72f, 0.30f, 1.0f);
             else if (rec.qc_flag == "FAIL") status_color = ImVec4(0.80f, 0.32f, 0.22f, 1.0f);
+            else if (rec.qc_flag == "STALL") status_color = ImVec4(0.45f, 0.55f, 0.70f, 1.0f);
             else if (rec.qc_flag == "REVIEW") status_color = ImVec4(0.37f, 0.54f, 0.54f, 1.0f);
             
             ImGui::TableNextRow();
@@ -3812,6 +3867,7 @@ void BolusApp::draw_sidebar() {
             if (rec.qc_flag == "PASS") disp_flag = m_tr.qc_pass;
             else if (rec.qc_flag == "WARN") disp_flag = m_tr.qc_warn;
             else if (rec.qc_flag == "FAIL") disp_flag = m_tr.qc_fail;
+            else if (rec.qc_flag == "STALL") disp_flag = m_tr.qc_stall;
             else if (rec.qc_flag == "REVIEW") disp_flag = m_tr.qc_review;
             else disp_flag = rec.qc_flag;
             
@@ -3851,6 +3907,7 @@ void BolusApp::draw_main_area() {
     if (rec.qc_flag == "PASS") disp_flag = m_tr.qc_pass;
     else if (rec.qc_flag == "WARN") disp_flag = m_tr.qc_warn;
     else if (rec.qc_flag == "FAIL") disp_flag = m_tr.qc_fail;
+    else if (rec.qc_flag == "STALL") disp_flag = m_tr.qc_stall;
     else if (rec.qc_flag == "REVIEW") disp_flag = m_tr.qc_review;
     else disp_flag = rec.qc_flag;
 
@@ -4201,6 +4258,29 @@ void BolusApp::draw_main_area() {
             m_records[m_selected_roi_idx].fit_source = "override";
             if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_gui_roi_states.size())) {
                 m_gui_roi_states[m_selected_roi_idx].qc_flag = "PASS";
+                m_gui_roi_states[m_selected_roi_idx].fit_source = "override";
+            }
+            build_triage_queue();
+            save_active_roi_svg();
+        }
+        ImGui::Dummy(ImVec2(0.0f, 2.0f));
+        if (ImGui::Button(m_tr.btn_force_fail.c_str(), ImVec2(btn_w, 26))) {
+            m_records[m_selected_roi_idx].qc_flag = "FAIL";
+            m_records[m_selected_roi_idx].fit_source = "override";
+            if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_gui_roi_states.size())) {
+                m_gui_roi_states[m_selected_roi_idx].qc_flag = "FAIL";
+                m_gui_roi_states[m_selected_roi_idx].fit_source = "override";
+            }
+            build_triage_queue();
+            save_active_roi_svg();
+        }
+        ImGui::Dummy(ImVec2(0.0f, 2.0f));
+        if (ImGui::Button(m_tr.btn_force_stall.c_str(), ImVec2(btn_w, 26))) {
+            m_records[m_selected_roi_idx].qc_flag = "STALL";
+            m_records[m_selected_roi_idx].fit_source = "override";
+            m_records[m_selected_roi_idx].stall_flag = 1;
+            if (m_selected_roi_idx >= 0 && m_selected_roi_idx < static_cast<int>(m_gui_roi_states.size())) {
+                m_gui_roi_states[m_selected_roi_idx].qc_flag = "STALL";
                 m_gui_roi_states[m_selected_roi_idx].fit_source = "override";
             }
             build_triage_queue();

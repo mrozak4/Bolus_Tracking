@@ -14,6 +14,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Save State";
         m_tr.btn_refit = "Re-Fit (LM)";
         m_tr.btn_override = "Force PASS";
+        m_tr.btn_force_fail = "Force FAIL";
+        m_tr.btn_force_stall = "Force STALL";
         m_tr.btn_revert = "Revert to Original";
         m_tr.btn_reset_crop = "Reset Crop";
         m_tr.btn_crop_bounds = "Crop to Markers";
@@ -79,6 +81,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "WARN";
         m_tr.qc_fail = "FAIL";
         m_tr.qc_review = "REVIEW";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "auto";
         m_tr.source_manual = "manual";
         m_tr.source_override = "override";
@@ -92,6 +95,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "WARN Only";
         m_tr.filter_pass = "PASS Only";
         m_tr.filter_review = "REVIEW Only";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Original Auto Fit";
         m_tr.section_denoise = "DENOISING OPTIONS";
         m_tr.label_denoise_strength = "Denoise Strength";
@@ -119,6 +127,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Enregistrer l'état";
         m_tr.btn_refit = "Réajuster (LM)";
         m_tr.btn_override = "Forcer CONFORME";
+        m_tr.btn_force_fail = "Forcer ÉCHEC";
+        m_tr.btn_force_stall = "Forcer STAGNATION";
         m_tr.btn_revert = "Rétablir les estimations automatiques";
         m_tr.btn_reset_crop = "Réinitialiser le rognage";
         m_tr.btn_crop_bounds = "Rogner aux marqueurs";
@@ -184,6 +194,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "AVERT.";
         m_tr.qc_fail = "ÉCHEC";
         m_tr.qc_review = "À RÉVISER";
+        m_tr.qc_stall = "STAGNATION";
         m_tr.source_auto = "auto";
         m_tr.source_manual = "manuel";
         m_tr.source_override = "dérogé";
@@ -197,6 +208,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "AVERT. uniquement";
         m_tr.filter_pass = "CONFORME uniquement";
         m_tr.filter_review = "À RÉVISER uniquement";
+        m_tr.filter_stall = "STAGNATION uniquement";
+        m_tr.label_sort = "Tri :";
+        m_tr.sort_roi_number = "N° de ROI";
+        m_tr.sort_qc_severity = "Sévérité QC";
+        m_tr.sort_cnr_asc = "RCB (croissant)";
         m_tr.label_auto_fit = "Ajustement auto initial";
         m_tr.section_denoise = "OPTIONS DE DÉBRUITAGE";
         m_tr.label_denoise_strength = "Force du débruitage";
@@ -224,6 +240,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Zustand speichern";
         m_tr.btn_refit = "Neu anpassen (LM)";
         m_tr.btn_override = "Erzwinge BESTANDEN";
+        m_tr.btn_force_fail = "Erzwinge FEHLER";
+        m_tr.btn_force_stall = "Erzwinge STAGNATION";
         m_tr.btn_revert = "Auf Original zurücksetzen";
         m_tr.btn_reset_crop = "Crop zurücksetzen";
         m_tr.btn_crop_bounds = "Auf Marker zuschneiden";
@@ -289,6 +307,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "WARNUNG";
         m_tr.qc_fail = "FEHLER";
         m_tr.qc_review = "PRÜFEN";
+        m_tr.qc_stall = "STAGNATION";
         m_tr.source_auto = "auto";
         m_tr.source_manual = "manuell";
         m_tr.source_override = "manuell (BESTANDEN)";
@@ -302,6 +321,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Nur WARNUNG";
         m_tr.filter_pass = "Nur BESTANDEN";
         m_tr.filter_review = "Nur PRÜFEN";
+        m_tr.filter_stall = "Nur STAGNATION";
+        m_tr.label_sort = "Sortierung:";
+        m_tr.sort_roi_number = "ROI-Nummer";
+        m_tr.sort_qc_severity = "QC-Schwere";
+        m_tr.sort_cnr_asc = "CNR (aufsteigend)";
         m_tr.label_auto_fit = "Originale Auto-Anpassung";
         m_tr.section_denoise = "ENTRAUSCHUNGS-OPTIONEN";
         m_tr.label_denoise_strength = "Rauschminderungsstärke";
@@ -329,6 +353,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "状態を保存";
         m_tr.btn_refit = "再フィッティング (LM)";
         m_tr.btn_override = "強制合格";
+        m_tr.btn_force_fail = "強制不合格";
+        m_tr.btn_force_stall = "強制停滞";
         m_tr.btn_revert = "初期値に戻す";
         m_tr.btn_reset_crop = "クロップ解除";
         m_tr.btn_crop_bounds = "範囲をマーカーに合わせる";
@@ -394,6 +420,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "WARN (警告)";
         m_tr.qc_fail = "FAIL (不合格)";
         m_tr.qc_review = "REVIEW (要確認)";
+        m_tr.qc_stall = "STALL (停滞)";
         m_tr.source_auto = "自動 (auto)";
         m_tr.source_manual = "手動 (manual)";
         m_tr.source_override = "強制合格 (override)";
@@ -407,6 +434,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "WARN のみ";
         m_tr.filter_pass = "合格のみ";
         m_tr.filter_review = "REVIEW のみ";
+        m_tr.filter_stall = "STALL (停滞) のみ";
+        m_tr.label_sort = "並べ替え:";
+        m_tr.sort_roi_number = "ROI番号";
+        m_tr.sort_qc_severity = "QC重大度";
+        m_tr.sort_cnr_asc = "CNR (昇順)";
         m_tr.label_auto_fit = "初期自動フィット";
         m_tr.section_denoise = "ノイズ除去オプション";
         m_tr.label_denoise_strength = "ノイズ除去強度";
@@ -434,6 +466,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "保存进度";
         m_tr.btn_refit = "重新拟合 (LM)";
         m_tr.btn_override = "强制通过";
+        m_tr.btn_force_fail = "强制失败";
+        m_tr.btn_force_stall = "强制停滞";
         m_tr.btn_revert = "恢复到自动估计";
         m_tr.btn_reset_crop = "重置裁剪";
         m_tr.btn_crop_bounds = "裁剪至标记范围";
@@ -500,6 +534,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "警告 (WARN)";
         m_tr.qc_fail = "失败 (FAIL)";
         m_tr.qc_review = "复核 (REVIEW)";
+        m_tr.qc_stall = "停滞 (STALL)";
         m_tr.source_auto = "自动 (auto)";
         m_tr.source_manual = "手动 (manual)";
         m_tr.source_override = "强制通过 (override)";
@@ -513,6 +548,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "仅限 WARN";
         m_tr.filter_pass = "仅限通过";
         m_tr.filter_review = "仅限 REVIEW";
+        m_tr.filter_stall = "仅限 STALL";
+        m_tr.label_sort = "排序:";
+        m_tr.sort_roi_number = "ROI 编号";
+        m_tr.sort_qc_severity = "QC 严重程度";
+        m_tr.sort_cnr_asc = "CNR (升序)";
         m_tr.label_auto_fit = "原始自动拟合";
         m_tr.section_denoise = "去噪设置";
         m_tr.label_denoise_strength = "去噪强度";
@@ -540,6 +580,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = to_klingon_piqad("wanI' yIpol");
         m_tr.btn_refit = to_klingon_piqad("re-chenmoH (LM)");
         m_tr.btn_override = to_klingon_piqad("PASS yIchav");
+        m_tr.btn_force_fail = to_klingon_piqad("QIp yIchav");
+        m_tr.btn_force_stall = to_klingon_piqad("mev yIchav");
         m_tr.btn_revert = to_klingon_piqad("yItuch");
         m_tr.btn_reset_crop = to_klingon_piqad("pe' choH");
         m_tr.btn_crop_bounds = to_klingon_piqad("lach pe'");
@@ -605,6 +647,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = to_klingon_piqad("ghel");
         m_tr.qc_fail = to_klingon_piqad("QIp");
         m_tr.qc_review = to_klingon_piqad("tob");
+        m_tr.qc_stall = to_klingon_piqad("mev");
         m_tr.source_auto = to_klingon_piqad("pat");
         m_tr.source_manual = to_klingon_piqad("ghob");
         m_tr.source_override = to_klingon_piqad("chav");
@@ -618,6 +661,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = to_klingon_piqad("ghel neH");
         m_tr.filter_pass = to_klingon_piqad("PASS neH");
         m_tr.filter_review = to_klingon_piqad("tob neH");
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = to_klingon_piqad("auto fit");
         m_tr.section_denoise = to_klingon_piqad("denoising");
         m_tr.label_denoise_strength = to_klingon_piqad("Denoise Strength");
@@ -645,6 +693,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Sove Leta";
         m_tr.btn_refit = "Ajiste ankò (LM)";
         m_tr.btn_override = "Fòse PASÈ";
+        m_tr.btn_force_fail = "Fòse ERÈ";
+        m_tr.btn_force_stall = "Fòse BLOKE";
         m_tr.btn_revert = "Tounen nan orijinal";
         m_tr.btn_reset_crop = "Reyisyalize Koupe";
         m_tr.btn_crop_bounds = "Koupe nan makè yo";
@@ -710,6 +760,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "AVÈTISMAN";
         m_tr.qc_fail = "ERÈ";
         m_tr.qc_review = "REVIZYON";
+        m_tr.qc_stall = "BLOKE";
         m_tr.source_auto = "Auto";
         m_tr.source_manual = "Manyèl";
         m_tr.source_override = "Fòse";
@@ -723,6 +774,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "AVÈTISMAN sèlman";
         m_tr.filter_pass = "PASÈ sèlman";
         m_tr.filter_review = "REVIZYON sèlman";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Ajisteman otomatik";
         m_tr.section_denoise = "OPSYON POU RETIRE BRI";
         m_tr.label_denoise_strength = "Fòs filtraj";
@@ -750,6 +806,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Gem status";
         m_tr.btn_refit = "Genberegn (LM)";
         m_tr.btn_override = "Gennemtving GODKENDT";
+        m_tr.btn_force_fail = "Gennemtving FEJL";
+        m_tr.btn_force_stall = "Gennemtving STAGNATION";
         m_tr.btn_revert = "Gendan original";
         m_tr.btn_reset_crop = "Nulstil beskæring";
         m_tr.btn_crop_bounds = "Beskær til markører";
@@ -815,6 +873,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "ADVARSEL";
         m_tr.qc_fail = "FEJL";
         m_tr.qc_review = "TIL GENSYN";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "Auto";
         m_tr.source_manual = "Manuel";
         m_tr.source_override = "Tvungen";
@@ -828,6 +887,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Kun ADVARSEL";
         m_tr.filter_pass = "Kun GODKENDT";
         m_tr.filter_review = "Kun TIL GENSYN";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Automatisk tilpasning";
         m_tr.section_denoise = "STØJREDUKTIONSINDSTILLINGER";
         m_tr.label_denoise_strength = "Dæmpningsstyrke";
@@ -855,6 +919,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Status opslaan";
         m_tr.btn_refit = "Opnieuw aanpassen (LM)";
         m_tr.btn_override = "Forceer GESLAAGD";
+        m_tr.btn_force_fail = "Forceer GEFAALD";
+        m_tr.btn_force_stall = "Forceer STAGNATIE";
         m_tr.btn_revert = "Herstel origineel";
         m_tr.btn_reset_crop = "Reset bijsnijden";
         m_tr.btn_crop_bounds = "Bijsnijden tot markeringen";
@@ -920,6 +986,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "WAARSCHUWING";
         m_tr.qc_fail = "FOUT";
         m_tr.qc_review = "TER BEOORDELING";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "Auto";
         m_tr.source_manual = "Handmatig";
         m_tr.source_override = "Geforceerd";
@@ -933,6 +1000,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Alleen WAARSCHUWING";
         m_tr.filter_pass = "Alleen GESLAAGD";
         m_tr.filter_review = "Alleen TER BEOORDELING";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Automatische aanpassing";
         m_tr.section_denoise = "RUISONDERDRUKKINGSOPTIES";
         m_tr.label_denoise_strength = "Filtersterkte";
@@ -960,6 +1032,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Guardar estado";
         m_tr.btn_refit = "Reajustar (LM)";
         m_tr.btn_override = "Forzar APROBADO";
+        m_tr.btn_force_fail = "Forzar FALLO";
+        m_tr.btn_force_stall = "Forzar ESTANCAMIENTO";
         m_tr.btn_revert = "Revertir al original";
         m_tr.btn_reset_crop = "Restablecer recorte";
         m_tr.btn_crop_bounds = "Recortar a marcadores";
@@ -1025,6 +1099,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "ADVERTENCIA";
         m_tr.qc_fail = "FALLIDO";
         m_tr.qc_review = "REVISIÓN";
+        m_tr.qc_stall = "ESTANCAMIENTO";
         m_tr.source_auto = "auto";
         m_tr.source_manual = "manual";
         m_tr.source_override = "forzado";
@@ -1038,6 +1113,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Solo ADVERTENCIAS";
         m_tr.filter_pass = "Solo APROBADOS";
         m_tr.filter_review = "Solo REVISIÓN";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Ajuste automático original";
         m_tr.section_denoise = "OPCIONES DE REDUCCIÓN DE RUIDO";
         m_tr.label_denoise_strength = "Fuerza de reducción";
@@ -1065,6 +1145,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Salva stato";
         m_tr.btn_refit = "Riadatta (LM)";
         m_tr.btn_override = "Forza SUPERATO";
+        m_tr.btn_force_fail = "Forza FALLITO";
+        m_tr.btn_force_stall = "Forza STALLO";
         m_tr.btn_revert = "Ripristina originale";
         m_tr.btn_reset_crop = "Ripristina ritaglio";
         m_tr.btn_crop_bounds = "Ritaglia ai marcatori";
@@ -1130,6 +1212,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "AVVISO";
         m_tr.qc_fail = "FALLITO";
         m_tr.qc_review = "REVISIONE";
+        m_tr.qc_stall = "STALLO";
         m_tr.source_auto = "auto";
         m_tr.source_manual = "manuale";
         m_tr.source_override = "forzato";
@@ -1143,6 +1226,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Solo AVVISI";
         m_tr.filter_pass = "Solo SUPERATI";
         m_tr.filter_review = "Solo REVISIONE";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Adattamento automatico originale";
         m_tr.section_denoise = "OPZIONI DI RIDUZIONE RUMORE";
         m_tr.label_denoise_strength = "Forza riduzione";
@@ -1170,6 +1258,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "상태 저장";
         m_tr.btn_refit = "재피팅 (LM)";
         m_tr.btn_override = "강제 통과 (PASS)";
+        m_tr.btn_force_fail = "강제 실패 (FAIL)";
+        m_tr.btn_force_stall = "강제 정체 (STALL)";
         m_tr.btn_revert = "원본으로 복구";
         m_tr.btn_reset_crop = "자르기 초기화";
         m_tr.btn_crop_bounds = "마커로 자르기";
@@ -1235,6 +1325,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "경고 (WARN)";
         m_tr.qc_fail = "실패 (FAIL)";
         m_tr.qc_review = "검토 (REVIEW)";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "자동";
         m_tr.source_manual = "수동";
         m_tr.source_override = "강제";
@@ -1248,6 +1339,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "WARN만";
         m_tr.filter_pass = "PASS만";
         m_tr.filter_review = "REVIEW만";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "원본 자동 피팅";
         m_tr.section_denoise = "노이즈 제거 옵션";
         m_tr.label_denoise_strength = "노이즈 감소 강도";
@@ -1275,6 +1371,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Spara tillstånd";
         m_tr.btn_refit = "Anpassa om (LM)";
         m_tr.btn_override = "Tvinga PASSERAD";
+        m_tr.btn_force_fail = "Tvinga MISSLYCKAD";
+        m_tr.btn_force_stall = "Tvinga STAGNATION";
         m_tr.btn_revert = "Återgå till original";
         m_tr.btn_reset_crop = "Återställ beskärning";
         m_tr.btn_crop_bounds = "Beskär till markörer";
@@ -1340,6 +1438,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "VARNING";
         m_tr.qc_fail = "MISSLYCKAD";
         m_tr.qc_review = "PRÖVNING";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "auto";
         m_tr.source_manual = "manuell";
         m_tr.source_override = "tvingad";
@@ -1353,6 +1452,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Endast VARNING";
         m_tr.filter_pass = "Endast PASSERAD";
         m_tr.filter_review = "Endast PRÖVNING";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Original automatisk anpassning";
         m_tr.section_denoise = "BRUSREDUCERINGSALTERNATIV";
         m_tr.label_denoise_strength = "Reduceringsstyrka";
@@ -1380,6 +1484,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Log the Sea Charts";
         m_tr.btn_refit = "Trim Sails Anew (LM)";
         m_tr.btn_override = "Declare Safe Passage";
+        m_tr.btn_force_fail = "Walk the Plank";
+        m_tr.btn_force_stall = "Becalmed in Port";
         m_tr.btn_revert = "Return to Port";
         m_tr.btn_reset_crop = "Unfurl all Canvas";
         m_tr.btn_crop_bounds = "Trim to Anchors";
@@ -1445,6 +1551,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "HEED";
         m_tr.qc_fail = "SUNK";
         m_tr.qc_review = "CHECK";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "ship";
         m_tr.source_manual = "crew";
         m_tr.source_override = "captain";
@@ -1458,6 +1565,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Heed Only";
         m_tr.filter_pass = "Safe Only";
         m_tr.filter_review = "Check Only";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "First Ship-fit";
         m_tr.section_denoise = "SEA MIST FILTERS";
         m_tr.label_denoise_strength = "Filter Power";
@@ -1485,6 +1597,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "54v3 5t4t3";
         m_tr.btn_refit = "R3-F1t (LM)";
         m_tr.btn_override = "F0rc3 P455";
+        m_tr.btn_force_fail = "F0rc3 FA1L";
+        m_tr.btn_force_stall = "F0rc3 5T4LL";
         m_tr.btn_revert = "R3v3rt t0 0r1g1n4l";
         m_tr.btn_reset_crop = "R353t Cr0p";
         m_tr.btn_crop_bounds = "Cr0p t0 M4rk3r5";
@@ -1550,6 +1664,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "W4RN";
         m_tr.qc_fail = "FAIL";
         m_tr.qc_review = "R3V13W";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "4ut0";
         m_tr.source_manual = "m4nu4l";
         m_tr.source_override = "0v3rr1d3";
@@ -1563,6 +1678,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "WARN 0nly";
         m_tr.filter_pass = "P455 0nly";
         m_tr.filter_review = "R3V13W 0nly";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "0r1g1n4l 4ut0 F1t";
         m_tr.section_denoise = "D3N0151NG 0PT10N5";
         m_tr.label_denoise_strength = "D3n0153 5tr3ngth";
@@ -1590,6 +1710,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Hain State";
         m_tr.btn_refit = "Re-fit (LM)";
         m_tr.btn_override = "Force PASS";
+        m_tr.btn_force_fail = "Force FAIL";
+        m_tr.btn_force_stall = "Force STALL";
         m_tr.btn_revert = "Gang back tae start";
         m_tr.btn_reset_crop = "Reset Crop";
         m_tr.btn_crop_bounds = "Crop tae Markers";
@@ -1655,6 +1777,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "WARN";
         m_tr.qc_fail = "FAIL";
         m_tr.qc_review = "REVIEW";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "auto";
         m_tr.source_manual = "manual";
         m_tr.source_override = "override";
@@ -1668,6 +1791,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "WARN anely";
         m_tr.filter_pass = "PASS anely";
         m_tr.filter_review = "REVIEW anely";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Original Auto Fit";
         m_tr.section_denoise = "DENOISING OPTIONS";
         m_tr.label_denoise_strength = "Denoise Power";
@@ -1695,6 +1823,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Kasseriikkat toqqukkit";
         m_tr.btn_refit = "Aaqqeqqiuk (LM)";
         m_tr.btn_override = "Akuersineq pinngitsuliuk";
+        m_tr.btn_force_fail = "Siunissami pinngitsuliuk";
+        m_tr.btn_force_stall = "Unittoq pinngitsuliuk";
         m_tr.btn_revert = "Aallarniutaasumut utertiguk";
         m_tr.btn_reset_crop = "Kilisagaq piiaruk";
         m_tr.btn_crop_bounds = "Uuttuutinut kilisaguk";
@@ -1760,6 +1890,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "MIAN";
         m_tr.qc_fail = "FAIL";
         m_tr.qc_review = "ALAN";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "imman";
         m_tr.source_manual = "assammik";
         m_tr.source_override = "pinngit";
@@ -1773,6 +1904,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "WARN kisimi";
         m_tr.filter_pass = "PASS kisimi";
         m_tr.filter_review = "REV kisimi";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Aallarniut";
         m_tr.section_denoise = "NIPITITSINEQ FILTERIT";
         m_tr.label_denoise_strength = "Nipititsineq nakussak";
@@ -1800,6 +1936,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Konservi staton";
         m_tr.btn_refit = "Refiti (LM)";
         m_tr.btn_override = "Devigi PASON";
+        m_tr.btn_force_fail = "Devigi MALSUKCESON";
+        m_tr.btn_force_stall = "Devigi STALON";
         m_tr.btn_revert = "Revenigi al originalo";
         m_tr.btn_reset_crop = "Rekomencigi trunchadon";
         m_tr.btn_crop_bounds = "Trunĉi al markiloj";
@@ -1865,6 +2003,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "AVERTO";
         m_tr.qc_fail = "FIASKO";
         m_tr.qc_review = "REVIZIO";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "aŭtomata";
         m_tr.source_manual = "mana";
         m_tr.source_override = "devigita";
@@ -1878,6 +2017,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Nur AVERTOJ";
         m_tr.filter_pass = "Nur PASOJ";
         m_tr.filter_review = "Nur REVIZIOJ";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Originala aŭtomata fito";
         m_tr.section_denoise = "SENBRUIGAJ OPTIOJ";
         m_tr.label_denoise_strength = "Senbruiga forto";
@@ -1905,6 +2049,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Sábháil Staid";
         m_tr.btn_refit = "Ath-Oiriúnaigh (LM)";
         m_tr.btn_override = "Forchuir CEAD";
+        m_tr.btn_force_fail = "Forchuir TEIP";
+        m_tr.btn_force_stall = "Forchuir STAD";
         m_tr.btn_revert = "Fill ar an gCéadghineach";
         m_tr.btn_reset_crop = "Athshocraigh an Scuradh";
         m_tr.btn_crop_bounds = "Scoir go Marcóirí";
@@ -1970,6 +2116,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "RABHADH";
         m_tr.qc_fail = "TEIP";
         m_tr.qc_review = "ATHBHREITHNIÚ";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "uathoibríoch";
         m_tr.source_manual = "láimhe";
         m_tr.source_override = "forchurtha";
@@ -1983,6 +2130,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "RABHADH Amháin";
         m_tr.filter_pass = "CEAD Amháin";
         m_tr.filter_review = "ATHBHREITHNIÚ Amháin";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Uath-Oiriúnú Bunaidh";
         m_tr.section_denoise = "ROGHANNA DÍCHRONAITHE";
         m_tr.label_denoise_strength = "Neart Díchronaithe";
@@ -2010,6 +2162,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Servare Statum";
         m_tr.btn_refit = "Re-accommodare (LM)";
         m_tr.btn_override = "Cogere APPROBATUM";
+        m_tr.btn_force_fail = "Cogere REPROBATUM";
+        m_tr.btn_force_stall = "Cogere STAGNATIO";
         m_tr.btn_revert = "Redire ad Originalem";
         m_tr.btn_reset_crop = "Restituere Decorpationem";
         m_tr.btn_crop_bounds = "Decorpari ad Notatores";
@@ -2075,6 +2229,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "MONITUM";
         m_tr.qc_fail = "DEFECTUM";
         m_tr.qc_review = "CENSIO";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "auto";
         m_tr.source_manual = "manuale";
         m_tr.source_override = "coactum";
@@ -2088,6 +2243,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "MONITUM Tantum";
         m_tr.filter_pass = "PROBATUM Tantum";
         m_tr.filter_review = "CENSIO Tantum";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Uath-Accommodatio Originalis";
         m_tr.section_denoise = "DELETIO ARTIFACTIS & RUIDIS";
         m_tr.label_denoise_strength = "Vis Deletionis Ruidi";
@@ -2115,6 +2275,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Lagre tilstand";
         m_tr.btn_refit = "Tilpass på nytt (LM)";
         m_tr.btn_override = "Tving GODKJENT";
+        m_tr.btn_force_fail = "Tving FEIL";
+        m_tr.btn_force_stall = "Tving STAGNASJON";
         m_tr.btn_revert = "Gjenopprett original";
         m_tr.btn_reset_crop = "Nullstill beskjæring";
         m_tr.btn_crop_bounds = "Beskjær til markører";
@@ -2180,6 +2342,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "ADVARSEL";
         m_tr.qc_fail = "IKKE GODKJENT";
         m_tr.qc_review = "EVALUERING";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "auto";
         m_tr.source_manual = "manuell";
         m_tr.source_override = "overstyrt";
@@ -2193,6 +2356,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Bare WARN";
         m_tr.filter_pass = "Bare PASS";
         m_tr.filter_review = "Bare REVIEW";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Original auto-tilpasning";
         m_tr.section_denoise = "STØYREDUKSJONSVALG";
         m_tr.label_denoise_strength = "Støyreduksjonsstyrke";
@@ -2220,6 +2388,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Сохранить состояние";
         m_tr.btn_refit = "Пересчитать (LM)";
         m_tr.btn_override = "Принудительно ОДОБРИТЬ";
+        m_tr.btn_force_fail = "Принудительно ОТКЛОНИТЬ";
+        m_tr.btn_force_stall = "Принудительно ЗАСТОЙ";
         m_tr.btn_revert = "Вернуть к исходному";
         m_tr.btn_reset_crop = "Сбросить обрезку";
         m_tr.btn_crop_bounds = "Обрезать по маркерам";
@@ -2285,6 +2455,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "ПРЕДУПРЕЖДЕНИЕ";
         m_tr.qc_fail = "ОТКЛОНЕНО";
         m_tr.qc_review = "НА ПРОВЕРКУ";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "авто";
         m_tr.source_manual = "ручной";
         m_tr.source_override = "замена";
@@ -2298,6 +2469,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Только WARN";
         m_tr.filter_pass = "Только PASS";
         m_tr.filter_review = "Только REVIEW";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Исходная автоподгонка";
         m_tr.section_denoise = "НАСТРОЙКИ ШУМОПОДАВЛЕНИЯ";
         m_tr.label_denoise_strength = "Сила шумоподавления";
@@ -2325,6 +2501,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Зберегти стан";
         m_tr.btn_refit = "Перерахувати (LM)";
         m_tr.btn_override = "Примусово СХВАЛИТИ";
+        m_tr.btn_force_fail = "Примусово ВІДХИЛИТИ";
+        m_tr.btn_force_stall = "Примусово ЗАСТІЙ";
         m_tr.btn_revert = "Повернути до вихідного";
         m_tr.btn_reset_crop = "Скинути обрізання";
         m_tr.btn_crop_bounds = "Обрізати за маркерами";
@@ -2390,6 +2568,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "ПОПЕРЕДЖЕННЯ";
         m_tr.qc_fail = "ВІДХИЛЕНО";
         m_tr.qc_review = "НА ПЕРЕВІРКУ";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "авто";
         m_tr.source_manual = "ручний";
         m_tr.source_override = "заміна";
@@ -2403,6 +2582,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Тільки WARN";
         m_tr.filter_pass = "Тільки PASS";
         m_tr.filter_review = "Тільки REVIEW";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Вихідна автопідгонка";
         m_tr.section_denoise = "НАЛАШТУВАННЯ ШУМОЗАГЛУШЕННЯ";
         m_tr.label_denoise_strength = "Сила шумозаглушення";
@@ -2430,6 +2614,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Save the state, you will";
         m_tr.btn_refit = "Refit with LM, we shall";
         m_tr.btn_override = "Force the PASS, we must";
+        m_tr.btn_force_fail = "Force FAIL, we must";
+        m_tr.btn_force_stall = "Force STALL, we must";
         m_tr.btn_revert = "Return to original, we will";
         m_tr.btn_reset_crop = "Reset the crop, you will";
         m_tr.btn_crop_bounds = "Crop to markers, we must";
@@ -2495,6 +2681,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "WARN, we must";
         m_tr.qc_fail = "FAIL, it does";
         m_tr.qc_review = "REVIEW, it needs";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "automatic";
         m_tr.source_manual = "manual";
         m_tr.source_override = "override";
@@ -2508,6 +2695,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "WARN only, yes";
         m_tr.filter_pass = "PASS only, yes";
         m_tr.filter_review = "REVIEW only, yes";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Auto Fit, original";
         m_tr.section_denoise = "DENOISE STRENGTH, TO VARY";
         m_tr.label_denoise_strength = "Denoise strength, adjust";
@@ -2535,6 +2727,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Preserve this hour's state";
         m_tr.btn_refit = "Bend the Curve Anew (LM)";
         m_tr.btn_override = "Pronounce the verdict: PASS";
+        m_tr.btn_force_fail = "Pronounce the verdict: FAIL";
+        m_tr.btn_force_stall = "Pronounce the verdict: STALL";
         m_tr.btn_revert = "Return to thine ancestral fit";
         m_tr.btn_reset_crop = "Restore the sheared boundaries";
         m_tr.btn_crop_bounds = "Shear unto the boundaries writ";
@@ -2600,6 +2794,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "HEED";
         m_tr.qc_fail = "FAILED";
         m_tr.qc_review = "REVIEW";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "mechanized";
         m_tr.source_manual = "mortal";
         m_tr.source_override = "sovereign";
@@ -2613,6 +2808,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Heeded Only";
         m_tr.filter_pass = "Approved Only";
         m_tr.filter_review = "Reviewed Only";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "The Primal Automated Fit";
         m_tr.section_denoise = "REDUCTION OF THE SIGNAL'S TURMOIL";
         m_tr.label_denoise_strength = "Strength of the Denoising Art";
@@ -2640,6 +2840,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Save the status now!";
         m_tr.btn_refit = "Do fitting again! (LM)";
         m_tr.btn_override = "Make PASS anyway! Ba-ba!";
+        m_tr.btn_force_fail = "Make FAIL! Ba-ba!";
+        m_tr.btn_force_stall = "Make STALL! Ba-ba!";
         m_tr.btn_revert = "Back to first fit!";
         m_tr.btn_reset_crop = "Reset cropper!";
         m_tr.btn_crop_bounds = "Cut-cut to ticky markers!";
@@ -2705,6 +2907,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "WARN!";
         m_tr.qc_fail = "FAIL!";
         m_tr.qc_review = "REVIEW!";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "robot";
         m_tr.source_manual = "minion";
         m_tr.source_override = "boss";
@@ -2718,6 +2921,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "WARN only!";
         m_tr.filter_pass = "PASS only!";
         m_tr.filter_review = "REVIEW only!";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Original robot-fit";
         m_tr.section_denoise = "DENOISING BANANA-SLIDERS";
         m_tr.label_denoise_strength = "Denoise power-thing";
@@ -2744,6 +2952,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Save State (Safe)";
         m_tr.btn_refit = "Re-Fit (LM) no cap";
         m_tr.btn_override = "Force PASS (Based)";
+        m_tr.btn_force_fail = "Force FAIL (Cringe)";
+        m_tr.btn_force_stall = "Force STALL (Mid)";
         m_tr.btn_revert = "Go Back to Default (Retro)";
         m_tr.btn_reset_crop = "Reset Crop (Full Screen)";
         m_tr.btn_crop_bounds = "Crop to Markers (Zoom)";
@@ -2809,6 +3019,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "WARN (Sus)";
         m_tr.qc_fail = "FAIL (L)";
         m_tr.qc_review = "REVIEW (Mid)";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "automated";
         m_tr.source_manual = "manual";
         m_tr.source_override = "override";
@@ -2822,6 +3033,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "WARN Only";
         m_tr.filter_pass = "PASS Only";
         m_tr.filter_review = "REVIEW Only";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Original Auto Fit";
         m_tr.section_denoise = "DENOISING SETTINGS";
         m_tr.label_denoise_strength = "Denoise Strength";
@@ -2849,6 +3065,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Save State (Mewing)";
         m_tr.btn_refit = "Re-Fit (Grimace Shake)";
         m_tr.btn_override = "Force PASS (W Rizz)";
+        m_tr.btn_force_fail = "Force FAIL (L Rizz)";
+        m_tr.btn_force_stall = "Force STALL (No Cap)";
         m_tr.btn_revert = "Go Back to Ohio (Retro)";
         m_tr.btn_reset_crop = "Reset Crop (Kai Cenat)";
         m_tr.btn_crop_bounds = "Crop to Markers (Looksmax)";
@@ -2915,6 +3133,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "WARN (Ohio)";
         m_tr.qc_fail = "FAIL (L Rizz)";
         m_tr.qc_review = "REVIEW (Mid)";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "automated";
         m_tr.source_manual = "manual";
         m_tr.source_override = "override";
@@ -2928,6 +3147,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "WARN Only";
         m_tr.filter_pass = "PASS Only";
         m_tr.filter_review = "REVIEW Only";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Original Auto Fit";
         m_tr.section_denoise = "DENOISING SETTINGS";
         m_tr.label_denoise_strength = "Denoise Strength";
@@ -2955,6 +3179,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Sačuvaj stanje";
         m_tr.btn_refit = "Ponovo prilagodi (LM)";
         m_tr.btn_override = "Primoraj PROLAZ";
+        m_tr.btn_force_fail = "Primoraj NEUSPJEH";
+        m_tr.btn_force_stall = "Primoraj ZASTOJ";
         m_tr.btn_revert = "Vrati na originalno";
         m_tr.btn_reset_crop = "Resetuj isecanje";
         m_tr.btn_crop_bounds = "Iseci na markere";
@@ -3021,6 +3247,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "UPOZORENJE";
         m_tr.qc_fail = "NEUSPEH";
         m_tr.qc_review = "PREGLED";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "automatski";
         m_tr.source_manual = "manuelno";
         m_tr.source_override = "korekcija";
@@ -3034,6 +3261,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Samo UPOZORENJE";
         m_tr.filter_pass = "Samo PROLAZ";
         m_tr.filter_review = "Samo PREGLED";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Originalni auto-fit";
         m_tr.section_denoise = "OPCIJE ZA UKLANJANJE ŠUMA";
         m_tr.label_denoise_strength = "Jačina uklanjanja šuma";
@@ -3061,6 +3293,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Запазване на състояние";
         m_tr.btn_refit = "Повторно напасване (LM)";
         m_tr.btn_override = "Принудително ОДОБРЯВАНЕ";
+        m_tr.btn_force_fail = "Принудително ОТХВЪРЛЯНЕ";
+        m_tr.btn_force_stall = "Принудително СТАГНАЦИЯ";
         m_tr.btn_revert = "Възстановяване на оригинал";
         m_tr.btn_reset_crop = "Нулиране на изрязването";
         m_tr.btn_crop_bounds = "Изрязване по маркери";
@@ -3127,6 +3361,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "ПРЕДУПРЕЖДЕНИЕ";
         m_tr.qc_fail = "ГРЕШКА";
         m_tr.qc_review = "ПРЕГЛЕД";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "автоматично";
         m_tr.source_manual = "ръчно";
         m_tr.source_override = "корекция";
@@ -3140,6 +3375,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Само ПРЕДУПРЕЖДЕНИЕ";
         m_tr.filter_pass = "Само ОДОБРЕНО";
         m_tr.filter_review = "Само ПРЕГЛЕД";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Оригинално автоматично напасване";
         m_tr.section_denoise = "ОПЦИИ ЗА ШУМОПОТИСКАНЕ";
         m_tr.label_denoise_strength = "Сила на шумопотискане";
@@ -3167,6 +3407,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Αποθήκευση Κατάστασης";
         m_tr.btn_refit = "Επαναπροσαρμογή (LM)";
         m_tr.btn_override = "Επιβολή ΕΓΚΡΙΣΗΣ";
+        m_tr.btn_force_fail = "Επιβολή ΑΠΟΤΥΧΙΑΣ";
+        m_tr.btn_force_stall = "Επιβολή ΣΤΑΣΗΣ";
         m_tr.btn_revert = "Επαναφορά στο Αρχικό";
         m_tr.btn_reset_crop = "Επαναφορά Περικοπής";
         m_tr.btn_crop_bounds = "Περικοπή στους Δείκτες";
@@ -3233,6 +3475,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "ΠΡΟΕΙΔΟΠΟΙΗΣΗ";
         m_tr.qc_fail = "ΑΠΟΤΥΧΙΑ";
         m_tr.qc_review = "ΑΝΑΘΕΩΡΗΣΗ";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "αυτόματο";
         m_tr.source_manual = "χειροκίνητο";
         m_tr.source_override = "παρέμβαση";
@@ -3246,6 +3489,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Μόνο ΠΡΟΕΙΔΟΠΟΙΗΣΗ";
         m_tr.filter_pass = "Μόνο ΕΓΚΡΙΣΗ";
         m_tr.filter_review = "Μόνο ΑΝΑΘΕΩΡΗΣΗ";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Αρχική Αυτόματη Προσαρμογή";
         m_tr.section_denoise = "ΕΠΙΛΟΓΕΣ ΑΠΟΣΒΕΣΗΣ ΘΟΡΥΒΟΥ";
         m_tr.label_denoise_strength = "Ισχύς Απόσβεσης";
@@ -3273,6 +3521,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Σῴζειν τὸ καθεστώς";
         m_tr.btn_refit = "Αὖθις προσαρμότteen (LM)";
         m_tr.btn_override = "Βιάζεσθαι ΕΓΚΡΙΣΙΝ";
+        m_tr.btn_force_fail = "Βιάζεσθαι ΑΠΟΤΥΧΙΑΝ";
+        m_tr.btn_force_stall = "Βιάζεσθαι ΣΤΑΣΙΝ";
         m_tr.btn_revert = "Επαναφέρειν εἰς τὸ ἀρχαῖον";
         m_tr.btn_reset_crop = "Αὖθις ὁρίζειν τὴν ὄψιν";
         m_tr.btn_crop_bounds = "Περικόπτειν πρὸς τοὺς δείκτας";
@@ -3339,6 +3589,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "ΝΟΥΘΕΤΗΣΙΣ";
         m_tr.qc_fail = "ΣΦΑΛΜΑ";
         m_tr.qc_review = "ΕΞΕΤΑΣΙΣ";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "αὐτόματον";
         m_tr.source_manual = "χειροποίητον";
         m_tr.source_override = "βία";
@@ -3352,6 +3603,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Μόνον ΝΟΥΘΕΤΗΣΙΣ";
         m_tr.filter_pass = "Μόνον ΕΓΚΡΙΣΙΣ";
         m_tr.filter_review = "Μόνον ΕΞΕΤΑΣΙΣ";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Αρχέγονος αὐτόματος προσαρμογή";
         m_tr.section_denoise = "ΚΑΘΑΡΣΙΣ ΘΟΡΥΒΟΥ";
         m_tr.label_denoise_strength = "Ισχὺς καθάρσεως";
@@ -3379,6 +3635,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Durumu Kaydet";
         m_tr.btn_refit = "Yeniden Fit Et (LM)";
         m_tr.btn_override = "Geçmeye Zorla";
+        m_tr.btn_force_fail = "Başarısızlığa Zorla";
+        m_tr.btn_force_stall = "Durgunluğa Zorla";
         m_tr.btn_revert = "Orijinale Dön";
         m_tr.btn_reset_crop = "Kırpmayı Sıfırla";
         m_tr.btn_crop_bounds = "İşaretçilere Kırp";
@@ -3445,6 +3703,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "UYARI";
         m_tr.qc_fail = "HATA";
         m_tr.qc_review = "İNCELEME";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "otomatik";
         m_tr.source_manual = "manuel";
         m_tr.source_override = "manuel müdahale";
@@ -3458,6 +3717,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Sadece UYARI";
         m_tr.filter_pass = "Sadece GEÇTİ";
         m_tr.filter_review = "Sadece İNCELEME";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Orijinal Oto Fit";
         m_tr.section_denoise = "GÜRÜLTÜ GİDERME SEÇENEKLERİ";
         m_tr.label_denoise_strength = "Gürültü Giderme Gücü";
@@ -3485,6 +3749,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Desa Estat";
         m_tr.btn_refit = "Reajusta (LM)";
         m_tr.btn_override = "Força APROVAT";
+        m_tr.btn_force_fail = "Força FALLAT";
+        m_tr.btn_force_stall = "Força ESTANCAT";
         m_tr.btn_revert = "Restaura Original";
         m_tr.btn_reset_crop = "Reinicia Retall";
         m_tr.btn_crop_bounds = "Retalla als Marcadors";
@@ -3551,6 +3817,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "ALERTA";
         m_tr.qc_fail = "FALLIT";
         m_tr.qc_review = "REVISIÓ";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "auto";
         m_tr.source_manual = "manual";
         m_tr.source_override = "override";
@@ -3564,6 +3831,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Només WARN";
         m_tr.filter_pass = "Només PASS";
         m_tr.filter_review = "Només REVIEW";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Ajust Auto Original";
         m_tr.section_denoise = "OPCIONS DE REDUCCIÓ DE SOROLL";
         m_tr.label_denoise_strength = "Força de Reducció";
@@ -3591,6 +3863,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Stoor Status";
         m_tr.btn_refit = "Pas Weer (LM)";
         m_tr.btn_override = "Forseer GOEDKEURING";
+        m_tr.btn_force_fail = "Forseer MISLUKKING";
+        m_tr.btn_force_stall = "Forseer STAGNASIE";
         m_tr.btn_revert = "Herstel na Oorspronklike";
         m_tr.btn_reset_crop = "Herstel Snit";
         m_tr.btn_crop_bounds = "Sny na Merkers";
@@ -3657,6 +3931,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "WAARSKU";
         m_tr.qc_fail = "FAAL";
         m_tr.qc_review = "HERSIEN";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "outomaties";
         m_tr.source_manual = "handmatig";
         m_tr.source_override = "override";
@@ -3670,6 +3945,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Slegs WAARSKU";
         m_tr.filter_pass = "Slegs SLAAG";
         m_tr.filter_review = "Slegs HERSIEN";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Oorspronklike Outo-passing";
         m_tr.section_denoise = "GERAASVERMINDERING OPSIES";
         m_tr.label_denoise_strength = "Sterkte";
@@ -3697,6 +3977,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "𓉐𓋹𓏝";
         m_tr.btn_refit = "𓋹𓆣";
         m_tr.btn_override = "𓆄𓊹";
+        m_tr.btn_force_fail = "𓆄𓀀";
+        m_tr.btn_force_stall = "𓆄𓈖";
         m_tr.btn_revert = "𓈗𓏤";
         m_tr.btn_reset_crop = "𓁴𓈗";
         m_tr.btn_crop_bounds = "𓁴𓏦";
@@ -3763,6 +4045,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "𓏏𓏤";
         m_tr.qc_fail = "𓏏";
         m_tr.qc_review = "𓁻";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "𓆣";
         m_tr.source_manual = "𓀀";
         m_tr.source_override = "𓊹";
@@ -3776,6 +4059,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "𓏏𓏤";
         m_tr.filter_pass = "𓆄";
         m_tr.filter_review = "𓁻";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "𓆣 𓋹";
         m_tr.section_denoise = "𓂋 𓈗";
         m_tr.label_denoise_strength = "𓂝";
@@ -3812,6 +4100,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Tallenna tila";
         m_tr.btn_refit = "Sovita uudelleen (LM)";
         m_tr.btn_override = "Pakota HYVÄKSYNTÄ";
+        m_tr.btn_force_fail = "Pakota EPÄONNISTUNUT";
+        m_tr.btn_force_stall = "Pakota PYSÄHTYMINEN";
         m_tr.btn_revert = "Palauta alkuperäinen";
         m_tr.btn_reset_crop = "Nollaa rajaus";
         m_tr.btn_crop_bounds = "Rajaa merkkeihin";
@@ -3878,6 +4168,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "VAROITUS";
         m_tr.qc_fail = "HYLÄTTY";
         m_tr.qc_review = "TARKISTUS";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "automaattinen";
         m_tr.source_manual = "manuaalinen";
         m_tr.source_override = "override";
@@ -3891,6 +4182,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Vain WARN";
         m_tr.filter_pass = "Vain PASS";
         m_tr.filter_review = "Vain REVIEW";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Alkuperäinen automaattisovitus";
         m_tr.section_denoise = "KOHINANVAIMENNUKSEN ASETUKSET";
         m_tr.label_denoise_strength = "Vaimennuksen voimakkuus";
@@ -3918,6 +4214,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "ᐸᐸᑦᑎᓂᖅ ᐋᖅᑭᓯᒪᔪᖅ";
         m_tr.btn_refit = "ᐋᖅᑭᒃᑲᓐᓂᕐᓂᖅ (LM)";
         m_tr.btn_override = "PASS ᐋᖅᑭᒃᑕᐅᓯᒪᔪᖅ";
+        m_tr.btn_force_fail = "FAIL ᐋᖅᑭᒃᑕᐅᓯᒪᔪᖅ";
+        m_tr.btn_force_stall = "STALL ᐋᖅᑭᒃᑕᐅᓯᒪᔪᖅ";
         m_tr.btn_revert = "ᐱᒋᐊᕐᕕᖓᓄᑦ ᐅᑎᕐᓂᖅ";
         m_tr.btn_reset_crop = "ᐋᖅᑭᒋᐊᒃᑲᓐᓂᕐᓂᖅ ᖁᙱᐊᕈᑎ";
         m_tr.btn_crop_bounds = "ᖁᙱᐊᕈᑎ ᓇᓗᓇᐃᒃᑯᑕᓄᑦ";
@@ -3984,6 +4282,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "ᖃᐅᔨᓴᕈᑎ";
         m_tr.qc_fail = "ᐱᔭᕇᙱᑦᑐᖅ";
         m_tr.qc_review = "REVIEW";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "auto";
         m_tr.source_manual = "ᐊᒡᒐᖕᒧᑦ";
         m_tr.source_override = "override";
@@ -3997,6 +4296,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "WARN Only";
         m_tr.filter_pass = "PASS Only";
         m_tr.filter_review = "REVIEW Only";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Original Auto Fit";
         m_tr.section_denoise = "DENOISING OPTIONS";
         m_tr.label_denoise_strength = "Denoise Strength";
@@ -4024,6 +4328,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Simpan Status";
         m_tr.btn_refit = "Cocokkan Ulang (LM)";
         m_tr.btn_override = "Paksa LULUS";
+        m_tr.btn_force_fail = "Paksa GAGAL";
+        m_tr.btn_force_stall = "Paksa MACET";
         m_tr.btn_revert = "Kembalikan ke Asli";
         m_tr.btn_reset_crop = "Atur Ulang Pangkas";
         m_tr.btn_crop_bounds = "Pangkas ke Penanda";
@@ -4099,6 +4405,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "PERINGATAN";
         m_tr.qc_fail = "GAGAL";
         m_tr.qc_review = "TINJAUAN";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "otomatis";
         m_tr.source_manual = "manual";
         m_tr.source_override = "pengabaian";
@@ -4112,6 +4419,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Hanya PERINGATAN";
         m_tr.filter_pass = "Hanya LULUS";
         m_tr.filter_review = "Hanya TINJAUAN";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Pencocokan Otomatis Asli";
         m_tr.section_denoise = "PILIHAN DENOISING";
         m_tr.label_denoise_strength = "Kekuatan Denoise";
@@ -4139,6 +4451,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "Lưu Trạng Thái";
         m_tr.btn_refit = "Khớp Lại (LM)";
         m_tr.btn_override = "Bắt Buộc ĐẠT";
+        m_tr.btn_force_fail = "Bắt Buộc THẤT BẠI";
+        m_tr.btn_force_stall = "Bắt Buộc ĐÌNH TRỆ";
         m_tr.btn_revert = "Khôi Phục Ban Đầu";
         m_tr.btn_reset_crop = "Đặt Lại Cắt Xén";
         m_tr.btn_crop_bounds = "Cắt Theo Điểm Đánh Dấu";
@@ -4214,6 +4528,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "CẢNH BÁO";
         m_tr.qc_fail = "LỖI";
         m_tr.qc_review = "XEM XÉT";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "tự động";
         m_tr.source_manual = "thủ công";
         m_tr.source_override = "ghi đè";
@@ -4227,6 +4542,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "Chỉ CẢNH BÁO";
         m_tr.filter_pass = "Chỉ ĐẠT";
         m_tr.filter_review = "Chỉ XEM XÉT";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Khớp Tự Động Gốc";
         m_tr.section_denoise = "TÙY CHỌN KHỬ NHIỄU";
         m_tr.label_denoise_strength = "Mức Khử Nhiễu";
@@ -4254,6 +4574,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "I-save ang Estado";
         m_tr.btn_refit = "I-fit Muli (LM)";
         m_tr.btn_override = "Ipasapilit ang PASS";
+        m_tr.btn_force_fail = "Force FAIL";
+        m_tr.btn_force_stall = "Force STALL";
         m_tr.btn_revert = "Ibalik sa Orihinal";
         m_tr.btn_reset_crop = "I-reset ang Crop";
         m_tr.btn_crop_bounds = "I-crop sa mga Pananda";
@@ -4329,6 +4651,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "WARN";
         m_tr.qc_fail = "FAIL";
         m_tr.qc_review = "REVIEW";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "auto";
         m_tr.source_manual = "manual";
         m_tr.source_override = "override";
@@ -4342,6 +4665,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "WARN Lamang";
         m_tr.filter_pass = "PASS Lamang";
         m_tr.filter_review = "REVIEW Lamang";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "Orihinal na Auto Fit";
         m_tr.section_denoise = "MGA OPSYON SA PAG-DENOISE";
         m_tr.label_denoise_strength = "Lakas ng Denoise";
@@ -4369,6 +4697,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "บันทึกสถานะ";
         m_tr.btn_refit = "ปรับพอดีใหม่ (LM)";
         m_tr.btn_override = "บังคับผ่าน";
+        m_tr.btn_force_fail = "Force FAIL";
+        m_tr.btn_force_stall = "Force STALL";
         m_tr.btn_revert = "ย้อนกลับเป็นค่าเริ่มต้น";
         m_tr.btn_reset_crop = "รีเซ็ตการครอบตัด";
         m_tr.btn_crop_bounds = "ครอบตัดตามเครื่องหมาย";
@@ -4444,6 +4774,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "เตือน";
         m_tr.qc_fail = "ล้มเหลว";
         m_tr.qc_review = "ตรวจสอบ";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "อัตโนมัติ";
         m_tr.source_manual = "ปรับเอง";
         m_tr.source_override = "เขียนทับ";
@@ -4457,6 +4788,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "เตือนเท่านั้น";
         m_tr.filter_pass = "ผ่านเท่านั้น";
         m_tr.filter_review = "ตรวจสอบเท่านั้น";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "การปรับพอดีอัตโนมัติดั้งเดิม";
         m_tr.section_denoise = "ตัวเลือกลดสัญญาณรบกวน";
         m_tr.label_denoise_strength = "ระดับการลดสัญญาณรบกวน";
@@ -4484,6 +4820,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "स्थिति सहेजें";
         m_tr.btn_refit = "पुनः फिट करें (LM)";
         m_tr.btn_override = "पास करने के लिए बाध्य करें";
+        m_tr.btn_force_fail = "Force FAIL";
+        m_tr.btn_force_stall = "Force STALL";
         m_tr.btn_revert = "मूल पर वापस जाएं";
         m_tr.btn_reset_crop = "क्रॉप रीसेट करें";
         m_tr.btn_crop_bounds = "मार्कर तक क्रॉप करें";
@@ -4559,6 +4897,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "चेतावनी";
         m_tr.qc_fail = "विफल";
         m_tr.qc_review = "समीक्षा";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "स्वचालित";
         m_tr.source_manual = "मैन्युअल";
         m_tr.source_override = "ओवरराइड";
@@ -4572,6 +4911,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "केवल चेतावनी";
         m_tr.filter_pass = "केवल पास";
         m_tr.filter_review = "केवल समीक्षा";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "मूल ऑटो फिट";
         m_tr.section_denoise = "शोर कम करने के विकल्प";
         m_tr.label_denoise_strength = "शोर नियंत्रण स्तर";
@@ -4599,6 +4943,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "நிலையை சேமி";
         m_tr.btn_refit = "மீண்டும் பொருத்து (LM)";
         m_tr.btn_override = "கட்டாய அனுமதி";
+        m_tr.btn_force_fail = "Force FAIL";
+        m_tr.btn_force_stall = "Force STALL";
         m_tr.btn_revert = "அசல் நிலைக்கு திரும்பு";
         m_tr.btn_reset_crop = "நறுக்கலை மீட்டமை";
         m_tr.btn_crop_bounds = "குறிகளுக்கு நறுக்கு";
@@ -4674,6 +5020,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "எச்சரிக்கை";
         m_tr.qc_fail = "தோல்வி";
         m_tr.qc_review = "மதிப்பாய்வு";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "தானியங்கி";
         m_tr.source_manual = "கைமுறை";
         m_tr.source_override = "மேலெழுதப்பட்டது";
@@ -4687,6 +5034,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "எச்சரிக்கை மட்டும்";
         m_tr.filter_pass = "அனுமதி மட்டும்";
         m_tr.filter_review = "மதிப்பாய்வு மட்டும்";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "அசல் தானியங்கி பொருத்தம்";
         m_tr.section_denoise = "இரைச்சல் நீக்க விருப்பங்கள்";
         m_tr.label_denoise_strength = "இரைச்சல் நீக்க அளவு";
@@ -4714,6 +5066,8 @@ void BolusApp::update_locale() {
         m_tr.btn_save_state = "অবস্থা সংরক্ষণ করুন";
         m_tr.btn_refit = "পুনরায় ফিট করুন (LM)";
         m_tr.btn_override = "পাস করতে বাধ্য করুন";
+        m_tr.btn_force_fail = "Force FAIL";
+        m_tr.btn_force_stall = "Force STALL";
         m_tr.btn_revert = "মূল অবস্থায় ফিরে যান";
         m_tr.btn_reset_crop = "ক্রপ রিসেট করুন";
         m_tr.btn_crop_bounds = "মার্কার অনুযায়ী ক্রপ করুন";
@@ -4789,6 +5143,7 @@ void BolusApp::update_locale() {
         m_tr.qc_warn = "সতর্কতা";
         m_tr.qc_fail = "ব্যর্থ";
         m_tr.qc_review = "পর্যালোচনা";
+        m_tr.qc_stall = "STALL";
         m_tr.source_auto = "স্বয়ংক্রিয়";
         m_tr.source_manual = "ম্যানুয়াল";
         m_tr.source_override = "ওভাররাইড";
@@ -4802,6 +5157,11 @@ void BolusApp::update_locale() {
         m_tr.filter_warn = "শুধুমাত্র সতর্কতা";
         m_tr.filter_pass = "শুধুমাত্র পাস";
         m_tr.filter_review = "শুধুমাত্র পর্যালোচনা";
+        m_tr.filter_stall = "STALL Only";
+        m_tr.label_sort = "Sort:";
+        m_tr.sort_roi_number = "ROI Number";
+        m_tr.sort_qc_severity = "QC Severity";
+        m_tr.sort_cnr_asc = "CNR (Worst First)";
         m_tr.label_auto_fit = "মূল অটো ফিট";
         m_tr.section_denoise = "ডি-নয়েজিং বিকল্প";
         m_tr.label_denoise_strength = "ডি-নয়েজ শক্তি";

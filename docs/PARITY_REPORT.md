@@ -45,7 +45,7 @@ Both pipelines show exact numerical agreement (within standard floating-point pr
 ### We Recommend the **C++ Implementation** for Production, Batch Analysis, and Reviews (GUI)
 For daily research, cohort studies, and manual review triage, the **C++ ecosystem** is highly recommended:
 * **Time Efficiency**: Parallel fitting reduces cohort-scale computational loads from hours to seconds.
-* **Bolus Tracking Studio**: The **native C++ Bolus Tracking Studio** (`cpp/src/bolus_gui.cpp`) is a single-binary desktop app built with Dear ImGui, ImPlot, and GLFW. It provides a modern triage interface for TIFF loading, fitting, and interactive plot rendering. Operators can review, filter (PASS/WARN/FAIL/REVIEW/STALL), manually re-fit (draggable onset, peak, end markers), crop fitting ranges, and save directly — all with the signature MCM dark theme and 44-language localization.
+* **Bolus Tracking Studio**: The **native C++ Bolus Tracking Studio** (`cpp/src/bolus_gui.cpp`) is a single-binary desktop app built with Dear ImGui, ImPlot, and GLFW. It provides a modern triage interface for TIFF loading, fitting, and interactive plot rendering. Operators can review, filter (PASS/WARN/FAIL/REVIEW/STALL), sort by fit quality (ROI#, QC severity, or CNR), manually re-fit (draggable onset, peak, end markers), override QC status (Force PASS/FAIL/STALL), crop fitting ranges, and save directly — all with the signature MCM dark theme and 44-language localization.
 * **Single Backend / High Portability**: The C++ backend can be built on Windows, Linux, and macOS. The native app requires only cmake and native dependencies (Eigen, libtiff, GLFW).
 
 ### We Recommend the **Python Implementation** for Prototyping and Scripting Extensions

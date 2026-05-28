@@ -261,6 +261,7 @@ The interface is organized into three main regions:
 * **Top Bar**: Application title, language selector dropdown, and action buttons — **Load** (open subject data), **Clear** (unload dataset), **Save** (export CSV), **Reset** (revert all changes), and **Run Full Pipeline** (green, opens batch processing modal).
 * **Sidebar** (left panel):
   - **Filter dropdown**: Show all ROIs, or isolate by QC status (WARN/FAIL only, STALL only, REVIEW only).
+  - **Sort dropdown**: Order ROIs by ROI Number (default), QC Severity (worst first: FAIL → STALL → WARN → REVIEW → PASS), or CNR (lowest first for quick triage).
   - **Triage navigation**: Previous/Next problem buttons to jump between flagged ROIs.
   - **ROI list**: Scrollable list of all ROIs with colour-coded QC badges.
   - **Dataset info**: Current subject, experiment, frame rate, and ROI count.
@@ -271,7 +272,7 @@ The interface is organized into three main regions:
   - **3-column control grid**:
     1. **Markers readout**: Numeric display of current onset, peak, and end times (seconds).
     2. **Crop & Denoise**: Crop range controls and the Denoise Strength slider (0.5× to 3.0×).
-    3. **Fit actions**: Re-Fit (LM), Force Pass / Override, and Revert buttons.
+    3. **Fit actions**: Re-Fit (LM), Force PASS, Force FAIL, Force STALL, and Revert buttons.
   - **Hemodynamic parameters table**: Displays fitted Amplitude, Time-to-Peak, FWHM, Baseline, SNR, CNR, and AUC.
   - **Kinetics table**: Displays derived transit metrics — Onset Time (OnT), Onset Time in Scan (OnTSc), Transit Time bounds (TTlb, TTm, TThb), and suggested vessel type classification.
 
@@ -289,10 +290,11 @@ Each ROI in the sidebar displays a colour-coded QC status badge:
 
 #### Key GUI Workflows:
 * **Triage Queue Sidebar**: Quickly review all ROIs with colour-coded QC badges. Use the filter dropdown to isolate flagged cases.
+* **Sort by Fit Quality**: Use the **Sort** dropdown to order ROIs by QC Severity (worst first) or CNR (lowest first) instead of ROI number — this lets you triage the worst fits first.
 * **Interactive Marker Adjustments**: Drag onset, peak, and end vertical lines directly on the plot.
 * **On-the-Fly Fitting Cropping**: Adjust the crop range slider to exclude baseline noise or recirculation tails.
 * **Manual Re-fitting**: Click **Re-Fit** to run a constrained Levenberg-Marquardt fit within your crop window.
-* **Force Pass / Override**: If a re-fit still flags WARN but the trace looks correct, click **Override** to manually mark as PASS.
+* **Force PASS / Force FAIL / Force STALL**: Manually override the QC status of any ROI. Use **Force PASS** if a WARN trace looks correct, **Force FAIL** to reject a trace that passed QC but looks incorrect, or **Force STALL** to flag a capillary stall that was not auto-detected.
 * **Interactive Denoising Strength**: Adjust the **Denoise Strength** slider (0.5× to 3.0×) to interactively control trace smoothing.
 * **Revert / Reset**: Revert individual ROIs or reset all changes. A confirmation modal prevents accidental data loss.
 * **Clear Subject Data**: Unload all datasets and return to the welcome screen.
@@ -355,7 +357,9 @@ If a subject folder has capillary fits flagged as `WARN` or `FAIL`, use the C++ 
 5. **Run the Constrained Re-fit:**
    * Click **Re-Fit (LM)**. The C++ optimizer will run a Levenberg-Marquardt fitting step *exclusively* within the cropped window you defined in Step 3, using your dragged markers from Step 4 as initial values.
    * The fit will immediately update on screen. If it satisfies the QC constraints, its status in the sidebar will update (e.g. to a green `PASS` or `WARN` manually-fit status).
-   * *Override (Force PASS):* If the Re-Fit still results in a `WARN` but you visually confirm the parameters are correct, click **Force PASS** (or **Forcer CONFORME** in French) to manually lock the ROI as a valid pass.
+    * *Override (Force PASS):* If the Re-Fit still results in a `WARN` but you visually confirm the parameters are correct, click **Force PASS** (or **Forcer CONFORME** in French) to manually lock the ROI as a valid pass.
+    * *Force FAIL:* If a trace passed automatic QC but looks incorrect on visual inspection, click **Force FAIL** to reject it.
+    * *Force STALL:* If a trace shows capillary stall characteristics that were not auto-detected, click **Force STALL** to flag it as a physiological stall event.
 6. **Save and Export:**
    * When you are satisfied with the manually adjusted fits, click **Save CSV** in the sidebar. The updated fitting parameters (Amplitude, FWHM, Time to Peak, AUC, etc.) are written directly to the output CSV. Note that all timing parameters are exported relative to the *original, uncropped* absolute time scale so that manual crop bounds do not bias the physical transit times.
 

@@ -130,7 +130,7 @@ cmake --build . --target bolus_tracking_gui -j8
 open "Bolus Tracking Studio.app"   # macOS
 ```
 
-The app includes 42 languages, integrated batch pipeline ("Run Full Pipeline" button), interactive curve fitting, drag-and-drop onset/peak/end markers, ROI MIP viewer, and full triage workflow.
+The app includes 42 languages, integrated batch pipeline ("Run Full Pipeline" button), interactive curve fitting, drag-and-drop onset/peak/end markers, ROI MIP viewer, sort-by-fit-quality option (ROI#, QC severity, or CNR), Force PASS/FAIL/STALL override buttons, STALL badge support, and full triage workflow.
 
 > [!TIP]
 > **Create a distributable DMG:** Run `./macos/create_dmg.sh` to build and package the app.

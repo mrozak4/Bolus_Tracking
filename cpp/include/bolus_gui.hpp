@@ -77,6 +77,8 @@ struct Translation {
     std::string btn_save_state;
     std::string btn_refit;
     std::string btn_override;
+    std::string btn_force_fail;
+    std::string btn_force_stall;
     std::string btn_revert;
     std::string btn_reset_crop;
     std::string btn_crop_bounds;
@@ -158,7 +160,8 @@ struct Translation {
     std::string qc_pass;
     std::string qc_warn;
     std::string qc_fail;
-    std::string qc_review;
+    std::string qc_review = "REVIEW";
+    std::string qc_stall = "STALL";
     std::string source_auto;
     std::string source_manual;
     std::string source_override;
@@ -172,6 +175,11 @@ struct Translation {
     std::string filter_warn;
     std::string filter_pass;
     std::string filter_review;
+    std::string filter_stall;
+    std::string label_sort;
+    std::string sort_roi_number;
+    std::string sort_qc_severity;
+    std::string sort_cnr_asc;
     std::string label_auto_fit;
     
     // New translation fields
@@ -336,7 +344,8 @@ private:
     std::vector<RoiState> m_gui_roi_states_backup;
 
     int m_selected_roi_idx = -1;
-    int m_qc_filter_type = 0; // 0=All, 1=Flagged, 2=FAIL, 3=WARN, 4=PASS, 5=REVIEW
+    int m_qc_filter_type = 0; // 0=All, 1=Flagged, 2=FAIL, 3=WARN, 4=PASS, 5=REVIEW, 6=STALL
+    int m_sort_mode = 0; // 0=ROI#, 1=QC severity, 2=CNR ascending
     std::vector<int> m_triage_queue;
     int m_queue_pos = -1;
 
@@ -408,6 +417,10 @@ private:
 
     // CSV picker (when folder has multiple results CSVs)
     std::vector<std::string> m_csv_candidates;
+
+    // Deferred load from pipeline modal (popup can't open from inside another popup)
+    std::string m_pending_pipeline_load;  // single CSV to load after modal closes
+    std::vector<std::string> m_pending_pipeline_csvs;  // multiple CSVs for picker
 
     // UI subsections
     void draw_gui();
