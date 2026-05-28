@@ -99,6 +99,45 @@ if [[ -d "${PROJECT_ROOT}/resources" ]]; then
     echo "    Runtime resources copied into bundle."
 fi
 
+# ---- Bundle dynamic libraries (libtiff + deps) -----------------------------
+EXECUTABLE="${BUNDLE_DIR}/Contents/MacOS/${APP_NAME}"
+LIBS_DIR="${BUNDLE_DIR}/Contents/libs"
+echo "==> Bundling dynamic libraries into app..."
+
+if command -v dylibbundler &>/dev/null; then
+    mkdir -p "${LIBS_DIR}"
+    dylibbundler -od -b \
+        -x "${EXECUTABLE}" \
+        -d "${LIBS_DIR}" \
+        -p @executable_path/../libs/
+    echo "    dylibbundler: done."
+else
+    echo "    WARNING: dylibbundler not found. Bundling manually..."
+    mkdir -p "${LIBS_DIR}"
+    # Copy all non-system dylibs referenced by the executable
+    for lib in $(otool -L "${EXECUTABLE}" | awk '/\/usr\/local\/|\/opt\/homebrew\//{print $1}'); do
+        echo "    Copying ${lib}..."
+        cp -L "${lib}" "${LIBS_DIR}/"
+        lib_name="$(basename "${lib}")"
+        chmod 644 "${LIBS_DIR}/${lib_name}"
+        # Rewrite the reference in the main executable
+        install_name_tool -change "${lib}" "@executable_path/../libs/${lib_name}" "${EXECUTABLE}"
+        # Also rewrite the id of the copied lib
+        install_name_tool -id "@executable_path/../libs/${lib_name}" "${LIBS_DIR}/${lib_name}"
+        # Fix transitive deps inside the copied lib
+        for dep in $(otool -L "${LIBS_DIR}/${lib_name}" | awk '/\/usr\/local\/|\/opt\/homebrew\//{print $1}'); do
+            dep_name="$(basename "${dep}")"
+            if [[ ! -f "${LIBS_DIR}/${dep_name}" ]]; then
+                cp -L "${dep}" "${LIBS_DIR}/"
+                chmod 644 "${LIBS_DIR}/${dep_name}"
+                install_name_tool -id "@executable_path/../libs/${dep_name}" "${LIBS_DIR}/${dep_name}"
+            fi
+            install_name_tool -change "${dep}" "@executable_path/../libs/${dep_name}" "${LIBS_DIR}/${lib_name}"
+        done
+    done
+    echo "    Manual bundling: done."
+fi
+
 # ---- Code-sign the bundle (ad-hoc) -----------------------------------------
 echo "==> Ad-hoc code-signing the app bundle..."
 codesign --force --deep -s - "${BUNDLE_DIR}"

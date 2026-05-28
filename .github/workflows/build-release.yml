@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install C++ dependencies
-        run: brew install cmake eigen libtiff
+        run: brew install cmake eigen libtiff dylibbundler
       - name: Build native GUI and create DMG
         run: bash macos/create_dmg.sh --arch ${{ matrix.cmake_arch }}
       - name: Upload DMG artifact
