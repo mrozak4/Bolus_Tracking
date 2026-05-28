@@ -3344,23 +3344,27 @@ void BolusApp::draw_gui() {
                     }
                 }
             } else {
-                // Folder selected — scan for a results CSV inside
+                // Folder selected — collect all results CSVs
                 std::filesystem::path dir_p = m_browser.current_path;
-                std::string found_csv;
+                std::vector<std::string> csvs;
                 for (const auto& entry : std::filesystem::directory_iterator(dir_p)) {
                     if (!entry.is_regular_file()) continue;
                     std::string fname = entry.path().filename().string();
                     std::string ext = entry.path().extension().string();
                     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
                     if (ext == ".csv" && fname.find("_results") != std::string::npos) {
-                        found_csv = entry.path().string();
-                        break;
+                        csvs.push_back(entry.path().string());
                     }
                 }
-                if (!found_csv.empty()) {
-                    if (!load_dataset(found_csv)) {
+                std::sort(csvs.begin(), csvs.end());
+
+                if (csvs.size() == 1) {
+                    if (!load_dataset(csvs[0])) {
                         ImGui::OpenPopup("##LoadError");
                     }
+                } else if (csvs.size() > 1) {
+                    m_csv_candidates = csvs;
+                    ImGui::OpenPopup("##CsvPicker");
                 } else {
                     m_load_error_msg = "No *_results*.csv file found in folder:\n" + dir_p.string();
                     ImGui::OpenPopup("##LoadError");
@@ -3371,6 +3375,38 @@ void BolusApp::draw_gui() {
         draw_mip_modal();
         draw_pipeline_modal();
         
+        // CSV picker popup (multiple results files in folder)
+        if (ImGui::BeginPopupModal("##CsvPicker", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("Multiple results files found — select one:");
+            ImGui::Separator();
+            ImGui::BeginChild("##CsvList", ImVec2(500, std::min(300.0f, m_csv_candidates.size() * 28.0f + 8.0f)), true);
+            for (size_t i = 0; i < m_csv_candidates.size(); ++i) {
+                std::string display_name = std::filesystem::path(m_csv_candidates[i]).filename().string();
+                if (ImGui::Selectable(display_name.c_str(), false)) {
+                    std::string chosen = m_csv_candidates[i];
+                    m_csv_candidates.clear();
+                    ImGui::CloseCurrentPopup();
+                    ImGui::EndChild();
+                    ImGui::EndPopup();
+                    if (!load_dataset(chosen)) {
+                        m_load_error_msg = "Failed to load:\n" + chosen + "\n\n" + m_load_error_msg;
+                        ImGui::OpenPopup("##LoadError");
+                    }
+                    goto after_popups;
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("%s", m_csv_candidates[i].c_str());
+                }
+            }
+            ImGui::EndChild();
+            ImGui::Separator();
+            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+                m_csv_candidates.clear();
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+
         // Error popup for failed data loading
         if (ImGui::BeginPopupModal("##LoadError", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::TextColored(ImVec4(0.88f, 0.35f, 0.20f, 1.0f), "Failed to Load Subject Data");
@@ -3383,6 +3419,7 @@ void BolusApp::draw_gui() {
             }
             ImGui::EndPopup();
         }
+        after_popups:
         
         static bool last_item_active = false;
         bool any_item_active = ImGui::IsAnyItemActive();

@@ -406,6 +406,9 @@ private:
     // Load error reporting
     std::string m_load_error_msg;
 
+    // CSV picker (when folder has multiple results CSVs)
+    std::vector<std::string> m_csv_candidates;
+
     // UI subsections
     void draw_gui();
     void draw_top_bar();
