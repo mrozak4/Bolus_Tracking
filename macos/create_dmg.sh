@@ -13,7 +13,7 @@ set -e  # Exit immediately on any error
 
 # ---- Configuration ----------------------------------------------------------
 APP_NAME='Bolus Tracking Studio'
-VERSION='3.0.0'
+VERSION="${GITHUB_REF_NAME:-$(git -C "$(dirname "${BASH_SOURCE[0]}")/.." describe --tags --abbrev=0 2>/dev/null || echo 'dev')}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
