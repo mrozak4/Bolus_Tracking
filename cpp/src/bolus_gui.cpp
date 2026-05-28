@@ -709,20 +709,53 @@ void save_results_csv(const std::string& path, const std::vector<CsvRecord>& rec
 /**
  * @brief Search for the ROI text file in the same directory or subdirectories.
  */
+/**
+ * @brief Generate candidate stem prefixes for flexible file matching.
+ *
+ * Progressively strips trailing underscore-delimited tokens from the stem
+ * so that e.g. "3554_bolus1_baseline_123-300_shifted" also tries
+ * "3554_bolus1_baseline_123-300", "3554_bolus1_baseline", etc.
+ */
+static std::vector<std::string> build_stem_candidates(const std::string& stem) {
+    std::vector<std::string> candidates;
+    std::string s = stem;
+    std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+    candidates.push_back(s);
+    while (true) {
+        auto pos = s.rfind('_');
+        if (pos == std::string::npos || pos == 0) break;
+        s = s.substr(0, pos);
+        // Require at least 8 characters to avoid overly short prefixes
+        if (s.size() < 8) break;
+        candidates.push_back(s);
+    }
+    return candidates;
+}
+
 std::string find_rois_txt_file(const std::string& tiff_path) {
     std::filesystem::path tp(tiff_path);
-    std::filesystem::path parent = tp.parent_path();
+    std::filesystem::path search_dir = tp.parent_path();
     std::string stem = tp.stem().string();
+    auto candidates = build_stem_candidates(stem);
     
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(parent)) {
-        if (entry.is_regular_file()) {
-            std::string name = entry.path().filename().string();
-            std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-            std::string l_stem = stem;
-            std::transform(l_stem.begin(), l_stem.end(), l_stem.begin(), ::tolower);
-            if (name.find(l_stem) != std::string::npos && name.find("rois") != std::string::npos && name.find(".txt") != std::string::npos) {
-                return entry.path().string();
-            }
+    // Search directories: first the TIFF dir (recursively), then the parent of that dir (recursively)
+    std::vector<std::filesystem::path> search_dirs = { search_dir };
+    if (search_dir.has_parent_path() && search_dir != search_dir.root_path()) {
+        search_dirs.push_back(search_dir.parent_path());
+    }
+    
+    for (const auto& dir : search_dirs) {
+        for (const auto& candidate : candidates) {
+            try {
+                for (const auto& entry : std::filesystem::recursive_directory_iterator(dir)) {
+                    if (!entry.is_regular_file()) continue;
+                    std::string name = entry.path().filename().string();
+                    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+                    if (name.find(candidate) != std::string::npos && name.find("rois") != std::string::npos && name.find(".txt") != std::string::npos) {
+                        return entry.path().string();
+                    }
+                }
+            } catch (...) {}
         }
     }
     return "";
@@ -730,20 +763,29 @@ std::string find_rois_txt_file(const std::string& tiff_path) {
 
 std::string find_rois_mat_file(const std::string& tiff_path) {
     std::filesystem::path tp(tiff_path);
-    std::filesystem::path parent = tp.parent_path();
+    std::filesystem::path search_dir = tp.parent_path();
     std::string stem = tp.stem().string();
+    auto candidates = build_stem_candidates(stem);
     
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(parent)) {
-        if (entry.is_regular_file()) {
-            std::string name = entry.path().filename().string();
-            std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-            std::string l_stem = stem;
-            std::transform(l_stem.begin(), l_stem.end(), l_stem.begin(), ::tolower);
-            if (name.find(l_stem) != std::string::npos && 
-                (name.find("mask") != std::string::npos || name.find("maskobj") != std::string::npos) && 
-                name.find(".mat") != std::string::npos) {
-                return entry.path().string();
-            }
+    std::vector<std::filesystem::path> search_dirs = { search_dir };
+    if (search_dir.has_parent_path() && search_dir != search_dir.root_path()) {
+        search_dirs.push_back(search_dir.parent_path());
+    }
+    
+    for (const auto& dir : search_dirs) {
+        for (const auto& candidate : candidates) {
+            try {
+                for (const auto& entry : std::filesystem::recursive_directory_iterator(dir)) {
+                    if (!entry.is_regular_file()) continue;
+                    std::string name = entry.path().filename().string();
+                    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+                    if (name.find(candidate) != std::string::npos && 
+                        (name.find("mask") != std::string::npos || name.find("maskobj") != std::string::npos) && 
+                        name.find(".mat") != std::string::npos) {
+                        return entry.path().string();
+                    }
+                }
+            } catch (...) {}
         }
     }
     return "";
@@ -754,18 +796,27 @@ std::string find_rois_mat_file(const std::string& tiff_path) {
  */
 std::string find_meta_txt_file(const std::string& tiff_path) {
     std::filesystem::path tp(tiff_path);
-    std::filesystem::path parent = tp.parent_path();
+    std::filesystem::path search_dir = tp.parent_path();
     std::string stem = tp.stem().string();
+    auto candidates = build_stem_candidates(stem);
     
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(parent)) {
-        if (entry.is_regular_file()) {
-            std::string name = entry.path().filename().string();
-            std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-            std::string l_stem = stem;
-            std::transform(l_stem.begin(), l_stem.end(), l_stem.begin(), ::tolower);
-            if (name.find(l_stem) != std::string::npos && name.find(".txt") != std::string::npos && name.find("rois") == std::string::npos) {
-                return entry.path().string();
-            }
+    std::vector<std::filesystem::path> search_dirs = { search_dir };
+    if (search_dir.has_parent_path() && search_dir != search_dir.root_path()) {
+        search_dirs.push_back(search_dir.parent_path());
+    }
+    
+    for (const auto& dir : search_dirs) {
+        for (const auto& candidate : candidates) {
+            try {
+                for (const auto& entry : std::filesystem::recursive_directory_iterator(dir)) {
+                    if (!entry.is_regular_file()) continue;
+                    std::string name = entry.path().filename().string();
+                    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+                    if (name.find(candidate) != std::string::npos && name.find(".txt") != std::string::npos && name.find("rois") == std::string::npos) {
+                        return entry.path().string();
+                    }
+                }
+            } catch (...) {}
         }
     }
     return "";
@@ -976,12 +1027,14 @@ void FileBrowser::draw(const char* title) {
         
         if (ImGui::Button(tr ? tr->btn_select_folder.c_str() : "Select Current Folder", ImVec2(180, 0))) {
             selected_file = "";
+            has_result = true;
             open = false;
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
         if (!selected_file.empty()) {
             if (ImGui::Button(tr ? tr->btn_open_file.c_str() : "Open Selected File", ImVec2(180, 0))) {
+                has_result = true;
                 open = false;
                 ImGui::CloseCurrentPopup();
             }
@@ -1446,6 +1499,13 @@ bool BolusApp::init() {
             merge_asian_fonts(io, 18.0f);
         }
         
+        // Load a high-resolution font for the splash screen (MADE BY MATT badge)
+        if (is_valid_ttf(font_bold_path)) {
+            ImFontConfig splash_config;
+            splash_config.PixelSnapH = true;
+            m_font_huge = io.Fonts->AddFontFromFileTTF(font_bold_path.c_str(), 112.0f, &splash_config, LatinRanges);
+        }
+        
         if (!m_font_regular) {
             m_font_regular = io.Fonts->AddFontDefault();
             if (!cjk_font.empty()) {
@@ -1557,6 +1617,7 @@ bool BolusApp::load_dataset(const std::string& csv_path) {
         m_records = read_results_csv(csv_path);
         if (m_records.empty()) {
             std::cerr << "Error: Loaded empty CSV or failed to open: " << csv_path << std::endl;
+            m_load_error_msg = "Failed to open CSV or CSV is empty:\n" + csv_path;
             return false;
         }
 
@@ -1583,10 +1644,12 @@ bool BolusApp::load_dataset(const std::string& csv_path) {
         
         if (!std::filesystem::exists(m_tiff_path)) {
             std::cerr << "TIFF stack not found: " << m_tiff_path << std::endl;
+            m_load_error_msg = "TIFF stack not found:\n" + m_tiff_path + "\n\nLooked for: " + stem + ".tif/.tiff in:\n" + parent.string();
             return false;
         }
         if (m_rois_path.empty() || !std::filesystem::exists(m_rois_path)) {
             std::cerr << "ROI points txt or mat file not found under: " << parent << std::endl;
+            m_load_error_msg = "ROI file not found.\n\nSearched for *rois*.txt or *mask*.mat matching stem:\n" + stem + "\n\nIn directory:\n" + parent.string();
             return false;
         }
         
@@ -2719,23 +2782,24 @@ void BolusApp::draw_pipeline_modal() {
         // Draw the folder browser if open
         if (m_pipeline_browser.open) {
             m_pipeline_browser.draw("Select Subject Folder##pipeline_browse");
-        } else if (m_pipeline_browser_was_open) {
-            // Browser just closed — grab whatever was selected
+        }
+        // When user confirms a selection, grab the path
+        if (m_pipeline_browser.has_result) {
+            m_pipeline_browser.has_result = false;
             if (!m_pipeline_browser.selected_file.empty()) {
-                // A file was selected — use its parent directory
-                std::filesystem::path sel(m_pipeline_browser.selected_file);
+                // File was selected — use its parent directory
+                std::filesystem::path sel(m_pipeline_browser.current_path / m_pipeline_browser.selected_file);
                 if (std::filesystem::is_directory(sel)) {
                     m_pipeline_folder = sel.string();
                 } else {
                     m_pipeline_folder = sel.parent_path().string();
                 }
-                m_pipeline_browser.selected_file.clear();
             } else {
-                // "Select Current Folder" was clicked — use current_path
+                // "Select Current Folder" — use current_path directly
                 m_pipeline_folder = m_pipeline_browser.current_path.string();
             }
+            m_pipeline_browser.selected_file.clear();
         }
-        m_pipeline_browser_was_open = m_pipeline_browser.open;
 
         ImGui::Spacing();
 
@@ -3173,11 +3237,14 @@ void BolusApp::draw_intro_screen(float width, float height) {
             float sub_y = height * 0.65f;
             std::string sub_str = "MADE BY MATT";
             
-            // Visual crescendo: starts at 30% scale and swells dramatically to 400% scale (bold 28px base font size)
+            // Visual crescendo: starts at 30% scale and swells to 400% of 28px = 112px
+            // m_font_huge is loaded at 112px so we render at native resolution for max quality
             float scale = 0.30f + 3.70f * matt_alpha;
             float font_size = 28.0f * scale;
             
-            ImVec2 sub_size = m_font_bold->CalcTextSizeA(font_size, FLT_MAX, 0.0f, sub_str.c_str());
+            ImFont* splash_font = (m_font_huge && font_size <= 112.0f) ? m_font_huge : m_font_bold;
+            
+            ImVec2 sub_size = splash_font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, sub_str.c_str());
             ImVec2 badge_pos_center(width * 0.5f, sub_y);
             float pad_x = 28.0f * scale;
             float pad_y = 10.0f * scale;
@@ -3196,7 +3263,7 @@ void BolusApp::draw_intro_screen(float width, float height) {
             
             ImVec4 mc = ImGui::ColorConvertU32ToFloat4(col_cream);
             mc.w *= matt_alpha * global_alpha;
-            draw_list->AddText(m_font_bold, font_size, badge_pos_center - ImVec2(sub_size.x * 0.5f, sub_size.y * 0.5f), ImGui::ColorConvertFloat4ToU32(mc), sub_str.c_str());
+            draw_list->AddText(splash_font, font_size, badge_pos_center - ImVec2(sub_size.x * 0.5f, sub_size.y * 0.5f), ImGui::ColorConvertFloat4ToU32(mc), sub_str.c_str());
         }
     }
     
@@ -3263,8 +3330,59 @@ void BolusApp::draw_gui() {
         
         // Draw file browser modal
         m_browser.draw("Open Folder or File");
+        // Handle browser result when user confirmed a selection
+        if (m_browser.has_result) {
+            fprintf(stderr, "HAS_RESULT: selected='%s' current='%s'\n",
+                    m_browser.selected_file.c_str(), m_browser.current_path.string().c_str());
+            m_browser.has_result = false;
+            if (!m_browser.selected_file.empty()) {
+                // File selected — build full path
+                std::filesystem::path full_p = m_browser.current_path / m_browser.selected_file;
+                if (std::filesystem::exists(full_p)) {
+                    if (!load_dataset(full_p.string())) {
+                        ImGui::OpenPopup("##LoadError");
+                    }
+                }
+            } else {
+                // Folder selected — scan for a results CSV inside
+                std::filesystem::path dir_p = m_browser.current_path;
+                std::string found_csv;
+                for (const auto& entry : std::filesystem::directory_iterator(dir_p)) {
+                    if (!entry.is_regular_file()) continue;
+                    std::string fname = entry.path().filename().string();
+                    std::string ext = entry.path().extension().string();
+                    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                    if (ext == ".csv" && fname.find("_results") != std::string::npos) {
+                        found_csv = entry.path().string();
+                        break;
+                    }
+                }
+                if (!found_csv.empty()) {
+                    if (!load_dataset(found_csv)) {
+                        ImGui::OpenPopup("##LoadError");
+                    }
+                } else {
+                    m_load_error_msg = "No *_results*.csv file found in folder:\n" + dir_p.string();
+                    ImGui::OpenPopup("##LoadError");
+                }
+            }
+            m_browser.selected_file = "";
+        }
         draw_mip_modal();
         draw_pipeline_modal();
+        
+        // Error popup for failed data loading
+        if (ImGui::BeginPopupModal("##LoadError", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::TextColored(ImVec4(0.88f, 0.35f, 0.20f, 1.0f), "Failed to Load Subject Data");
+            ImGui::Separator();
+            ImGui::TextWrapped("%s", m_load_error_msg.c_str());
+            ImGui::Separator();
+            if (ImGui::Button("OK", ImVec2(120, 0))) {
+                m_load_error_msg.clear();
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
         
         static bool last_item_active = false;
         bool any_item_active = ImGui::IsAnyItemActive();
@@ -3626,15 +3744,6 @@ void BolusApp::draw_sidebar() {
 void BolusApp::draw_main_area() {
     if (m_selected_roi_idx < 0) {
         ImGui::Text("%s", m_tr.text_no_data.c_str());
-        
-        // Check if file browser selected a file
-        if (!m_browser.selected_file.empty()) {
-            std::filesystem::path full_p = m_browser.current_path / m_browser.selected_file;
-            if (std::filesystem::exists(full_p)) {
-                load_dataset(full_p.string());
-                m_browser.selected_file = "";
-            }
-        }
         return;
     }
     

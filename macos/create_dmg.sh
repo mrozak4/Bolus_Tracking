@@ -47,11 +47,17 @@ BUILD_DIR="${PROJECT_ROOT}/build_${ARCH}"
 mkdir -p "${BUILD_DIR}"
 
 # Detect Homebrew prefix for finding dependencies (TIFF, Eigen, ZLIB)
-if [[ "$ARCH" == "arm64" ]]; then
+# Use the actual brew command rather than guessing by target architecture,
+# since the host machine's Homebrew provides the libraries regardless of
+# whether we're cross-compiling or building natively.
+if command -v brew &>/dev/null; then
+    BREW_PREFIX="$(brew --prefix)"
+elif [[ -d "/opt/homebrew" ]]; then
     BREW_PREFIX="/opt/homebrew"
 else
     BREW_PREFIX="/usr/local"
 fi
+echo "    Homebrew prefix: ${BREW_PREFIX}"
 
 echo "==> Configuring CMake (Release, ${ARCH})..."
 cmake -S "${PROJECT_ROOT}" -B "${BUILD_DIR}" \
@@ -80,11 +86,17 @@ mkdir -p "${RESOURCES_DIR}"
 if [[ -f "${PROJECT_ROOT}/macos/app.icns" ]]; then
     cp "${PROJECT_ROOT}/macos/app.icns" "${RESOURCES_DIR}/app.icns"
     echo "    Icon copied."
-elif [[ -f "${PROJECT_ROOT}/resources/app.icns" ]]; then
-    cp "${PROJECT_ROOT}/resources/app.icns" "${RESOURCES_DIR}/app.icns"
+elif [[ -f "${PROJECT_ROOT}/resources/AppIcon.icns" ]]; then
+    cp "${PROJECT_ROOT}/resources/AppIcon.icns" "${RESOURCES_DIR}/AppIcon.icns"
     echo "    Icon copied from resources/."
 else
     echo "    Warning: No app.icns found; bundle will use default icon."
+fi
+
+# Copy runtime resources (fonts, sounds) into the bundle
+if [[ -d "${PROJECT_ROOT}/resources" ]]; then
+    cp -R "${PROJECT_ROOT}/resources" "${RESOURCES_DIR}/resources"
+    echo "    Runtime resources copied into bundle."
 fi
 
 # ---- Code-sign the bundle (ad-hoc) -----------------------------------------

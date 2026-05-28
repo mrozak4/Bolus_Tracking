@@ -297,6 +297,7 @@ public:
     std::vector<DirEntry> entries;
     std::string selected_file;
     bool open = false;
+    bool has_result = false;  // set true when user confirms a selection
     Translation* tr = nullptr;
 
     FileBrowser();
@@ -401,6 +402,9 @@ private:
     bool m_pipeline_enable_plots = false;
     bool m_pipeline_prepare_mats = true;  // auto-convert .mat masks
     StallSettings m_stall_settings;
+
+    // Load error reporting
+    std::string m_load_error_msg;
 
     // UI subsections
     void draw_gui();

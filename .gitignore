@@ -5,6 +5,7 @@ __pycache__/
 .venv/
 build/
 build_x64/
+build_x86_64/
 build_arm64/
 *.app/
 
