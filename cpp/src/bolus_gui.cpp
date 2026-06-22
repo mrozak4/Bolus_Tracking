@@ -2670,13 +2670,15 @@ void BolusApp::draw_mip_modal() {
                 float scale_x = display_w / static_cast<float>(m_mip_tex_width);
                 float scale_y = display_h / static_cast<float>(m_mip_tex_height);
                 
-                float draw_min_x = start_x + rel_min_x * scale_x;
-                float draw_max_x = start_x + rel_max_x * scale_x;
-                float draw_min_y = start_y + rel_min_y * scale_y;
-                float draw_max_y = start_y + rel_max_y * scale_y;
+                std::vector<ImVec2> pts(roi.poly.size());
+                for (size_t i = 0; i < roi.poly.size(); ++i) {
+                    float rel_x = static_cast<float>(roi.poly[i].first - pad_min_x);
+                    float rel_y = static_cast<float>(roi.poly[i].second - pad_min_y);
+                    pts[i] = ImVec2(start_x + rel_x * scale_x, start_y + rel_y * scale_y);
+                }
                 
                 ImDrawList* draw_list = ImGui::GetWindowDrawList();
-                draw_list->AddRect(ImVec2(draw_min_x, draw_min_y), ImVec2(draw_max_x, draw_max_y), ImColor(255, 0, 0, 255), 0.0f, 0, 2.0f);
+                draw_list->AddPolyline(pts.data(), static_cast<int>(pts.size()), ImColor(255, 50, 50, 255), ImDrawFlags_Closed, 3.0f);
             }
         }
         

@@ -401,7 +401,7 @@ end
         xx(tt).c = NewROI(tt).Position(:,1);
         yy(tt).c = NewROI(tt).Position(:,2);
            
-        fitOut(tt).yRaw = squeeze(mean(mean(ImageIn.*squeeze(mask(tt,:,:)))));
+        fitOut(tt).yRaw = sum(sum(ImageIn .* squeeze(mask(tt,:,:)))) / sum(sum(squeeze(mask(tt,:,:))));
         fitOut(tt).yRawOriginal = fitOut(tt).yRaw;
         fitOut(tt).yDenoised = [];
         fitOut(tt).VNum = tt;
