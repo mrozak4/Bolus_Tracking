@@ -12,6 +12,14 @@
 #include <cstring>
 #include <zlib.h>
 
+struct ITKAffineTransform {
+    bool valid = false;
+    double t[6];
+    double center[2];
+    bool has_t = false;
+    bool has_center = false;
+};
+
 namespace MatParser {
 
 inline std::vector<uint8_t> decompress_zlib(const uint8_t* compressed_data, size_t compressed_size) {
@@ -107,7 +115,7 @@ inline std::vector<uint8_t> decompress_mat(const std::vector<uint8_t>& file_cont
     return uncompressed;
 }
 
-inline void parse_mat_variables(const uint8_t* buf, size_t start, size_t end, std::vector<std::vector<std::pair<double, double>>>& found_polygons) {
+inline void parse_mat_variables(const uint8_t* buf, size_t start, size_t end, std::vector<std::vector<std::pair<double, double>>>& found_polygons, ITKAffineTransform* out_transform = nullptr) {
     size_t idx = start;
     while (idx < end) {
         if (idx + 8 > end) {
@@ -228,10 +236,54 @@ inline void parse_mat_variables(const uint8_t* buf, size_t start, size_t end, st
                                             size_t v_data_start = val_idx + v_tag_size;
                                             if (v_data_start + v_size <= mat_end) {
                                                 if (v_size > 8) {
-                                                    parse_mat_variables(buf, v_data_start + 8, v_data_start + v_size, found_polygons);
+                                                    parse_mat_variables(buf, v_data_start + 8, v_data_start + v_size, found_polygons, out_transform);
                                                 }
                                             }
                                         }
+                                    } else if (out_transform && name == "AffineTransform_float_2_2" && val_idx + 8 <= mat_end) {
+                                        uint32_t v_word1 = *reinterpret_cast<const uint32_t*>(buf + val_idx);
+                                        uint32_t v_word2 = *reinterpret_cast<const uint32_t*>(buf + val_idx + 4);
+                                        uint32_t v_type = (v_word1 >> 16) != 0 ? (v_word1 & 0xFFFF) : v_word1;
+                                        uint32_t v_size = (v_word1 >> 16) != 0 ? (v_word1 >> 16) : v_word2;
+                                        size_t v_tag_size = (v_word1 >> 16) != 0 ? 4 : 8;
+                                        size_t v_data_start = val_idx + v_tag_size;
+
+                                        if (v_type == 9 && v_data_start + v_size <= mat_end) { // miDOUBLE
+                                            if (v_size >= 6 * 8) {
+                                                const double* ptr = reinterpret_cast<const double*>(buf + v_data_start);
+                                                for (int k = 0; k < 6; ++k) out_transform->t[k] = ptr[k];
+                                                out_transform->has_t = true;
+                                            }
+                                        } else if (v_type == 7 && v_data_start + v_size <= mat_end) { // miSINGLE
+                                            if (v_size >= 6 * 4) {
+                                                const float* ptr = reinterpret_cast<const float*>(buf + v_data_start);
+                                                for (int k = 0; k < 6; ++k) out_transform->t[k] = ptr[k];
+                                                out_transform->has_t = true;
+                                            }
+                                        }
+                                        if (out_transform->has_t && out_transform->has_center) out_transform->valid = true;
+                                    } else if (out_transform && name == "fixed" && val_idx + 8 <= mat_end) {
+                                        uint32_t v_word1 = *reinterpret_cast<const uint32_t*>(buf + val_idx);
+                                        uint32_t v_word2 = *reinterpret_cast<const uint32_t*>(buf + val_idx + 4);
+                                        uint32_t v_type = (v_word1 >> 16) != 0 ? (v_word1 & 0xFFFF) : v_word1;
+                                        uint32_t v_size = (v_word1 >> 16) != 0 ? (v_word1 >> 16) : v_word2;
+                                        size_t v_tag_size = (v_word1 >> 16) != 0 ? 4 : 8;
+                                        size_t v_data_start = val_idx + v_tag_size;
+
+                                        if (v_type == 9 && v_data_start + v_size <= mat_end) { // miDOUBLE
+                                            if (v_size >= 2 * 8) {
+                                                const double* ptr = reinterpret_cast<const double*>(buf + v_data_start);
+                                                out_transform->center[0] = ptr[0]; out_transform->center[1] = ptr[1];
+                                                out_transform->has_center = true;
+                                            }
+                                        } else if (v_type == 7 && v_data_start + v_size <= mat_end) { // miSINGLE
+                                            if (v_size >= 2 * 4) {
+                                                const float* ptr = reinterpret_cast<const float*>(buf + v_data_start);
+                                                out_transform->center[0] = ptr[0]; out_transform->center[1] = ptr[1];
+                                                out_transform->has_center = true;
+                                            }
+                                        }
+                                        if (out_transform->has_t && out_transform->has_center) out_transform->valid = true;
                                     } else if (mx_class == 6 && dims.size() == 2 && dims[1] == 2 && dims[0] >= 1) {
                                         if (val_idx + 8 <= mat_end) {
                                             uint32_t v_word1 = *reinterpret_cast<const uint32_t*>(buf + val_idx);
@@ -256,7 +308,7 @@ inline void parse_mat_variables(const uint8_t* buf, size_t start, size_t end, st
                                             }
                                         }
                                     } else {
-                                        parse_mat_variables(buf, val_idx, mat_end, found_polygons);
+                                        parse_mat_variables(buf, val_idx, mat_end, found_polygons, out_transform);
                                     }
                                 }
                             }
@@ -292,7 +344,7 @@ inline std::vector<ROI> load_rois_from_mat(const std::string& filepath) {
     }
 
     std::vector<std::vector<std::pair<double, double>>> found_polygons;
-    parse_mat_variables(decompressed.data(), 0, decompressed.size(), found_polygons);
+    parse_mat_variables(decompressed.data(), 0, decompressed.size(), found_polygons, nullptr);
 
     std::vector<ROI> rois;
     int roi_id = 0;
@@ -301,6 +353,26 @@ inline std::vector<ROI> load_rois_from_mat(const std::string& filepath) {
     }
 
     return rois;
+}
+
+inline ITKAffineTransform load_shift_from_mat(const std::string& filepath) {
+    ITKAffineTransform transform;
+    std::ifstream file(filepath, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) return transform;
+    
+    std::streamsize size = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    std::vector<uint8_t> buffer(size);
+    if (!file.read(reinterpret_cast<char*>(buffer.data()), size)) return transform;
+
+    std::vector<uint8_t> decompressed = decompress_mat(buffer);
+    if (decompressed.empty()) return transform;
+
+    std::vector<std::vector<std::pair<double, double>>> found_polygons;
+    parse_mat_variables(decompressed.data(), 0, decompressed.size(), found_polygons, &transform);
+
+    return transform;
 }
 
 } // namespace MatParser

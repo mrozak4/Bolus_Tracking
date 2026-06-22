@@ -1676,6 +1676,39 @@ bool BolusApp::load_dataset(const std::string& csv_path) {
             m_rois = load_rois_txt(m_rois_path);
         }
         
+        std::string tiff_name = std::filesystem::path(m_tiff_path).filename().string();
+        std::string roi_name = std::filesystem::path(m_rois_path).filename().string();
+        std::transform(tiff_name.begin(), tiff_name.end(), tiff_name.begin(), ::tolower);
+        std::transform(roi_name.begin(), roi_name.end(), roi_name.begin(), ::tolower);
+        
+        if ((tiff_name.find("shifted") != std::string::npos || tiff_name.find("registered") != std::string::npos) &&
+            (roi_name.find("shifted") == std::string::npos && roi_name.find("registered") == std::string::npos)) {
+            
+            std::string shift_stem = stem;
+            size_t us_pos = shift_stem.find("_");
+            if (us_pos != std::string::npos) shift_stem = shift_stem.substr(0, us_pos);
+            
+            std::filesystem::path shift_path = parent / "shift_info" / (shift_stem + "_shift.mat");
+            if (!std::filesystem::exists(shift_path)) shift_path = parent / (shift_stem + "_shift.mat");
+            if (!std::filesystem::exists(shift_path)) shift_path = parent.parent_path() / "shift_info" / (shift_stem + "_shift.mat");
+            if (!std::filesystem::exists(shift_path)) shift_path = parent.parent_path() / (shift_stem + "_shift.mat");
+            
+            if (std::filesystem::exists(shift_path)) {
+                ITKAffineTransform tf = MatParser::load_shift_from_mat(shift_path.string());
+                if (tf.valid) {
+                    for (auto& roi : m_rois) {
+                        for (auto& pt : roi.poly) {
+                            double in_x = pt.first, in_y = pt.second;
+                            double dx = in_x - tf.center[0], dy = in_y - tf.center[1];
+                            pt.first = tf.t[0] * dx + tf.t[1] * dy + tf.center[0] + tf.t[4];
+                            pt.second = tf.t[2] * dx + tf.t[3] * dy + tf.center[1] + tf.t[5];
+                        }
+                    }
+                    std::cout << "Applied affine transform from " << shift_path << std::endl;
+                }
+            }
+        }
+        
         if (m_tiff.frames.empty() || m_rois.empty()) {
             std::cerr << "Error: TIFF frame list or ROI list is empty." << std::endl;
             return false;
