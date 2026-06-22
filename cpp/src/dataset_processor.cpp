@@ -515,12 +515,21 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
         if (std::filesystem::exists(shift_path)) {
             ITKAffineTransform tf = MatParser::load_shift_from_mat(shift_path.string());
             if (tf.valid) {
-                for (auto& roi : rois) {
-                    for (auto& pt : roi.poly) {
-                        double in_x = pt.first, in_y = pt.second;
-                        double dx = in_x - tf.center[0], dy = in_y - tf.center[1];
-                        pt.first = tf.t[0] * dx + tf.t[1] * dy + tf.center[0] + tf.t[4];
-                        pt.second = tf.t[2] * dx + tf.t[3] * dy + tf.center[1] + tf.t[5];
+                double det = tf.t[0] * tf.t[3] - tf.t[1] * tf.t[2];
+                if (std::abs(det) > 1e-10) {
+                    double inv0 = tf.t[3] / det;
+                    double inv1 = -tf.t[1] / det;
+                    double inv2 = -tf.t[2] / det;
+                    double inv3 = tf.t[0] / det;
+
+                    for (auto& roi : rois) {
+                        for (auto& pt : roi.poly) {
+                            double in_x = pt.first, in_y = pt.second;
+                            double dx = in_x - tf.center[0] - tf.t[4];
+                            double dy = in_y - tf.center[1] - tf.t[5];
+                            pt.first = inv0 * dx + inv1 * dy + tf.center[0];
+                            pt.second = inv2 * dx + inv3 * dy + tf.center[1];
+                        }
                     }
                 }
                 std::cout << "Applied affine transform from " << shift_path << std::endl;
