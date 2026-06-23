@@ -364,6 +364,7 @@ private:
 
     bool m_showing_intro = true;
     double m_intro_start_time = -1.0;
+    bool m_disable_auto_shift = false;
 
     // MIP popup modal state
     GLuint m_mip_texture_id = 0;

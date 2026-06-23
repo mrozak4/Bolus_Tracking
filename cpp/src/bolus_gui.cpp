@@ -1702,7 +1702,8 @@ bool BolusApp::load_dataset(const std::string& csv_path) {
         std::transform(tiff_name.begin(), tiff_name.end(), tiff_name.begin(), ::tolower);
         std::transform(roi_name.begin(), roi_name.end(), roi_name.begin(), ::tolower);
         
-        if ((tiff_name.find("shifted") != std::string::npos || tiff_name.find("registered") != std::string::npos) &&
+        if (!m_disable_auto_shift && 
+            (tiff_name.find("shifted") != std::string::npos || tiff_name.find("registered") != std::string::npos) &&
             (roi_name.find("shifted") == std::string::npos && roi_name.find("registered") == std::string::npos)) {
             
             std::string shift_stem = stem;
@@ -3595,7 +3596,7 @@ void BolusApp::draw_top_bar() {
     // Align controls to the right dynamically on the same line as the title to eliminate vertical dead space
     float title_w = ImGui::CalcTextSize(m_tr.title_app.c_str()).x;
     float right_margin = 16.0f;
-    float buttons_width = 140.0f + 145.0f + 145.0f + 100.0f + 100.0f + 100.0f + 120.0f + 130.0f + ImGui::GetStyle().ItemSpacing.x * 8.0f;
+    float buttons_width = 140.0f + 145.0f + 145.0f + 100.0f + 100.0f + 100.0f + 120.0f + 130.0f + 200.0f + ImGui::GetStyle().ItemSpacing.x * 9.0f;
     float start_x = ImGui::GetWindowWidth() - buttons_width - right_margin;
     if (start_x < title_w + 20.0f) {
         start_x = title_w + 20.0f; // Prevent overlapping
@@ -3696,6 +3697,8 @@ void BolusApp::draw_top_bar() {
     if (ImGui::Button(m_tr.btn_clear_data.c_str(), ImVec2(145, 24))) {
         clear_subject_data();
     }
+    ImGui::SameLine();
+    ImGui::Checkbox("Disable ROI Auto-Shift", &m_disable_auto_shift);
     ImGui::SameLine();
     if (ImGui::Button(m_tr.btn_save_state.c_str(), ImVec2(100, 24))) {
         if (!m_csv_path.empty()) {
