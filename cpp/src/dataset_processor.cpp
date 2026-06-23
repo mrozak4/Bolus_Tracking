@@ -516,6 +516,9 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
             ITKAffineTransform tf = MatParser::load_shift_from_mat(shift_path.string());
             if (tf.valid) {
                 double det = tf.t[0] * tf.t[3] - tf.t[1] * tf.t[2];
+                std::cout << "DEBUG SHIFT MAT:\n";
+                std::cout << "t = [" << tf.t[0] << ", " << tf.t[1] << ", " << tf.t[2] << ", " << tf.t[3] << ", " << tf.t[4] << ", " << tf.t[5] << "]\n";
+                std::cout << "center = [" << tf.center[0] << ", " << tf.center[1] << "]\n";
                 if (std::abs(det) > 1e-10) {
                     double inv0 = tf.t[3] / det;
                     double inv1 = -tf.t[1] / det;
@@ -530,6 +533,9 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
                             pt.first = inv0 * dx + inv1 * dy + tf.center[0];
                             pt.second = inv2 * dx + inv3 * dy + tf.center[1];
                         }
+                    }
+                    if (!rois.empty() && !rois[0].poly.empty()) {
+                        std::cout << "ROI 0 first point: " << rois[0].poly[0].first << ", " << rois[0].poly[0].second << std::endl;
                     }
                 }
                 std::cout << "Applied affine transform from " << shift_path << std::endl;

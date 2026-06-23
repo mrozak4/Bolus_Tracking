@@ -367,11 +367,55 @@ inline ITKAffineTransform load_shift_from_mat(const std::string& filepath) {
     if (!file.read(reinterpret_cast<char*>(buffer.data()), size)) return transform;
 
     std::vector<uint8_t> decompressed = decompress_mat(buffer);
-    if (decompressed.empty()) return transform;
+    if (!decompressed.empty()) {
+        std::vector<std::vector<std::pair<double, double>>> found_polygons;
+        parse_mat_variables(decompressed.data(), 0, decompressed.size(), found_polygons, &transform);
+        if (transform.valid) return transform;
+    }
 
-    std::vector<std::vector<std::pair<double, double>>> found_polygons;
-    parse_mat_variables(decompressed.data(), 0, decompressed.size(), found_polygons, &transform);
+    // Fallback for MATLAB v4 (ITK Transform native format)
+    size_t idx = 0;
+    while (idx + 20 <= buffer.size()) {
+        int32_t mtype = *reinterpret_cast<const int32_t*>(&buffer[idx]);
+        int32_t mrows = *reinterpret_cast<const int32_t*>(&buffer[idx + 4]);
+        int32_t ncols = *reinterpret_cast<const int32_t*>(&buffer[idx + 8]);
+        int32_t imagf = *reinterpret_cast<const int32_t*>(&buffer[idx + 12]);
+        int32_t namelen = *reinterpret_cast<const int32_t*>(&buffer[idx + 16]);
+        idx += 20;
 
+        if (namelen <= 0 || idx + namelen > buffer.size()) break;
+        std::string name(reinterpret_cast<const char*>(&buffer[idx]), namelen - 1);
+        idx += namelen;
+
+        size_t num_elements = mrows * ncols;
+        if (mtype == 0) { // double
+            if (idx + num_elements * 8 > buffer.size()) break;
+            const double* ptr = reinterpret_cast<const double*>(&buffer[idx]);
+            if (name == "AffineTransform_float_2_2" && num_elements >= 6) {
+                for (int k = 0; k < 6; ++k) transform.t[k] = ptr[k];
+                transform.has_t = true;
+            } else if (name == "fixed" && num_elements >= 2) {
+                transform.center[0] = ptr[0]; transform.center[1] = ptr[1];
+                transform.has_center = true;
+            }
+            idx += num_elements * 8;
+        } else if (mtype == 10) { // float
+            if (idx + num_elements * 4 > buffer.size()) break;
+            const float* ptr = reinterpret_cast<const float*>(&buffer[idx]);
+            if (name == "AffineTransform_float_2_2" && num_elements >= 6) {
+                for (int k = 0; k < 6; ++k) transform.t[k] = ptr[k];
+                transform.has_t = true;
+            } else if (name == "fixed" && num_elements >= 2) {
+                transform.center[0] = ptr[0]; transform.center[1] = ptr[1];
+                transform.has_center = true;
+            }
+            idx += num_elements * 4;
+        } else {
+            break;
+        }
+    }
+    
+    if (transform.has_t && transform.has_center) transform.valid = true;
     return transform;
 }
 
