@@ -1646,6 +1646,8 @@ bool BolusApp::load_dataset(const std::string& csv_path) {
             stem = stem.substr(0, res_pos);
         }
         
+        std::string orig_stem = stem;
+        
         // Strip _registered or _shifted to always load the original unregistered image
         size_t reg_pos = stem.find("_registered");
         if (reg_pos != std::string::npos) {
@@ -1659,6 +1661,15 @@ bool BolusApp::load_dataset(const std::string& csv_path) {
         m_tiff_path = (parent / (stem + ".tif")).string();
         if (!std::filesystem::exists(m_tiff_path)) {
             m_tiff_path = (parent / (stem + ".tiff")).string();
+        }
+        
+        // Fallback to the original stem if the unregistered image isn't available
+        if (!std::filesystem::exists(m_tiff_path)) {
+            stem = orig_stem;
+            m_tiff_path = (parent / (stem + ".tif")).string();
+            if (!std::filesystem::exists(m_tiff_path)) {
+                m_tiff_path = (parent / (stem + ".tiff")).string();
+            }
         }
         
         m_rois_path = find_rois_txt_file(m_tiff_path);
