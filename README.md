@@ -132,6 +132,9 @@ open "Bolus Tracking Studio.app"   # macOS
 
 The app includes 42 languages, integrated batch pipeline ("Run Full Pipeline" button), interactive curve fitting, drag-and-drop onset/peak/end markers, ROI MIP viewer, sort-by-fit-quality option (ROI#, QC severity, or CNR), Force PASS/FAIL/STALL override buttons, STALL badge support, and full triage workflow.
 
+> [!NOTE]
+> **ROI Auto-Shifting:** The app automatically attempts to shift ROIs if it detects they were drawn on an unregistered image but are being loaded over a registered one (based on the presence of `_registered` or `_shifted` in the filenames). If your dataset naming convention doesn't perfectly match this heuristic (for instance, if polygons were drawn directly on the registered image but lack `_registered` in their text file name), use the **Disable ROI Auto-Shift** checkbox in the top bar to force the app to use the exact polygons as drawn without mathematical shifting.
+
 > [!TIP]
 > **Create a distributable DMG:** Run `./macos/create_dmg.sh` to build and package the app.
 
