@@ -679,6 +679,52 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
         }
     }
     
+    // --- Vessel Type Classification (Dataset Level) ---
+    std::vector<double> all_amps;
+    for (const auto& rec : results) {
+        if (rec.qc_flag == "PASS" && rec.stall_flag == 0) {
+            all_amps.push_back(rec.f_amp);
+        }
+    }
+    double median_amp = 0.0;
+    if (!all_amps.empty()) {
+        median_amp = SignalProcessor::compute_median(all_amps);
+    }
+    
+    std::vector<int> large_vessel_indices;
+    for (size_t i = 0; i < results.size(); ++i) {
+        if (results[i].qc_flag == "PASS" && results[i].stall_flag == 0) {
+            if (results[i].f_amp > 2.5 * median_amp) {
+                large_vessel_indices.push_back(i);
+            }
+            results[i].ves_type = "C";
+        } else if (results[i].stall_flag == 1) {
+            results[i].ves_type = "S";
+        } else {
+            results[i].ves_type = "U";
+        }
+    }
+    
+    for (int idx : large_vessel_indices) {
+        if (results[idx].ont < median_ont - 0.5) {
+            results[idx].ves_type = "A";
+        } else if (results[idx].ont > median_ont + 0.5) {
+            results[idx].ves_type = "V";
+        } else {
+            results[idx].ves_type = "V";
+        }
+    }
+    
+    if (!large_vessel_indices.empty()) {
+        int earliest_large = large_vessel_indices[0];
+        for (int idx : large_vessel_indices) {
+            if (results[idx].ont < results[earliest_large].ont) {
+                earliest_large = idx;
+            }
+        }
+        results[earliest_large].ves_type = "A";
+    }
+    
     std::ofstream out(out_csv);
     if (!out.is_open()) {
         std::cerr << "Failed to open output CSV: " << out_csv << std::endl;

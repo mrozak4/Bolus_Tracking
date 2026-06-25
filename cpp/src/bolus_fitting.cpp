@@ -122,26 +122,22 @@ AutoEstimateResults BolusFitter::auto_estimate_params(const std::vector<double>&
     
     double thresh = baseline + std::max(3.0 * sd_base, 0.05 * amp);
     int start_idx = 0;
-    for (int i = max_idx - 1; i >= 0; --i) {
-        if (tr[i] < thresh) {
-            start_idx = i;
-            break;
-        }
-    }
-    
-    int deriv_start_idx = 0;
-    double slope_thresh = 0.15 * max_deriv;
-    for (int i = rise_idx; i >= 0; --i) {
-        if (deriv_rise[i] < slope_thresh) {
-            deriv_start_idx = i;
-            break;
-        }
-    }
-    if (deriv_start_idx > start_idx) {
-        if ((double)(deriv_start_idx - start_idx) / (fr * up_f) > 2.0) {
-            // Fallback to amplitude threshold alone
-        } else {
-            start_idx = deriv_start_idx;
+    int persist_frames = std::max(1, (int)std::round(1.0 * fr * up_f)); // 1.0 seconds persistence
+    for (int i = 0; i < max_idx; ++i) {
+        if (tr[i] > thresh) {
+            bool persists = true;
+            int check_len = std::min(persist_frames, max_idx - i);
+            for (int j = 1; j < check_len; ++j) {
+                if (tr[i + j] <= thresh) {
+                    persists = false;
+                    break;
+                }
+            }
+            if (persists) {
+                // Return the index just before it crosses the threshold consistently
+                start_idx = std::max(0, i - 1);
+                break;
+            }
         }
     }
     

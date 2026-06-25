@@ -1747,12 +1747,13 @@ bool BolusApp::load_dataset(const std::string& csv_path) {
         
         precompute_all_traces();
         
-        if (m_records.size() != m_cache.size()) {
+        if (m_records.size() != m_cache.size() || m_records.size() != m_rois.size()) {
             std::cerr << "Warning: Mismatch between CSV record count (" << m_records.size()
-                      << ") and ROI cache count (" << m_cache.size() << "). Aligning to minimum." << std::endl;
-            size_t min_sz = std::min(m_records.size(), m_cache.size());
+                      << "), ROI count (" << m_rois.size() << ") and ROI cache count (" << m_cache.size() << "). Aligning to minimum." << std::endl;
+            size_t min_sz = std::min({m_records.size(), m_cache.size(), m_rois.size()});
             m_records.resize(min_sz);
             m_cache.resize(min_sz);
+            m_rois.resize(min_sz);
         }
         
         // Reconstruct missing interactive markers if NaN

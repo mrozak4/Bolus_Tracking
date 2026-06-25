@@ -198,13 +198,15 @@ To prevent non-physical fits (e.g. infinite/negative values, extremely slow bolu
 ### Quality Control Triage Status (`QC_Flag`):
 - **`PASS`**: The fit completed successfully, parameters did not land within 1% of absolute solver bounds, $F\_CNR > 5.0$, $F\_FWHM \in [0.5, 15.0]\text{ s}$, and $F\_T2p \in [0.1, 10.0]\text{ s}$.
 - **`WARN`**: The fit succeeded, but one or more parameters crossed the warning limits, $F\_CNR \in [3.0, 5.0]$, or one parameter is near a fitting solver boundary (evaluated against relaxed bounds of `Amplitude: [1.0, max_amp]`, `T2p: [0.01, 12.0]`, and `FWHM: [0.1, 20.0]` if a second-pass refit was run).
+- **`STALL`**: The bolus signal exhibits stall-like characteristics (e.g. extremely late onset, extremely slow transit, step-function rise, or severe baseline instability). Heuristics are tuned specifically for aged vasculature.
 - **`FAIL`**: The fit diverged, returned `NaN`, or had a $F\_CNR < 3.0$.
 
 ### Kinetics-Based Vessel Type Suggestions (`VesType`):
-Fits flagged as valid are classified using calculated kinetics metrics:
-- **Arteriole (`A`)**: Early onset ($OnT < 1.8\text{ s}$) and rapid transit time ($TTm < 3.0\text{ s}$).
-- **Venule (`V`)**: Late onset ($OnT > 3.0\text{ s}$) or prolonged transit time ($TTm > 4.5\text{ s}$).
-- **Capillary (`C`)**: Fits falling into intermediate ranges.
+Fits flagged as valid are classified using calculated kinetics metrics at the dataset level using "earliest-onset large vessel" ranking:
+- **Arteriole (`A`)**: Identified as the large-amplitude vessel (Amplitude > 2.5× median) with the absolute earliest onset ($OnT$).
+- **Venule (`V`)**: Identified as other large-amplitude vessels with late onsets.
+- **Capillary (`C`)**: Standard transit profiles and non-large-vessel traces.
+- **Stall (`S`)**: Capillary stalls or extremely prolonged transits.
 - **Unknown (`U`)**: Failed or `NaN` fits.
 
 These boundaries are automatically applied across the C++ pipeline, the Python batch process script, and the interactive GUI. Override options are available via CLI flags (e.g. `--min-t2p`, `--max-amp`, etc.).

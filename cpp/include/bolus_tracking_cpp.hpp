@@ -63,13 +63,13 @@ struct QCSettings {
 };
 
 struct StallSettings {
-    double ont_offset = 3.0;     // Heuristic A: onset > median + ont_offset
-    double ont_mult = 2.5;       // Heuristic A: onset > ont_mult × median
-    double t2p_mult = 2.5;       // Heuristic A: t2p > t2p_mult × median
-    double t2p_abs = 12.0;       // Heuristic A: t2p > t2p_abs (absolute)
-    double sd_base = 15.0;       // Heuristic B: raw_sd_base > sd_base
-    double step_t2p = 0.8;       // Heuristic C: t2p < step_t2p
-    double step_fwhm = 6.0;      // Heuristic C: fwhm > step_fwhm
+    double ont_offset = 4.0;     // Heuristic A: onset > median + ont_offset
+    double ont_mult = 3.0;       // Heuristic A: onset > ont_mult × median
+    double t2p_mult = 3.0;       // Heuristic A: t2p > t2p_mult × median
+    double t2p_abs = 15.0;       // Heuristic A: t2p > t2p_abs (absolute)
+    double sd_base = 20.0;       // Heuristic B: raw_sd_base > sd_base
+    double step_t2p = 0.6;       // Heuristic C: t2p < step_t2p
+    double step_fwhm = 8.0;      // Heuristic C: fwhm > step_fwhm
 };
 
 struct AutoEstimateResults {

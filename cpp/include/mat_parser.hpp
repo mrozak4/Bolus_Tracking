@@ -303,7 +303,9 @@ inline void parse_mat_variables(const uint8_t* buf, size_t start, size_t end, st
                                                     for (int k = 0; k < n_points; ++k) {
                                                         poly[k] = {double_ptr[k], double_ptr[k + n_points]};
                                                     }
-                                                    found_polygons.push_back(poly);
+                                                    if (n_points >= 3) {
+                                                        found_polygons.push_back(poly);
+                                                    }
                                                 }
                                             }
                                         }
