@@ -199,7 +199,7 @@ public:
     static std::string determine_qc_flag(double f_amp, double f_t2p, double f_fwhm, double f_m, double f_cnr,
                                          double min_amp, double max_amp, double min_t2p, double max_t2p,
                                          double min_fwhm, double max_fwhm, bool fit_success, bool pass2_run = false,
-                                         double observed_peak_amp = 0.0);
+                                         double observed_peak_amp = 0.0, double sd_base = 0.0);
     static std::string suggest_vessel_type(double ont, double t2p, double fwhm, double amp, const std::string& qc_flag);
 };
 

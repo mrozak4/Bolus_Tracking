@@ -260,7 +260,7 @@ FitRecord DatasetProcessor::process_single_roi(int roi_id, const std::vector<std
         qc_flag = BolusFitter::determine_qc_flag(popt[0], popt[1], popt[2], popt[3], f_cnr,
                                                   fitter.min_amp, fitter.max_amp, final_min_t2p, final_max_t2p,
                                                   final_min_fwhm, final_max_fwhm, fit_success, pass2_run,
-                                                  raw_amp);
+                                                  raw_amp, auto_res.sd_base);
     } else {
         qc_flag = "FAIL";
     }
@@ -508,8 +508,10 @@ bool DatasetProcessor::process_dataset_file(const std::string& tiff_path, const 
         if (us_pos != std::string::npos) shift_stem = shift_stem.substr(0, us_pos);
         
         std::filesystem::path shift_path = parent / "shift_info" / (shift_stem + "_shift.mat");
+        if (!std::filesystem::exists(shift_path)) shift_path = parent / "shifts" / (shift_stem + "_shift.mat");
         if (!std::filesystem::exists(shift_path)) shift_path = parent / (shift_stem + "_shift.mat");
         if (!std::filesystem::exists(shift_path)) shift_path = parent.parent_path() / "shift_info" / (shift_stem + "_shift.mat");
+        if (!std::filesystem::exists(shift_path)) shift_path = parent.parent_path() / "shifts" / (shift_stem + "_shift.mat");
         if (!std::filesystem::exists(shift_path)) shift_path = parent.parent_path() / (shift_stem + "_shift.mat");
         
         if (std::filesystem::exists(shift_path)) {

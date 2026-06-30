@@ -1711,8 +1711,10 @@ bool BolusApp::load_dataset(const std::string& csv_path) {
             if (us_pos != std::string::npos) shift_stem = shift_stem.substr(0, us_pos);
             
             std::filesystem::path shift_path = parent / "shift_info" / (shift_stem + "_shift.mat");
+            if (!std::filesystem::exists(shift_path)) shift_path = parent / "shifts" / (shift_stem + "_shift.mat");
             if (!std::filesystem::exists(shift_path)) shift_path = parent / (shift_stem + "_shift.mat");
             if (!std::filesystem::exists(shift_path)) shift_path = parent.parent_path() / "shift_info" / (shift_stem + "_shift.mat");
+            if (!std::filesystem::exists(shift_path)) shift_path = parent.parent_path() / "shifts" / (shift_stem + "_shift.mat");
             if (!std::filesystem::exists(shift_path)) shift_path = parent.parent_path() / (shift_stem + "_shift.mat");
             
             if (std::filesystem::exists(shift_path)) {
@@ -1949,9 +1951,8 @@ void BolusApp::load_gui_state() {
         if (m_gui_roi_states[i].fit_source == "manual") {
             run_fit_on_record(i, false);
         } else if (m_gui_roi_states[i].fit_source == "override") {
-            m_records[i].qc_flag = "PASS";
+            m_records[i].qc_flag = m_gui_roi_states[i].qc_flag;
             m_records[i].fit_source = "override";
-            m_gui_roi_states[i].qc_flag = "PASS";
             precompute_fit_plot(i);
         } else {
             precompute_fit_plot(i);
@@ -2489,7 +2490,7 @@ void BolusApp::run_fit_on_record(int idx, bool is_auto) {
                     popt[0], popt[1], popt[2], popt[3], rec.f_cnr,
                     m_fitter.min_amp, m_fitter.max_amp, m_fitter.min_t2p, actual_max_t2p,
                     m_fitter.min_fwhm, actual_max_fwhm, fit_success, pass2_run,
-                    guess_amp
+                    guess_amp, c.sd_base
                 );
                 
                 if (std::isnan(rec.auc) || std::isnan(rec.aucn) || std::isnan(rec.ttlb) || 

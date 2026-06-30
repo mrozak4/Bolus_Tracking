@@ -120,15 +120,15 @@ AutoEstimateResults BolusFitter::auto_estimate_params(const std::vector<double>&
     
     double amp = max_val - baseline;
     
-    double thresh = baseline + std::max(3.0 * sd_base, 0.05 * amp);
+    double thresh = baseline + std::max(2.0 * sd_base, 0.02 * amp);
     int start_idx = 0;
-    int persist_frames = std::max(1, (int)std::round(1.0 * fr * up_f)); // 1.0 seconds persistence
+    int persist_frames = std::max(1, (int)std::round(0.5 * fr * up_f)); // 0.5 seconds persistence
     for (int i = 0; i < max_idx; ++i) {
-        if (tr[i] > thresh) {
+        if (smoothed_rise[i] > thresh) {
             bool persists = true;
             int check_len = std::min(persist_frames, max_idx - i);
             for (int j = 1; j < check_len; ++j) {
-                if (tr[i + j] <= thresh) {
+                if (smoothed_rise[i + j] <= thresh) {
                     persists = false;
                     break;
                 }
@@ -466,11 +466,22 @@ bool BolusFitter::is_near_bounds(double val, double low, double high) {
 std::string BolusFitter::determine_qc_flag(double f_amp, double f_t2p, double f_fwhm, double f_m, double f_cnr,
                                            double min_amp, double max_amp, double min_t2p, double max_t2p,
                                            double min_fwhm, double max_fwhm, bool fit_success, bool pass2_run,
-                                           double observed_peak_amp) {
+                                           double observed_peak_amp, double sd_base) {
     if (!fit_success || std::isnan(f_amp) || std::isnan(f_t2p) || std::isnan(f_fwhm) || std::isnan(f_m) || std::isnan(f_cnr)) {
         return "FAIL";
     }
     if (f_cnr < 3.0) {
+        return "FAIL";
+    }
+    // Rule A: raw trace CNR < 3 means no discernible bolus above noise
+    if (sd_base > 0.0 && observed_peak_amp > 0.0) {
+        double raw_cnr = observed_peak_amp / sd_base;
+        if (raw_cnr < 3.0) {
+            return "FAIL";
+        }
+    }
+    // Rule B: borderline CNR with FWHM at solver upper bound
+    if (f_cnr < 5.0 && f_fwhm >= 20.0) {
         return "FAIL";
     }
     bool near_bounds = false;
@@ -500,6 +511,10 @@ std::string BolusFitter::determine_qc_flag(double f_amp, double f_t2p, double f_
                               
     if (!near_bounds && f_cnr > 5.0 && inside_pass_ranges && !poor_fit) {
         return "PASS";
+    }
+    // Rule C: FWHM below physiological minimum for capillary transit
+    if (f_fwhm < 2.0) {
+        return "WARN";
     }
     return "WARN";
 }
